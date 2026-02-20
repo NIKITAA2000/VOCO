@@ -1,15 +1,16 @@
 import { Router, Request, Response } from "express";
 import { nanoid } from "nanoid";
+import { AccessToken } from "livekit-server-sdk";
 import { db } from "../lib/db.js";
 import { authenticate } from "../middleware/auth.js";
 import { createRoomSchema } from "../schemas/index.js";
+import { config } from "../config/index.js";
 
 const router = Router();
 
-// All room routes require authentication
 router.use(authenticate);
 
-// POST /api/rooms — create a new room
+// POST /api/rooms
 router.post("/", async (req: Request, res: Response) => {
   try {
     const parsed = createRoomSchema.safeParse(req.body);
@@ -31,7 +32,6 @@ router.post("/", async (req: Request, res: Response) => {
       ownerId: req.user!.userId,
     });
 
-    // Auto-add owner as participant
     db.addParticipant(req.user!.userId, room.id, "OWNER");
 
     const owner = db.findUserById(req.user!.userId);
@@ -49,14 +49,14 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/rooms — list user's rooms
+// GET /api/rooms
 router.get("/", async (req: Request, res: Response) => {
   try {
     const rooms = db.findRoomsByUser(req.user!.userId);
 
     const result = rooms.map((room) => {
       const owner = db.findUserById(room.ownerId);
-      const activeCount = db.getActiveParticipants(room.id).length;
+      const activeCount = db.getUniqueActiveCount(room.id);
       return {
         ...room,
         owner: owner ? { id: owner.id, username: owner.username } : null,
@@ -71,7 +71,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/rooms/:slug — get room by slug
+// GET /api/rooms/:slug
 router.get("/:slug", async (req: Request, res: Response) => {
   try {
     const room = db.findRoomBySlug(req.params.slug);
@@ -97,7 +97,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/rooms/:slug/join — join room
+// POST /api/rooms/:slug/join — join & get LiveKit token
 router.post("/:slug/join", async (req: Request, res: Response) => {
   try {
     const room = db.findRoomBySlug(req.params.slug);
@@ -112,18 +112,43 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       return;
     }
 
-    const activeCount = db.getActiveParticipants(room.id).length;
-    if (activeCount >= room.maxUsers) {
-      res.status(400).json({ error: "Комната заполнена" });
-      return;
+    // Check capacity only for NEW users (not already in room)
+    const isAlreadyIn = db.isUserInRoom(req.user!.userId, room.id);
+    if (!isAlreadyIn) {
+      const activeCount = db.getUniqueActiveCount(room.id);
+      if (activeCount >= room.maxUsers) {
+        res.status(400).json({ error: "Комната заполнена" });
+        return;
+      }
     }
 
     const role = room.ownerId === req.user!.userId ? "OWNER" : "PARTICIPANT";
     db.addParticipant(req.user!.userId, room.id, role);
 
+    // Generate LiveKit token
+    const at = new AccessToken(
+      config.livekit.apiKey,
+      config.livekit.apiSecret,
+      {
+        identity: req.user!.userId,
+        name: req.user!.username,
+      }
+    );
+
+    at.addGrant({
+      roomJoin: true,
+      room: room.slug,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    });
+
+    const livekitToken = await at.toJwt();
+
     res.json({
       message: "Присоединились к комнате",
-      // LiveKit токен будет здесь после подключения LiveKit
+      token: livekitToken,
+      livekitUrl: config.livekit.url.replace("ws://", "http://"),
       room: { id: room.id, name: room.name, slug: room.slug },
     });
   } catch (error) {
@@ -132,7 +157,7 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/rooms/:slug/leave — leave room
+// POST /api/rooms/:slug/leave
 router.post("/:slug/leave", async (req: Request, res: Response) => {
   try {
     const room = db.findRoomBySlug(req.params.slug);
@@ -150,7 +175,7 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/rooms/:slug — close room (owner only)
+// DELETE /api/rooms/:slug
 router.delete("/:slug", async (req: Request, res: Response) => {
   try {
     const room = db.findRoomBySlug(req.params.slug);

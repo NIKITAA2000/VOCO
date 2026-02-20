@@ -1,3 +1,6 @@
+// Временное хранилище в памяти (замена Prisma + PostgreSQL)
+// Данные живут пока работает сервер, при перезапуске сбрасываются.
+
 export interface User {
   id: string;
   email: string;
@@ -102,8 +105,29 @@ class InMemoryDB {
     );
   }
 
+  getUniqueActiveCount(roomId: string): number {
+    const active = this.getActiveParticipants(roomId);
+    const uniqueUserIds = new Set(active.map((p) => p.userId));
+    return uniqueUserIds.size;
+  }
+
+  isUserInRoom(userId: string, roomId: string): boolean {
+    return this.participants.some(
+      (p) => p.userId === userId && p.roomId === roomId && p.leftAt === null
+    );
+  }
+
   getActiveParticipantsWithUsers(roomId: string) {
-    return this.getActiveParticipants(roomId).map((p) => {
+    const active = this.getActiveParticipants(roomId);
+    // Deduplicate by userId
+    const seen = new Set<string>();
+    const unique = active.filter((p) => {
+      if (seen.has(p.userId)) return false;
+      seen.add(p.userId);
+      return true;
+    });
+
+    return unique.map((p) => {
       const user = this.findUserById(p.userId);
       return {
         ...p,
@@ -119,6 +143,14 @@ class InMemoryDB {
     roomId: string,
     role: Participant["role"]
   ): Participant {
+    // Don't create duplicate — if user already active in room, return existing
+    const existing = this.participants.find(
+      (p) => p.userId === userId && p.roomId === roomId && p.leftAt === null
+    );
+    if (existing) {
+      return existing;
+    }
+
     const participant: Participant = {
       id: crypto.randomUUID(),
       userId,
@@ -141,5 +173,4 @@ class InMemoryDB {
   }
 }
 
-// Единственный экземпляр "базы данных"
 export const db = new InMemoryDB();
