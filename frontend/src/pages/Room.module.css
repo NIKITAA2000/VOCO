@@ -1,0 +1,87 @@
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.roomHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.roomName {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.roomSlug {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.videoArea {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Override LiveKit theme to match VOCO */
+[data-lk-theme="default"] {
+  --lk-bg: #0a0a0f;
+  --lk-bg2: #12121a;
+  --lk-control-bg: #1a1a28;
+  --lk-control-hover-bg: #222233;
+  --lk-accent-bg: #0066FF;
+  --lk-danger-bg: #ef4444;
+  --lk-border-color: #222233;
+}
+
+.loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--brand-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.errorBox {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.errorBox h3 {
+  color: var(--error);
+}
+
+.errorBox p {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}

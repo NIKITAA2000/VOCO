@@ -1,44 +1,34 @@
 import express from "express";
 import cors from "cors";
 import { config } from "./config/index.js";
+import { initDatabase } from "./lib/db.js";
 import authRoutes from "./routes/auth.js";
 import roomRoutes from "./routes/rooms.js";
 
 const app = express();
 
-// --- Middleware ---
-app.use(
-  cors({
-    origin: config.cors.origin,
-    credentials: true,
-  })
-);
+app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(express.json());
 
-// --- Routes ---
+// Routes
 app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
-  });
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
 
-// --- 404 handler ---
-app.use((_req, res) => {
-  res.status(404).json({ error: "Маршрут не найден" });
-});
+// Start server
+async function start() {
+  try {
+    await initDatabase();
+    app.listen(config.port, () => {
+      console.log(`VOCO backend running on http://localhost:${config.port}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
 
-// --- Start server ---
-app.listen(config.port, () => {
-  console.log(`
-  Backend запущен
-  http://localhost:${config.port}
-  Режим: ${config.nodeEnv}
-  `);
-});
-
-export default app;
+start();

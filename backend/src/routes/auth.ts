@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../lib/db.js";
-import { generateToken, authenticate } from "../middleware/auth.js";
+import { generateToken } from "../middleware/auth.js";
 import { registerSchema, loginSchema } from "../schemas/index.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -21,20 +22,30 @@ router.post("/register", async (req: Request, res: Response) => {
     const { email, username, password } = parsed.data;
 
     // Check if user exists
-    if (db.findUserByEmail(email)) {
-      res.status(409).json({ error: "Пользователь с таким email уже существует" });
-      return;
-    }
-    if (db.findUserByUsername(username)) {
-      res.status(409).json({ error: "Пользователь с таким username уже существует" });
+    const existing = await db.query(
+      "SELECT id, email, username FROM users WHERE email = $1 OR username = $2",
+      [email, username]
+    );
+
+    if (existing.rows.length > 0) {
+      const field = existing.rows[0].email === email ? "email" : "username";
+      res.status(409).json({
+        error: `Пользователь с таким ${field} уже существует`,
+      });
       return;
     }
 
-    // Hash password & create user
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = db.createUser({ email, username, password: hashedPassword });
 
-    // Generate JWT
+    const result = await db.query(
+      `INSERT INTO users (email, username, password)
+       VALUES ($1, $2, $3)
+       RETURNING id, email, username, created_at AS "createdAt"`,
+      [email, username, hashedPassword]
+    );
+
+    const user = result.rows[0];
+
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -43,7 +54,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
     res.status(201).json({
       message: "Регистрация успешна",
-      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt },
+      user,
       token,
     });
   } catch (error) {
@@ -65,12 +76,18 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 
     const { email, password } = parsed.data;
-    const user = db.findUserByEmail(email);
 
-    if (!user) {
+    const result = await db.query(
+      "SELECT id, email, username, password FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
       res.status(401).json({ error: "Неверный email или пароль" });
       return;
     }
+
+    const user = result.rows[0];
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
@@ -86,7 +103,11 @@ router.post("/login", async (req: Request, res: Response) => {
 
     res.json({
       message: "Вход выполнен",
-      user: { id: user.id, email: user.email, username: user.username },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
       token,
     });
   } catch (error) {
@@ -98,22 +119,18 @@ router.post("/login", async (req: Request, res: Response) => {
 // GET /api/auth/me
 router.get("/me", authenticate, async (req: Request, res: Response) => {
   try {
-    const user = db.findUserById(req.user!.userId);
+    const result = await db.query(
+      `SELECT id, email, username, avatar_url AS "avatarUrl", created_at AS "createdAt"
+       FROM users WHERE id = $1`,
+      [req.user!.userId]
+    );
 
-    if (!user) {
+    if (result.rows.length === 0) {
       res.status(404).json({ error: "Пользователь не найден" });
       return;
     }
 
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        avatarUrl: user.avatarUrl,
-        createdAt: user.createdAt,
-      },
-    });
+    res.json({ user: result.rows[0] });
   } catch (error) {
     console.error("Get me error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
