@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  # --- PostgreSQL ---
+  postgres:
+    image: postgres:15
+    container_name: voco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voco
+      POSTGRES_PASSWORD: voco_secret
+      POSTGRES_DB: voco_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- LiveKit Server ---
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: voco-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"   # HTTP / WebSocket
+      - "7881:7881"   # RTC over TCP
+      - "7882:7882"   # TURN/TLS
+      - "50000-50060:50000-50060/udp"  # WebRTC UDP
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+
+volumes:
+  postgres_data:
