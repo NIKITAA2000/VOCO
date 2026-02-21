@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: voco-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: voco
+      POSTGRES_PASSWORD: I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=
+      POSTGRES_DB: voco_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: voco-livekit
+    restart: always
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882"
+      - "50000-50060:50000-50060/udp"
+    volumes:
+      - ./livekit.prod.yaml:/etc/livekit.yaml
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: voco-backend
+    restart: always
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: OOGL/ieZ8oDfOqi9Al2PfrrQUqA+k2/RSDdjnt2WM6Q=
+      LIVEKIT_API_KEY: voco_prod_key
+      LIVEKIT_API_SECRET: JqN5rJ8p+gEZCniGmFMp7iZo68d2bZGlueGwv6I2e0Q=
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_PUBLIC_URL: wss://voco-meet.ru:7880
+      CORS_ORIGIN: https://voco-meet.ru
+      DATABASE_URL: postgresql://voco:I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=@postgres:5432/voco_db
+    depends_on:
+      - postgres
+      - livekit
+
+  nginx:
+    image: nginx:alpine
+    container_name: voco-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - backend
+
+  certbot:
+    image: certbot/certbot
+    container_name: voco-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+
+volumes:
+  postgres_data:

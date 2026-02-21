@@ -13,7 +13,7 @@ interface Props {
   user: any;
 }
 
-export function RoomPage({ user }: Props) {
+export function RoomPage({ user: _user }: Props) {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [token, setToken] = useState("");
