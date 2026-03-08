@@ -220,7 +220,7 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
     res.json({
       message: "Присоединились к комнате",
       token: livekitToken,
-      livekitUrl: config.livekit.url.replace("ws://", "http://"),
+      livekitUrl: "https://voco-meet.ru/livekit/",
       room: { id: room.id, name: room.name, slug: room.slug },
     });
   } catch (error) {
