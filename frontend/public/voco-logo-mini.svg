@@ -1,0 +1,28 @@
+<svg width="187" height="150" viewBox="0 0 187 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M62 50L112 150L187 0H174.5H162L112 100L87 50H62Z" fill="white"/>
+  <path d="M38 0L88 100L138 0H113L88 50L63 0H38Z" fill="white"/>
+  <path d="M62 0L112 100L162 0H137L112 50L87 0H62Z" fill="white"/>
+  <path d="M50 25L100 125L150 25H125L100 75L75 25H50Z" fill="black"/>
+  <rect y="25" width="20" height="50" fill="white"/>
+  <rect x="10" y="50" width="20" height="50" fill="white"/>
+  <rect x="20" y="75" width="20" height="50" fill="white"/>
+  <rect x="30" y="100" width="20" height="50" fill="white"/>
+  <rect x="50" y="125" width="62" height="25" fill="white"/>
+  <rect width="75" height="25" fill="white"/>
+  <rect x="50" y="25" width="20" height="25" fill="black"/>
+  <rect x="60" y="50" width="20" height="25" fill="black"/>
+  <rect x="70" y="75" width="20" height="25" fill="black"/>
+  <rect x="80" y="100" width="20" height="25" fill="black"/>
+  <rect x="30" y="25" width="10" height="25" fill="#0077FF"/>
+  <rect x="40" y="50" width="10" height="25" fill="#0077FF"/>
+  <rect x="60" y="100" width="10" height="25" fill="#0077FF"/>
+  <rect x="50" y="75" width="10" height="25" fill="#0077FF"/>
+  <rect x="20" y="25" width="10" height="25" fill="#00FF00"/>
+  <rect x="30" y="50" width="10" height="25" fill="#00FF00"/>
+  <rect x="40" y="75" width="10" height="25" fill="#00FF00"/>
+  <rect x="50" y="100" width="10" height="25" fill="#00FF00"/>
+  <rect x="50" y="50" width="10" height="25" fill="#8000FF"/>
+  <rect x="70" y="100" width="10" height="25" fill="#8000FF"/>
+  <rect x="60" y="75" width="10" height="25" fill="#8000FF"/>
+  <rect x="40" y="25" width="10" height="25" fill="#8000FF"/>
+</svg>

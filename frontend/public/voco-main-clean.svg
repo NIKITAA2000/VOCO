@@ -1,0 +1,59 @@
+<svg width="1440" height="900" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+
+<rect x="857" y="800" width="353" height="100" transform="rotate(-90 857 800)" fill="url(#g0)"/>
+<rect width="257" height="100" transform="matrix(0 1 1 0 857 0)" fill="url(#g1)"/>
+
+<rect x="742" y="800" width="353" height="100" transform="rotate(-90 742 800)" fill="url(#g2)"/>
+<rect width="257" height="100" transform="matrix(0 1 1 0 742 0)" fill="url(#g3)"/>
+
+<rect x="627" y="800" width="353" height="100" transform="rotate(-90 627 800)" fill="url(#g4)"/>
+<rect width="263" height="100" transform="matrix(0 1 1 0 627 0)" fill="url(#g5)"/>
+
+<rect x="482" y="800" width="353" height="130" transform="rotate(-90 482 800)" fill="url(#g6)"/>
+<rect width="257" height="130" transform="matrix(0 1 1 0 482 0)" fill="url(#g7)"/>
+
+<path d="M957 372C957 399.614 934.614 422 907 422C879.386 422 857 399.614 857 372C857 344.386 879.386 322 907 322C934.614 322 957 344.386 957 372ZM882 372C882 385.807 893.193 397 907 397C920.807 397 932 385.807 932 372C932 358.193 920.807 347 907 347C893.193 347 882 358.193 882 372Z" fill="black"/>
+<rect x="907" y="347" width="25" height="50" fill="black"/>
+<path d="M827.355 407.355C820.363 414.348 811.454 419.11 801.755 421.039C792.055 422.969 782.002 421.978 772.866 418.194C763.73 414.41 755.921 408.001 750.427 399.779C744.932 391.556 742 381.889 742 372C742 362.111 744.932 352.444 750.427 344.221C755.921 335.999 763.73 329.59 772.866 325.806C782.002 322.022 792.055 321.031 801.755 322.961C811.454 324.89 820.363 329.652 827.355 336.645L809.678 354.322C806.181 350.826 801.727 348.445 796.877 347.48C792.028 346.516 787.001 347.011 782.433 348.903C777.865 350.795 773.96 354 771.213 358.111C768.466 362.222 767 367.055 767 372C767 376.945 768.466 381.778 771.213 385.889C773.96 390 777.865 393.205 782.433 395.097C787.001 396.989 792.028 397.484 796.877 396.52C801.727 395.555 806.181 393.174 809.678 389.678L827.355 407.355Z" fill="black"/>
+<path d="M727 372C727 399.614 704.614 422 677 422C649.386 422 627 399.614 627 372C627 344.386 649.386 322 677 322C704.614 322 727 344.386 727 372ZM652 372C652 385.807 663.193 397 677 397C690.807 397 702 385.807 702 372C702 358.193 690.807 347 677 347C663.193 347 652 358.193 652 372Z" fill="black"/>
+<rect x="677" y="347" width="25" height="50" fill="black"/>
+<path d="M512 322L562 422L612 322H587L562 372L537 322H512Z" fill="black"/>
+<rect x="512" y="322" width="20" height="25" fill="black"/>
+<rect x="522" y="347" width="20" height="25" fill="black"/>
+<rect x="532" y="372" width="20" height="25" fill="black"/>
+<rect x="542" y="397" width="20" height="25" fill="black"/>
+<rect x="492" y="322" width="10" height="25" fill="#0077FF"/>
+<rect x="502" y="347" width="10" height="25" fill="#0077FF"/>
+<rect x="522" y="397" width="10" height="25" fill="#0077FF"/>
+<rect x="512" y="372" width="10" height="25" fill="#0077FF"/>
+<rect x="482" y="322" width="10" height="25" fill="#00FF00"/>
+<rect x="492" y="347" width="10" height="25" fill="#00FF00"/>
+<rect x="502" y="372" width="10" height="25" fill="#00FF00"/>
+<rect x="512" y="397" width="10" height="25" fill="#00FF00"/>
+<rect x="512" y="347" width="10" height="25" fill="#8000FF"/>
+<rect x="532" y="397" width="10" height="25" fill="#8000FF"/>
+<rect x="522" y="372" width="10" height="25" fill="#8000FF"/>
+<rect x="502" y="322" width="10" height="25" fill="#8000FF"/>
+<rect x="857" y="282" width="100" height="25" fill="black"/>
+<rect x="867" y="282" width="10" height="25" fill="#0077FF"/>
+<rect x="857" y="282" width="10" height="25" fill="#00FF00"/>
+<rect x="877" y="282" width="10" height="25" fill="#8000FF"/>
+<rect x="627" y="282" width="100" height="25" fill="black"/>
+<rect x="627" y="282" width="10" height="25" fill="#00FF00"/>
+<rect x="637" y="282" width="10" height="25" fill="#0077FF"/>
+<rect x="647" y="282" width="10" height="25" fill="#8000FF"/>
+
+<defs>
+<linearGradient id="g0" x1="857" y1="850" x2="1210" y2="850" gradientUnits="userSpaceOnUse"><stop/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g1" x1="0" y1="50" x2="257" y2="50" gradientUnits="userSpaceOnUse"><stop/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g2" x1="742" y1="850" x2="1095" y2="850" gradientUnits="userSpaceOnUse"><stop stop-color="#8000FF"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g3" x1="0" y1="50" x2="257" y2="50" gradientUnits="userSpaceOnUse"><stop stop-color="#8000FF"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g4" x1="627" y1="850" x2="980" y2="850" gradientUnits="userSpaceOnUse"><stop stop-color="#0077FF"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g5" x1="0" y1="50" x2="263" y2="50" gradientUnits="userSpaceOnUse"><stop stop-color="#0077FF"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g6" x1="482" y1="865" x2="835" y2="865" gradientUnits="userSpaceOnUse"><stop stop-color="#00FF00"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+<linearGradient id="g7" x1="0" y1="65" x2="257" y2="65" gradientUnits="userSpaceOnUse"><stop stop-color="#00FF00"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>
+</defs>
+</svg>
+
+
