@@ -1,0 +1,221 @@
+.container {
+  min-height: 100vh;
+  width: 100%;
+  background: #222222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.canvas {
+  position: relative;
+  width: 475px;
+  height: 627px;
+  transform-origin: center center;
+}
+
+.welcome {
+  position: relative;
+  width: 475px;
+  height: 627px;
+}
+
+.logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 475px;
+  height: 140px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.logoImage {
+  width: 475px;
+  height: 140px;
+  display: block;
+}
+
+.tagline {
+  position: absolute;
+  left: 20px;
+  top: 159px;
+  width: 435px;
+  height: 45px;
+  margin: 0;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #ffffff;
+}
+
+.taglineImage {
+  width: 432px;
+  height: 32px;
+  display: block;
+}
+
+.form {
+  position: absolute;
+  inset: 0;
+}
+
+.field {
+  position: absolute;
+  left: 0;
+  width: 475px;
+}
+
+.fieldEmail {
+  top: 216px;
+  height: 76px;
+}
+
+.fieldUsername {
+  top: 304px;
+  height: 76px;
+}
+
+.fieldPassword {
+  top: 392px;
+  height: 76px;
+}
+
+.label {
+  position: absolute;
+  left: 20px;
+  top: 0;
+  margin: 0;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+}
+
+.input {
+  position: absolute;
+  left: 0;
+  top: 26px;
+  width: 475px;
+  height: 50px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 100px;
+  padding: 0 20px;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  outline: none;
+}
+
+.input::placeholder {
+  color: #000000;
+}
+
+.error {
+  position: absolute;
+  left: 0;
+  top: 472px;
+  width: 475px;
+  min-height: 23px;
+  color: #ff7f7f;
+  font-family: "Jost", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.submit {
+  position: absolute;
+  left: 0;
+  top: 506px;
+  width: 475px;
+  height: 50px;
+  box-sizing: border-box;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.submitActive {
+  border-color: #00ff00;
+}
+
+.submit:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.links {
+  position: absolute;
+  left: 153px;
+  top: 581px;
+  width: 169px;
+  height: 46px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linksImage {
+  width: 167px;
+  height: 36px;
+  display: block;
+}
+
+.loginHotspot {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 40px;
+  height: 18px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.guestHotspot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 52px;
+  height: 18px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (max-width: 520px), (max-height: 680px) {
+  .canvas {
+    transform: scale(min(calc((100vw - 16px) / 475), calc((100vh - 16px) / 627)));
+  }
+}

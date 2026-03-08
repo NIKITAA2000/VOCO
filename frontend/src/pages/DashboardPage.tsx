@@ -5,6 +5,7 @@ import "./Dashboard.css";
 
 interface Props {
   user: any;
+  onLogout: () => void;
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -13,6 +14,11 @@ type MenuIconProps = {
   viewBox: string;
   paths: string[];
 };
+
+function getSystemTheme(): "light" | "dark" {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 function MenuIcon({ viewBox, paths }: MenuIconProps) {
   return (
@@ -59,20 +65,34 @@ const SETTINGS_PATHS = [
   "M957 497C953.717 497 950.466 496.353 947.433 495.097C944.4 493.84 941.644 491.999 939.322 489.678C937.001 487.356 935.16 484.6 933.903 481.567C932.647 478.534 932 475.283 932 472H907C907 478.566 908.293 485.068 910.806 491.134C913.318 497.2 917.002 502.713 921.645 507.355C926.287 511.998 931.8 515.682 937.866 518.194C943.932 520.707 950.434 522 957 522V497Z",
 ];
 
-export function DashboardPage({ user }: Props) {
-  const [rooms, setRooms] = useState<any[]>([]);
+export function DashboardPage({ user, onLogout }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [roomNameInput, setRoomNameInput] = useState("");
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinCodeInput, setJoinCodeInput] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileUsernameInput, setProfileUsernameInput] = useState("");
+  const [profileEmailInput, setProfileEmailInput] = useState("");
+  const [profilePasswordInput, setProfilePasswordInput] = useState("");
+  const [profileInitialUsername, setProfileInitialUsername] = useState("");
+  const [profileInitialEmail, setProfileInitialEmail] = useState("");
+  const [profileRooms, setProfileRooms] = useState<any[]>([]);
+  const [profileRoomsLoading, setProfileRoomsLoading] = useState(false);
+  const getInitialThemeMode = (): ThemeMode => {
     const saved = localStorage.getItem("voco_theme_mode");
     if (saved === "light" || saved === "dark" || saved === "system") return saved;
     return "system";
+  };
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialThemeMode);
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
+    const mode = getInitialThemeMode();
+    return mode === "system" ? getSystemTheme() : mode;
   });
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("dark");
   const navigate = useNavigate();
+  const isGuestUser = user?.id === "guest" || user?.email === "guest@local";
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -93,21 +113,37 @@ export function DashboardPage({ user }: Props) {
     localStorage.setItem("voco_theme_mode", themeMode);
   }, [themeMode]);
 
-  const loadRooms = async () => {
-    try {
-      const data = await api.getRooms();
-      setRooms(data.rooms);
-    } catch {
-      // ignore
-    }
-  };
-
   useEffect(() => {
+    if (!profileOpen) return;
+
+    let cancelled = false;
+    const loadRooms = async () => {
+      try {
+        setProfileRoomsLoading(true);
+        const data = await api.getRooms();
+        if (!cancelled) {
+          setProfileRooms(Array.isArray(data?.rooms) ? data.rooms : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setProfileRooms([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setProfileRoomsLoading(false);
+        }
+      }
+    };
+
     loadRooms();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [profileOpen]);
 
   const handleCreateRoom = () => {
     setRoomNameInput("");
+    setJoinOpen(false);
     setCreateOpen(true);
   };
 
@@ -128,18 +164,65 @@ export function DashboardPage({ user }: Props) {
   };
 
   const handleJoinBySlug = () => {
-    const joinSlug = window.prompt("Код комнаты");
-    if (!joinSlug?.trim()) return;
-    navigate(`/room/${joinSlug.trim()}`);
+    setJoinCodeInput("");
+    setCreateOpen(false);
+    setJoinOpen(true);
+  };
+
+  const handleJoinSubmit = () => {
+    if (!joinCodeInput.trim()) return;
+    navigate(`/room/${joinCodeInput.trim()}`);
+    setJoinOpen(false);
   };
 
   const handleProfile = () => {
-    window.alert(`Пользователь: ${user?.username || "Гость"}\nКомнат доступно: ${rooms.length}`);
+    if (isGuestUser) {
+      onLogout();
+      navigate("/register");
+      return;
+    }
+    setCreateOpen(false);
+    setJoinOpen(false);
+    setSettingsOpen(false);
+    const initialUsername = user?.username || "";
+    const initialEmail = user?.email || "";
+    setProfileInitialUsername(initialUsername);
+    setProfileInitialEmail(initialEmail);
+    setProfileUsernameInput(initialUsername);
+    setProfileEmailInput(initialEmail);
+    setProfilePasswordInput("");
+    setProfileOpen(true);
   };
 
   const handleSettings = () => {
     setSettingsOpen(true);
   };
+
+  const handleProfileSave = () => {
+    const current = localStorage.getItem("voco_user");
+    const parsed = current ? JSON.parse(current) : {};
+    const updatedUser = {
+      ...parsed,
+      ...user,
+      username: profileUsernameInput.trim() || parsed?.username || user?.username || "",
+      email: profileEmailInput.trim() || parsed?.email || user?.email || "",
+    };
+    localStorage.setItem("voco_user", JSON.stringify(updatedUser));
+    setProfilePasswordInput("");
+    setProfileOpen(false);
+  };
+
+  const profileName = profileUsernameInput.trim() || user?.username || "Иван Иванов";
+  const profileInitials = profileName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part[0]?.toUpperCase() || "")
+    .join("") || "ИИ";
+  const profileHasChanges =
+    profileUsernameInput.trim() !== profileInitialUsername.trim() ||
+    profileEmailInput.trim() !== profileInitialEmail.trim() ||
+    profilePasswordInput.trim().length > 0;
 
   return (
     <main className={`screen ${resolvedTheme === "dark" ? "theme-dark" : "theme-light"}`}>
@@ -243,9 +326,7 @@ export function DashboardPage({ user }: Props) {
                 type="button"
                 onClick={() => setSettingsOpen(false)}
                 aria-label="Закрыть настройки"
-              >
-                ←
-              </button>
+              />
             </div>
 
             <p className="settings-label">Тема</p>
@@ -287,9 +368,7 @@ export function DashboardPage({ user }: Props) {
                 type="button"
                 onClick={() => setCreateOpen(false)}
                 aria-label="Закрыть создание комнаты"
-              >
-                ←
-              </button>
+              />
             </div>
 
             <label className="create-label" htmlFor="new-room-name">
@@ -312,6 +391,143 @@ export function DashboardPage({ user }: Props) {
               disabled={loading || !roomNameInput.trim()}
             >
               Создать
+            </button>
+          </section>
+        </div>
+      )}
+      {joinOpen && (
+        <div className="join-overlay" role="dialog" aria-modal="true" aria-label="Присоединиться">
+          <div className="join-bg-icons" aria-hidden="true" />
+          <section className="join-panel">
+            <div className="join-header">
+              <h2>Присоединиться</h2>
+              <button
+                className="join-close"
+                type="button"
+                onClick={() => setJoinOpen(false)}
+                aria-label="Закрыть присоединение"
+              />
+            </div>
+
+            <label className="join-label" htmlFor="join-room-code">
+              Код комнаты
+            </label>
+            <input
+              id="join-room-code"
+              className="join-input"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value)}
+              placeholder="ABC123"
+              maxLength={120}
+              autoFocus
+            />
+
+            <button
+              className="join-submit"
+              type="button"
+              onClick={handleJoinSubmit}
+              disabled={!joinCodeInput.trim()}
+            >
+              Войти
+            </button>
+          </section>
+        </div>
+      )}
+      {profileOpen && (
+        <div className="profile-overlay" role="dialog" aria-modal="true" aria-label="Профиль">
+          <div className="profile-bg-icons" aria-hidden="true" />
+          <section className="profile-panel">
+            <div className="profile-header">
+              <h2 className="profile-title">Профиль</h2>
+              <button
+                className="profile-close"
+                type="button"
+                onClick={() => setProfileOpen(false)}
+                aria-label="Закрыть профиль"
+              />
+            </div>
+
+            <div className="profile-avatar" aria-hidden="true">
+              {profileInitials}
+            </div>
+            <p className="profile-name">{profileName}</p>
+
+            <p className="profile-active-label">Активные комнаты</p>
+            <section className="profile-active-rooms" aria-label="Активные комнаты">
+              {profileRoomsLoading && <p className="profile-rooms-hint">Загрузка комнат...</p>}
+              {!profileRoomsLoading && profileRooms.length === 0 && (
+                <p className="profile-rooms-hint">Нет активных комнат</p>
+              )}
+              {!profileRoomsLoading && profileRooms.length > 0 && (
+                <ul className="profile-rooms-list">
+                  {profileRooms.slice(0, 6).map((room) => (
+                    <li key={room.id} className="profile-room-item">
+                      <button
+                        type="button"
+                        className="profile-room-link"
+                        onClick={() => navigate(`/room/${room.slug}`)}
+                      >
+                        <span className="profile-room-name">{room.name}</span>
+                        <span className="profile-room-code">{room.slug}</span>
+                        <span className="profile-room-count">{room?._count?.participants ?? 0}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <p className="profile-edit-title">Редактирование профиля</p>
+
+            <label className="profile-label profile-label-username" htmlFor="profile-username">
+              Имя пользователя
+            </label>
+            <input
+              id="profile-username"
+              className="profile-input profile-input-username"
+              value={profileUsernameInput}
+              onChange={(e) => setProfileUsernameInput(e.target.value)}
+              placeholder="yourusername"
+              maxLength={120}
+            />
+
+            <label className="profile-label profile-label-email" htmlFor="profile-email">
+              Почта
+            </label>
+            <input
+              id="profile-email"
+              type="email"
+              className="profile-input profile-input-email"
+              value={profileEmailInput}
+              onChange={(e) => setProfileEmailInput(e.target.value)}
+              placeholder="your@email.com"
+              maxLength={180}
+            />
+
+            <label className="profile-label profile-label-password" htmlFor="profile-password">
+              Пароль
+            </label>
+            <input
+              id="profile-password"
+              type="password"
+              className="profile-input profile-input-password"
+              value={profilePasswordInput}
+              onChange={(e) => setProfilePasswordInput(e.target.value)}
+              placeholder="yourpassword"
+              maxLength={120}
+            />
+
+            <button
+              className="profile-save"
+              type="button"
+              onClick={handleProfileSave}
+              disabled={!profileHasChanges}
+            >
+              Сохранить
+            </button>
+
+            <button className="profile-logout" type="button" onClick={onLogout}>
+              Выйти
             </button>
           </section>
         </div>

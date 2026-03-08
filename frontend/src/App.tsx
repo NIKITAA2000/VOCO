@@ -36,9 +36,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={
-            isAuth ? <Navigate to="/dashboard" /> : <Navigate to="/login" />
-          }
+          element={<Navigate to="/login" />}
         />
         <Route
           path="/login"
@@ -64,7 +62,7 @@ function App() {
           path="/dashboard"
           element={
             isAuth ? (
-              <DashboardPage user={user} />
+              <DashboardPage user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" />
             )

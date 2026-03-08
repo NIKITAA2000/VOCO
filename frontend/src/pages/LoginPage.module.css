@@ -1,0 +1,210 @@
+.container {
+  min-height: 100vh;
+  width: 100%;
+  background: #222222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.canvas {
+  position: relative;
+  width: 475px;
+  height: 539px;
+  transform-origin: center center;
+}
+
+.welcome {
+  position: relative;
+  width: 475px;
+  height: 539px;
+}
+
+.logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 475px;
+  height: 140px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.logoImage {
+  width: 475px;
+  height: 140px;
+  display: block;
+}
+
+.tagline {
+  position: absolute;
+  left: 20px;
+  top: 159px;
+  width: 435px;
+  height: 45px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taglineImage {
+  width: 432px;
+  height: 32px;
+  display: block;
+}
+
+.form {
+  position: absolute;
+  inset: 0;
+}
+
+.field {
+  position: absolute;
+  left: 0;
+  width: 475px;
+}
+
+.fieldEmail {
+  top: 219px;
+  height: 73px;
+}
+
+.fieldPassword {
+  top: 307px;
+  height: 73px;
+}
+
+.label {
+  position: absolute;
+  left: 20px;
+  top: 0;
+  margin: 0;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+}
+
+.input {
+  position: absolute;
+  left: 0;
+  top: 23px;
+  width: 475px;
+  height: 50px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 100px;
+  padding: 0 20px;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  outline: none;
+}
+
+.input::placeholder {
+  color: #000000;
+}
+
+.error {
+  position: absolute;
+  left: 0;
+  top: 388px;
+  width: 475px;
+  min-height: 23px;
+  color: #ff7f7f;
+  font-family: "Jost", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.submit {
+  position: absolute;
+  left: 0;
+  top: 418px;
+  width: 475px;
+  height: 50px;
+  box-sizing: border-box;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.submitActive {
+  border-color: #0077ff;
+}
+
+.submit:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.links {
+  position: absolute;
+  left: 117px;
+  top: 493px;
+  width: 240px;
+  height: 46px;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  align-items: center;
+  column-gap: 4px;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #ffffff;
+}
+
+.linkButton {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  line-height: 23px;
+  cursor: pointer;
+}
+
+.linkRegister {
+  color: #00ff00;
+}
+
+.linkGuest {
+  color: #8000ff;
+}
+
+.break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+@media (max-width: 520px), (max-height: 590px) {
+  .canvas {
+    transform: scale(min(calc((100vw - 16px) / 475), calc((100vh - 16px) / 539)));
+  }
+}
