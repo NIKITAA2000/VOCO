@@ -13,6 +13,16 @@ dist
 dist-ssr
 *.local
 
+# Серверные конфиги
+docker-compose.prod.yml
+livekit.prod.yaml
+nginx.conf
+nginx-ssl.conf
+nginx-temp.conf
+
+# Сборка фронтенда
+frontend/dist/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
