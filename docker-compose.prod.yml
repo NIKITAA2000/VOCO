@@ -39,7 +39,7 @@ services:
       LIVEKIT_API_SECRET: JqN5rJ8p+gEZCniGmFMp7iZo68d2bZGlueGwv6I2e0Q=
       LIVEKIT_URL: ws://livekit:7880
       LIVEKIT_PUBLIC_URL: wss://voco-meet.ru:7880
-      CORS_ORIGIN: https://voco-meet.ru
+      CORS_ORIGIN: https://voco-meet.ru,https://voco.su
       DATABASE_URL: postgresql://voco:I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=@postgres:5432/voco_db
     depends_on:
       - postgres
