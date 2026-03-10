@@ -624,30 +624,32 @@
   z-index: 31;
   background: #222222;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .join-bg-icons {
   position: absolute;
   width: 400px;
-  height: 900px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  height: 1312px;
+  left: calc(50% - 200px);
+  top: 0;
+  transform: none;
   background: center / contain no-repeat url("/join-icons.svg");
   opacity: 1;
+  pointer-events: none;
   z-index: 0;
 }
 
 .join-panel {
   position: relative;
   width: 475px;
-  height: 900px;
+  min-height: 980px;
   max-width: calc(100vw - 28px);
   color: #ffffff;
   z-index: 1;
+  flex: 0 0 475px;
 }
 
 .join-header {
@@ -754,6 +756,102 @@
   cursor: not-allowed;
 }
 
+.join-active-label {
+  margin: 0;
+  position: absolute;
+  left: 0;
+  top: 599px;
+  width: 257px;
+  height: 45px;
+  font-size: 32px;
+  line-height: 46px;
+  font-style: italic;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: #ffffff;
+}
+
+.join-active-rooms {
+  position: absolute;
+  left: 0;
+  top: 662px;
+  width: 475px;
+  height: 288px;
+  box-sizing: border-box;
+  border-radius: 25px;
+  border: 5px solid #ffffff;
+  background: #222222;
+  padding: 17px 0;
+  overflow: auto;
+}
+
+.join-rooms-hint {
+  margin: 0;
+  padding: 0 20px;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.join-rooms-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.join-room-item {
+  margin: 0;
+}
+
+.join-room-link {
+  width: 436px;
+  margin: 0 auto;
+  height: 50px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 100px;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  padding: 0 16px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.join-room-name {
+  display: block;
+  max-width: 38%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.join-room-code {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+
+.join-room-count {
+  min-width: 32px;
+  text-align: right;
+  margin-left: auto;
+}
+
 .theme-light .create-overlay {
   background: #ffffff;
 }
@@ -802,6 +900,24 @@
   color: #ffffff;
 }
 
+.theme-light .join-active-label {
+  color: #000000;
+}
+
+.theme-light .join-active-rooms {
+  background: #ffffff;
+  border-color: #000000;
+}
+
+.theme-light .join-rooms-hint {
+  color: #000000;
+}
+
+.theme-light .join-room-link {
+  background: #000000;
+  color: #ffffff;
+}
+
 .profile-overlay {
   position: absolute;
   inset: 0;
@@ -816,7 +932,7 @@
 .profile-bg-icons {
   position: absolute;
   width: 400px;
-  height: 1548px;
+  height: 1198px;
   left: calc(50% - 200px);
   top: 0;
   transform: none;
@@ -825,10 +941,21 @@
   pointer-events: none;
 }
 
+.profile-bg-icons::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 998px;
+  width: 400px;
+  height: 200px;
+  background: left -1348px / 400px 1548px no-repeat url("/profile-icons.svg");
+  pointer-events: none;
+}
+
 .profile-panel {
   position: relative;
   width: 475px;
-  min-height: 1536px;
+  min-height: 1198px;
   color: #ffffff;
   flex: 0 0 475px;
 }
@@ -836,7 +963,7 @@
 .profile-title {
   margin: 0;
   position: absolute;
-  left: 15px;
+  left: 0;
   top: 239px;
   font-size: 32px;
   line-height: 46px;
@@ -884,17 +1011,17 @@
 .profile-name {
   margin: 0;
   position: absolute;
-  left: 140px;
+  left: 138px;
   top: 352px;
-  width: 335px;
+  width: 183px;
   font-size: 32px;
   line-height: 46px;
   font-style: italic;
   font-weight: 400;
   color: #ffffff;
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-active-label {
@@ -991,8 +1118,8 @@
 .profile-edit-title {
   margin: 0;
   position: absolute;
-  left: 13px;
-  top: 804px;
+  left: 0;
+  top: 466px;
   font-size: 32px;
   line-height: 46px;
   font-style: italic;
@@ -1004,21 +1131,21 @@
   position: absolute;
   left: 20px;
   font-size: 16px;
-  line-height: 17.2px;
-  height: 17.2px;
+  line-height: 23px;
+  height: 23px;
   color: #ffffff;
 }
 
 .profile-label-username {
-  top: 865px;
+  top: 529px;
 }
 
 .profile-label-email {
-  top: 953px;
+  top: 617px;
 }
 
 .profile-label-password {
-  top: 1046px;
+  top: 710px;
 }
 
 .profile-input {
@@ -1037,15 +1164,15 @@
 }
 
 .profile-input-username {
-  top: 888px;
+  top: 552px;
 }
 
 .profile-input-email {
-  top: 976px;
+  top: 640px;
 }
 
 .profile-input-password {
-  top: 1069px;
+  top: 733px;
 }
 
 .profile-input:focus,
@@ -1063,11 +1190,11 @@
 .profile-save {
   position: absolute;
   left: 0;
-  top: 1157px;
+  top: 821px;
   width: 475px;
   height: 50px;
   box-sizing: border-box;
-  border-radius: 22.5px;
+  border-radius: 100px;
   border: 5px solid transparent;
   background: #ffffff;
   color: #000000;
@@ -1087,11 +1214,11 @@
 .profile-logout {
   position: absolute;
   left: 0;
-  top: 1245px;
+  top: 909px;
   width: 475px;
   height: 50px;
   box-sizing: border-box;
-  border-radius: 22.5px;
+  border-radius: 100px;
   border: 5px solid #ff3333;
   background: #ffffff;
   color: #000000;

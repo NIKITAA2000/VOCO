@@ -79,8 +79,8 @@ export function DashboardPage({ user, onLogout }: Props) {
   const [profilePasswordInput, setProfilePasswordInput] = useState("");
   const [profileInitialUsername, setProfileInitialUsername] = useState("");
   const [profileInitialEmail, setProfileInitialEmail] = useState("");
-  const [profileRooms, setProfileRooms] = useState<any[]>([]);
-  const [profileRoomsLoading, setProfileRoomsLoading] = useState(false);
+  const [activeRooms, setActiveRooms] = useState<any[]>([]);
+  const [activeRoomsLoading, setActiveRoomsLoading] = useState(false);
   const getInitialThemeMode = (): ThemeMode => {
     const saved = localStorage.getItem("voco_theme_mode");
     if (saved === "light" || saved === "dark" || saved === "system") return saved;
@@ -114,23 +114,23 @@ export function DashboardPage({ user, onLogout }: Props) {
   }, [themeMode]);
 
   useEffect(() => {
-    if (!profileOpen) return;
+    if (!joinOpen) return;
 
     let cancelled = false;
     const loadRooms = async () => {
       try {
-        setProfileRoomsLoading(true);
+        setActiveRoomsLoading(true);
         const data = await api.getRooms();
         if (!cancelled) {
-          setProfileRooms(Array.isArray(data?.rooms) ? data.rooms : []);
+          setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
         }
       } catch {
         if (!cancelled) {
-          setProfileRooms([]);
+          setActiveRooms([]);
         }
       } finally {
         if (!cancelled) {
-          setProfileRoomsLoading(false);
+          setActiveRoomsLoading(false);
         }
       }
     };
@@ -139,7 +139,7 @@ export function DashboardPage({ user, onLogout }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [profileOpen]);
+  }, [joinOpen]);
 
   const handleCreateRoom = () => {
     setRoomNameInput("");
@@ -430,6 +430,31 @@ export function DashboardPage({ user, onLogout }: Props) {
             >
               Войти
             </button>
+
+            <p className="join-active-label">Недавние комнаты</p>
+            <section className="join-active-rooms" aria-label="Недавние комнаты">
+              {activeRoomsLoading && <p className="join-rooms-hint">Загрузка комнат...</p>}
+              {!activeRoomsLoading && activeRooms.length === 0 && (
+                <p className="join-rooms-hint">Нет недавних комнат</p>
+              )}
+              {!activeRoomsLoading && activeRooms.length > 0 && (
+                <ul className="join-rooms-list">
+                  {activeRooms.slice(0, 4).map((room) => (
+                    <li key={room.id} className="join-room-item">
+                      <button
+                        type="button"
+                        className="join-room-link"
+                        onClick={() => navigate(`/room/${room.slug}`)}
+                      >
+                        <span className="join-room-name">{room.name}</span>
+                        <span className="join-room-code">{room.slug}</span>
+                        <span className="join-room-count">{room?._count?.participants ?? 0}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </section>
         </div>
       )}
@@ -451,31 +476,6 @@ export function DashboardPage({ user, onLogout }: Props) {
               {profileInitials}
             </div>
             <p className="profile-name">{profileName}</p>
-
-            <p className="profile-active-label">Активные комнаты</p>
-            <section className="profile-active-rooms" aria-label="Активные комнаты">
-              {profileRoomsLoading && <p className="profile-rooms-hint">Загрузка комнат...</p>}
-              {!profileRoomsLoading && profileRooms.length === 0 && (
-                <p className="profile-rooms-hint">Нет активных комнат</p>
-              )}
-              {!profileRoomsLoading && profileRooms.length > 0 && (
-                <ul className="profile-rooms-list">
-                  {profileRooms.slice(0, 6).map((room) => (
-                    <li key={room.id} className="profile-room-item">
-                      <button
-                        type="button"
-                        className="profile-room-link"
-                        onClick={() => navigate(`/room/${room.slug}`)}
-                      >
-                        <span className="profile-room-name">{room.name}</span>
-                        <span className="profile-room-code">{room.slug}</span>
-                        <span className="profile-room-count">{room?._count?.participants ?? 0}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
 
             <p className="profile-edit-title">Редактирование профиля</p>
 
