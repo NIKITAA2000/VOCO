@@ -217,10 +217,15 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
 
     const livekitToken = await at.toJwt();
 
+    const livekitUrl =
+      config.nodeEnv === "production"
+        ? "https://voco-meet.ru/livekit/"
+        : config.livekit.url;
+
     res.json({
       message: "Присоединились к комнате",
       token: livekitToken,
-      livekitUrl: "https://voco-meet.ru/livekit/",
+      livekitUrl,
       room: { id: room.id, name: room.name, slug: room.slug },
     });
   } catch (error) {
