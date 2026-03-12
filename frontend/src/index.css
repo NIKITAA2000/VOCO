@@ -38,6 +38,38 @@
   /* Glow */
   --glow-blue: 0 0 40px rgba(0, 102, 255, 0.2);
   --glow-purple: 0 0 40px rgba(124, 58, 237, 0.15);
+
+  /* Auth theme */
+  --auth-page-bg: #222222;
+  --auth-text: #ffffff;
+  --auth-surface: #ffffff;
+  --auth-surface-text: #000000;
+  --auth-button-text: #000000;
+  --auth-input-text: #000000;
+  --auth-placeholder: #666666;
+  --auth-link-text: #ffffff;
+}
+
+:root[data-theme="light"] {
+  --auth-page-bg: #ffffff;
+  --auth-text: #000000;
+  --auth-surface: #000000;
+  --auth-surface-text: #999999;
+  --auth-button-text: #ffffff;
+  --auth-input-text: #ffffff;
+  --auth-placeholder: #999999;
+  --auth-link-text: #000000;
+}
+
+:root[data-theme="dark"] {
+  --auth-page-bg: #222222;
+  --auth-text: #ffffff;
+  --auth-surface: #ffffff;
+  --auth-surface-text: #000000;
+  --auth-button-text: #000000;
+  --auth-input-text: #000000;
+  --auth-placeholder: #666666;
+  --auth-link-text: #ffffff;
 }
 
 * {

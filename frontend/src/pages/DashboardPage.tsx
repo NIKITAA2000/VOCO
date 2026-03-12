@@ -114,6 +114,10 @@ export function DashboardPage({ user, onLogout }: Props) {
   }, [themeMode]);
 
   useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+  }, [resolvedTheme]);
+
+  useEffect(() => {
     if (!joinOpen) return;
 
     let cancelled = false;

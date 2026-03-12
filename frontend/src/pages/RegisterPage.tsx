@@ -46,85 +46,77 @@ export function RegisterPage({ onRegister }: Props) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.canvas}>
-        <section className={styles.welcome} aria-label="Регистрация">
-          <div className={styles.logo}>
-            <img className={styles.logoImage} src="/voco-logo-white.svg" alt="VOCO" />
+      <section className={styles.frame} aria-label="Регистрация">
+        <div className={styles.logo}>
+          <img className={`${styles.logoImage} ${styles.logoImageDark}`} src="/voco-logo-white.svg" alt="VOCO" />
+          <img className={`${styles.logoImage} ${styles.logoImageLight}`} src="/voco-logo.svg" alt="VOCO" />
+        </div>
+        <p className={styles.tagline}>Видеоконференции без границ</p>
+
+        <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={`${styles.field} ${styles.fieldEmail}`}>
+          <p className={styles.label}>Введите почту</p>
+          <input
+            className={styles.input}
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="your@email.ru"
+            required
+          />
           </div>
-          <p className={styles.tagline}>
-            <img className={styles.taglineImage} src="/voco-tagline-white.svg" alt="Видеоконференции без границ" />
-          </p>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={`${styles.field} ${styles.fieldEmail}`}>
-              <p className={styles.label}>Введите почту</p>
-              <input
-                className={styles.input}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-              />
-            </div>
+          <div className={`${styles.field} ${styles.fieldUsername}`}>
+            <p className={styles.label}>Введите имя пользователя</p>
+          <input
+            className={styles.input}
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="username"
+            required
+          />
+          </div>
 
-            <div className={`${styles.field} ${styles.fieldUsername}`}>
-              <p className={styles.label}>Введите имя пользователя</p>
-              <input
-                className={styles.input}
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="username"
-                required
-              />
-            </div>
-
-            <div className={`${styles.field} ${styles.fieldPassword}`}>
-              <p className={styles.label}>Придумайте пароль (минимум 6 символов)</p>
-              <input
-                className={styles.input}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="yourpassword"
-                minLength={6}
-                required
-              />
-            </div>
-
-            {error && <div className={styles.error}>{error}</div>}
-
-            <button
-              type="submit"
-              className={`${styles.submit} ${isFormValid ? styles.submitActive : ""}`}
-              disabled={loading || !isFormValid}
-            >
-              {loading ? "Создаём..." : "Зарегистрироваться"}
-            </button>
-          </form>
-
-          <p className={styles.links}>
-            <img
-              className={styles.linksImage}
-              src="/voco-register-links-white.svg"
-              alt="Уже есть аккаунт? Войти. Или зайдите гостем"
+          <div className={`${styles.field} ${styles.fieldPassword}`}>
+            <p className={styles.label}>Придумайте пароль (минимум 6 символов)</p>
+          <input
+            className={styles.input}
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="password"
+            minLength={6}
+            required
             />
-            <button
-              type="button"
-              className={styles.loginHotspot}
-              onClick={() => navigate("/login")}
-              aria-label="Перейти на страницу входа"
-            />
-            <button
-              type="button"
-              className={styles.guestHotspot}
-              onClick={handleGuestEnter}
-              aria-label="Войти гостем"
-            />
-          </p>
-        </section>
-      </div>
+          </div>
+
+          {error && <div className={styles.error}>{error}</div>}
+
+          <button
+            type="submit"
+            className={`${styles.submit} ${isFormValid ? styles.submitActive : ""}`}
+            disabled={loading || !isFormValid}
+          >
+            {loading ? "Создаём..." : "Зарегистрироваться"}
+          </button>
+        </form>
+
+        <p className={styles.links}>
+          <span>Уже есть аккаунт? </span>
+          <button type="button" className={`${styles.linkButton} ${styles.linkLogin}`} onClick={() => navigate("/login")}>
+            Войти
+          </button>
+          <span className={styles.break} />
+          <span>Или зайдите </span>
+          <button type="button" className={`${styles.linkButton} ${styles.linkGuest}`} onClick={handleGuestEnter}>
+            гостем
+          </button>
+        </p>
+      </section>
     </div>
   );
 }

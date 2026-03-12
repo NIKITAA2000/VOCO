@@ -7,6 +7,18 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { RoomPage } from "./pages/RoomPage";
 import "./index.css";
 
+type GlobalTheme = "light" | "dark";
+type ThemeMode = "light" | "dark" | "system";
+
+function getSystemTheme(): GlobalTheme {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function resolveThemeMode(mode: ThemeMode): GlobalTheme {
+  return mode === "system" ? getSystemTheme() : mode;
+}
+
 function App() {
   const [isAuth, setIsAuth] = useState<boolean>(!!api.getToken());
   const [user, setUser] = useState<any>(() => {
@@ -29,6 +41,26 @@ function App() {
     if (api.getToken() && !user) {
       api.getMe().then((data) => setUser(data.user)).catch(() => handleLogout());
     }
+  }, []);
+
+  useEffect(() => {
+    const applyTheme = () => {
+      const saved = localStorage.getItem("voco_theme_mode");
+      const mode: ThemeMode =
+        saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+      const resolved = resolveThemeMode(mode);
+      document.documentElement.dataset.theme = resolved;
+    };
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    applyTheme();
+    media.addEventListener("change", applyTheme);
+    window.addEventListener("storage", applyTheme);
+
+    return () => {
+      media.removeEventListener("change", applyTheme);
+      window.removeEventListener("storage", applyTheme);
+    };
   }, []);
 
   return (

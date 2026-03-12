@@ -1,30 +1,25 @@
+@import url("https://fonts.googleapis.com/css2?family=Jost:wght@400&display=swap");
+
 .container {
   min-height: 100vh;
   width: 100%;
-  background: #222222;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  background: var(--auth-page-bg);
   overflow: hidden;
+  font-family: "Jost", sans-serif;
 }
 
-.canvas {
+.frame {
   position: relative;
-  width: 475px;
-  height: 627px;
-  transform-origin: center center;
-}
-
-.welcome {
-  position: relative;
-  width: 475px;
-  height: 627px;
+  width: 1440px;
+  height: 1024px;
+  margin: 0 auto;
 }
 
 .logo {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 482.5px;
+  top: 216.97px;
   width: 475px;
   height: 140px;
   display: flex;
@@ -33,34 +28,42 @@
 }
 
 .logoImage {
+  position: absolute;
+  inset: 0;
   width: 475px;
   height: 140px;
   display: block;
 }
 
+.logoImageLight {
+  display: none;
+}
+
+:global(:root[data-theme="light"]) .logoImageDark {
+  display: none;
+}
+
+:global(:root[data-theme="light"]) .logoImageLight {
+  display: block;
+}
+
 .tagline {
   position: absolute;
-  left: 20px;
-  top: 159px;
+  left: 503.5px;
+  top: 376.97px;
   width: 435px;
   height: 45px;
   margin: 0;
-  font-family: "Jost", sans-serif;
-  font-style: italic;
-  font-weight: 400;
-  font-size: 32px;
-  line-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #ffffff;
-}
-
-.taglineImage {
-  width: 432px;
-  height: 32px;
-  display: block;
+  color: var(--auth-text);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 46px;
+  white-space: nowrap;
 }
 
 .form {
@@ -70,90 +73,103 @@
 
 .field {
   position: absolute;
-  left: 0;
   width: 475px;
 }
 
 .fieldEmail {
-  top: 216px;
-  height: 76px;
+  left: 482.5px;
+  top: 428.97px;
+  height: 73.08px;
 }
 
 .fieldUsername {
-  top: 304px;
-  height: 76px;
+  left: 482.5px;
+  top: 509.05px;
+  height: 73.02px;
 }
 
 .fieldPassword {
-  top: 392px;
-  height: 76px;
+  left: 482.5px;
+  top: 589.06px;
+  height: 72.97px;
 }
 
 .label {
   position: absolute;
-  left: 20px;
+  left: 19.5px;
   top: 0;
   margin: 0;
-  font-family: "Jost", sans-serif;
-  font-style: normal;
+  display: flex;
+  align-items: center;
+  color: var(--auth-text);
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
-  display: flex;
-  align-items: center;
-  color: #ffffff;
 }
 
 .input {
   position: absolute;
   left: 0;
-  top: 26px;
+  top: 23.08px;
   width: 475px;
   height: 50px;
-  box-sizing: border-box;
+  padding: 0 19.5px;
   border: 0;
   border-radius: 100px;
-  padding: 0 20px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--auth-surface);
+  color: var(--auth-input-text);
   font-family: "Jost", sans-serif;
-  font-style: normal;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
   outline: none;
+  box-shadow: none;
 }
 
 .input::placeholder {
-  color: #000000;
+  color: var(--auth-placeholder);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--auth-input-text);
+  -webkit-box-shadow: 0 0 0 1000px #00ff00 inset;
+  caret-color: var(--auth-input-text);
+  transition: background-color 9999s ease-in-out 0s;
 }
 
 .error {
   position: absolute;
-  left: 0;
-  top: 472px;
+  left: 482.5px;
+  top: 669.03px;
   width: 475px;
   min-height: 23px;
-  color: #ff7f7f;
-  font-family: "Jost", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 19.5px;
+  color: #d61f1f;
   font-size: 14px;
   line-height: 20px;
-  text-align: center;
 }
 
 .submit {
   position: absolute;
-  left: 0;
-  top: 506px;
+  left: 482.5px;
+  top: 692.03px;
   width: 475px;
   height: 50px;
-  box-sizing: border-box;
-  border-radius: 100px;
   border: 5px solid transparent;
-  background: #ffffff;
-  color: #000000;
+  border-radius: 100px;
+  background: var(--auth-surface);
+  color: var(--auth-button-text);
   font-family: "Jost", sans-serif;
-  font-style: normal;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
@@ -166,56 +182,189 @@
 }
 
 .submit:disabled {
-  opacity: 1;
   cursor: not-allowed;
+  opacity: 1;
 }
 
 .links {
   position: absolute;
-  left: 153px;
-  top: 581px;
+  left: 635.5px;
+  top: 762.03px;
   width: 169px;
-  height: 46px;
+  height: 45px;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  align-content: center;
+  flex-wrap: wrap;
+  text-align: center;
+  color: var(--auth-text);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
 }
 
-.linksImage {
-  width: 167px;
-  height: 36px;
-  display: block;
-}
-
-.loginHotspot {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 40px;
-  height: 18px;
+.linkButton {
   border: 0;
-  margin: 0;
   padding: 0;
+  margin-left: 0.25ch;
   background: transparent;
+  color: var(--auth-link-text);
+  font: inherit;
   cursor: pointer;
 }
 
-.guestHotspot {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 52px;
-  height: 18px;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  cursor: pointer;
+.linkLogin {
+  color: #0077ff;
 }
 
-@media (max-width: 520px), (max-height: 680px) {
-  .canvas {
-    transform: scale(min(calc((100vw - 16px) / 475), calc((100vh - 16px) / 627)));
+.linkGuest {
+  color: #8000ff;
+}
+
+.break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+@media (max-width: 1023px) {
+  .frame {
+    width: 768px;
+    height: 1024px;
+  }
+
+  .logo {
+    left: 146.5px;
+    top: 216.97px;
+  }
+
+  .tagline {
+    left: 167.5px;
+    top: 376.97px;
+  }
+
+  .fieldEmail {
+    left: 146.5px;
+    top: 428.97px;
+  }
+
+  .fieldUsername {
+    left: 146.5px;
+    top: 509.05px;
+  }
+
+  .fieldPassword {
+    left: 146.5px;
+    top: 589.06px;
+  }
+
+  .error {
+    left: 146.5px;
+    top: 669.03px;
+  }
+
+  .submit {
+    left: 146.5px;
+    top: 692.03px;
+  }
+
+  .links {
+    left: 299.5px;
+    top: 762.03px;
+  }
+}
+
+@media (max-width: 767px) {
+  .frame {
+    width: 390px;
+    height: 844px;
+  }
+
+  .logo {
+    left: 10.13px;
+    top: 189.84px;
+    width: 368.74px;
+    height: 108.68px;
+  }
+
+  .logoImage {
+    width: 368.74px;
+    height: 108.68px;
+  }
+
+  .tagline {
+    left: 26.43px;
+    top: 314.04px;
+    width: 337.69px;
+    height: 34.93px;
+    font-size: 24px;
+    line-height: 35px;
+    white-space: nowrap;
+  }
+
+  .field {
+    width: 368.74px;
+  }
+
+  .fieldEmail {
+    left: 10.13px;
+    top: 355.98px;
+    height: 56.72px;
+  }
+
+  .fieldUsername {
+    left: 10.13px;
+    top: 419.71px;
+    height: 56.67px;
+  }
+
+  .fieldPassword {
+    left: 10.13px;
+    top: 483.39px;
+    height: 56.64px;
+  }
+
+  .label {
+    left: 15.14px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .input {
+    top: 17.91px;
+    width: 368.74px;
+    height: 38.81px;
+    padding: 0 15.14px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .error {
+    left: 10.13px;
+    top: 547.03px;
+    width: 368.74px;
+    min-height: 17px;
+    padding-left: 15.14px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .submit {
+    left: 10.13px;
+    top: 564.89px;
+    width: 368.74px;
+    height: 38.81px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .links {
+    left: 128.9px;
+    top: 619.23px;
+    width: 131.19px;
+    height: 34.93px;
+    font-size: 12px;
+    line-height: 17px;
   }
 }
