@@ -1291,3 +1291,23 @@
     transform-origin: top center;
   }
 }
+
+.staging-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #f59e0b;
+  color: #1c1c1c;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  letter-spacing: 0.02em;
+}
+
+.staging-banner a {
+  color: #1c1c1c;
+  text-decoration: underline;
+}

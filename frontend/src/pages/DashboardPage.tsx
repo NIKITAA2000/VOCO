@@ -228,8 +228,18 @@ export function DashboardPage({ user, onLogout }: Props) {
     profileEmailInput.trim() !== profileInitialEmail.trim() ||
     profilePasswordInput.trim().length > 0;
 
+  const isStaging = window.location.hostname === "voco.su";
+
   return (
     <main className={`screen ${resolvedTheme === "dark" ? "theme-dark" : "theme-light"}`}>
+      {isStaging && (
+        <div className="staging-banner">
+          ТЕСТОВЫЙ СЕРВЕР — стабильная версия проекта на{" "}
+          <a href="https://voco-meet.ru" target="_blank" rel="noopener noreferrer">
+            voco-meet.ru
+          </a>
+        </div>
+      )}
       {error && <div className="menu-error">{error}</div>}
 
       <section className="content" aria-label="Главная зона">
