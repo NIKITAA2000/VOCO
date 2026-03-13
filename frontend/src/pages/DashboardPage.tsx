@@ -243,20 +243,6 @@ export function DashboardPage({ user, onLogout }: Props) {
       {error && <div className="menu-error">{error}</div>}
 
       <section className="content" aria-label="Главная зона">
-        <div className="stripes-top" aria-hidden="true">
-          <div className="core-stripe core-stripe-create" />
-          <div className="core-stripe core-stripe-connect" />
-          <div className="core-stripe core-stripe-profile" />
-          <div className="core-stripe core-stripe-settings" />
-        </div>
-
-        <div className="stripes-bottom" aria-hidden="true">
-          <div className="core-stripe core-stripe-create" />
-          <div className="core-stripe core-stripe-connect" />
-          <div className="core-stripe core-stripe-profile" />
-          <div className="core-stripe core-stripe-settings" />
-        </div>
-
         <div className="menu-core" aria-label="VOCO core menu">
           <img
             className="menu-core-source menu-core-source--light"
@@ -274,6 +260,35 @@ export function DashboardPage({ user, onLogout }: Props) {
             width={1440}
             height={900}
           />
+          <img
+            className="menu-core-source menu-core-source--dark-mobile"
+            src="/voco-main-stage-dark-mobile.svg"
+            alt=""
+            aria-hidden="true"
+            width={370}
+            height={744}
+          />
+
+          <div className="menu-mobile-brand" aria-hidden="true">
+            <div className="menu-mobile-brand-logo" />
+          </div>
+
+          <div className="menu-core-stripes" aria-hidden="true">
+            <div className="menu-stripe-zone menu-stripe-zone--top">
+              <div className="menu-stripe mask" />
+              <div className="menu-stripe menu-stripe-create" />
+              <div className="menu-stripe menu-stripe-connect" />
+              <div className="menu-stripe menu-stripe-profile" />
+              <div className="menu-stripe menu-stripe-settings" />
+            </div>
+            <div className="menu-stripe-zone menu-stripe-zone--bottom">
+              <div className="menu-stripe mask" />
+              <div className="menu-stripe menu-stripe-create" />
+              <div className="menu-stripe menu-stripe-connect" />
+              <div className="menu-stripe menu-stripe-profile" />
+              <div className="menu-stripe menu-stripe-settings" />
+            </div>
+          </div>
 
           <div className="menu-buttons" aria-label="Главное меню">
             <button

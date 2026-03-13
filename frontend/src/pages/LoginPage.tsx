@@ -78,7 +78,9 @@ export function LoginPage({ onLogin }: Props) {
             />
           </div>
 
-          {error && <div className={styles.error}>{error}</div>}
+          <div className={`${styles.error} ${error ? "" : styles.errorHidden}`} aria-live="polite">
+            {error || "\u00A0"}
+          </div>
 
           <button
             type="submit"

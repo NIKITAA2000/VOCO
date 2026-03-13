@@ -2,36 +2,36 @@
 
 .container {
   min-height: 100vh;
+  min-height: 100svh;
   width: 100%;
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
   background: var(--auth-page-bg);
-  overflow: hidden;
   font-family: "Jost", sans-serif;
 }
 
 .frame {
-  position: relative;
-  width: 1440px;
-  height: 1024px;
-  margin: 0 auto;
+  width: min(100%, 475px);
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .logo {
-  position: absolute;
-  left: 482.5px;
-  top: 256.98px;
-  width: 475px;
-  height: 140px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  position: relative;
+  width: min(100%, 475px);
+  margin: 0 auto;
+  aspect-ratio: 95 / 28;
 }
 
 .logoImage {
   position: absolute;
   inset: 0;
-  width: 475px;
-  height: 140px;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -48,53 +48,36 @@
 }
 
 .tagline {
-  position: absolute;
-  left: 503.5px;
-  top: 416.98px;
-  width: 435px;
-  height: 45px;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 20px 0 0;
   text-align: center;
   color: var(--auth-text);
   font-style: italic;
   font-weight: 400;
-  font-size: 32px;
-  line-height: 46px;
-  white-space: nowrap;
+  font-size: clamp(20px, 4vw, 32px);
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .form {
-  position: absolute;
-  inset: 0;
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .field {
-  position: absolute;
-  width: 475px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.fieldEmail {
-  left: 482.5px;
-  top: 468.98px;
-  height: 73.08px;
-}
-
-.fieldPassword {
-  left: 482.5px;
-  top: 549.06px;
-  height: 73.46px;
+.field + .field {
+  margin-top: 7px;
 }
 
 .label {
-  position: absolute;
-  left: 19.5px;
-  top: 0;
   margin: 0;
-  display: flex;
-  align-items: center;
+  padding-left: 20px;
   color: var(--auth-text);
   font-weight: 400;
   font-size: 16px;
@@ -102,14 +85,12 @@
 }
 
 .input {
-  position: absolute;
-  left: 0;
-  top: 23.08px;
-  width: 475px;
+  width: 100%;
   height: 50px;
-  padding: 0 19.5px;
+  min-height: 50px;
+  padding: 0 20px;
   border: 0;
-  border-radius: 100px;
+  border-radius: 999px;
   background: var(--auth-surface);
   color: var(--auth-input-text);
   font-family: "Jost", sans-serif;
@@ -133,33 +114,30 @@
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 1000px #0077ff inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-surface) inset;
   caret-color: var(--auth-input-text);
   transition: background-color 9999s ease-in-out 0s;
 }
 
 .error {
-  position: absolute;
-  left: 482.5px;
-  top: 629.52px;
-  width: 475px;
   min-height: 23px;
-  display: flex;
-  align-items: center;
-  padding-left: 19.5px;
+  margin-top: 7px;
+  padding: 0 20px;
   color: #d61f1f;
   font-size: 14px;
-  line-height: 20px;
+  line-height: 23px;
+}
+
+.errorHidden {
+  visibility: hidden;
 }
 
 .submit {
-  position: absolute;
-  left: 482.5px;
-  top: 652.52px;
-  width: 475px;
+  width: 100%;
   height: 50px;
+  min-height: 50px;
   border: 5px solid transparent;
-  border-radius: 100px;
+  border-radius: 999px;
   background: var(--auth-surface);
   color: var(--auth-button-text);
   font-family: "Jost", sans-serif;
@@ -180,28 +158,24 @@
 }
 
 .links {
-  position: absolute;
-  left: 600px;
-  top: 722.02px;
-  width: 240px;
-  height: 45px;
-  margin: 0;
+  margin: 20px auto 0;
+  max-width: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
   align-content: center;
   flex-wrap: wrap;
+  gap: 0 0.25ch;
   text-align: center;
   color: var(--auth-text);
   font-weight: 400;
   font-size: 16px;
-  line-height: 23px;
+  line-height: 1.4;
 }
 
 .linkButton {
   border: 0;
   padding: 0;
-  margin-left: 0.25ch;
   background: transparent;
   color: var(--auth-link-text);
   font: inherit;
@@ -221,134 +195,126 @@
   height: 0;
 }
 
-@media (max-width: 1023px) {
-  .frame {
-    width: 768px;
-    height: 1024px;
-  }
-
-  .logo {
-    left: 146.5px;
-    top: 256.93px;
-  }
-
-  .tagline {
-    left: 167.5px;
-    top: 416.93px;
-  }
-
-  .fieldEmail {
-    left: 146.5px;
-    top: 468.93px;
-    height: 73.08px;
-  }
-
-  .fieldPassword {
-    left: 146.5px;
-    top: 549px;
-    height: 72.99px;
-  }
-
-  .error {
-    left: 146.5px;
-    top: 628.99px;
-  }
-
-  .submit {
-    left: 146.5px;
-    top: 651.99px;
-  }
-
-  .links {
-    left: 264px;
-    top: 722.07px;
-    width: 241px;
-  }
-}
-
 @media (max-width: 767px) {
+  .container {
+    padding-inline: 10px;
+  }
+
   .frame {
-    width: 390px;
-    height: 844px;
-  }
-
-  .logo {
-    left: 10.13px;
-    top: 222.17px;
-    width: 368.74px;
-    height: 108.68px;
-  }
-
-  .logoImage {
-    width: 368.74px;
-    height: 108.68px;
+    width: min(100%, 390px);
   }
 
   .tagline {
-    left: 26.43px;
-    top: 346.38px;
-    width: 337.69px;
-    height: 34.93px;
-    font-size: 24px;
-    line-height: 35px;
+    margin-top: 16px;
+    font-size: clamp(18px, 6.2vw, 24px);
   }
 
-  .field {
-    width: 368.74px;
+  .form {
+    margin-top: 10px;
+    gap: 0;
   }
 
-  .fieldEmail {
-    left: 10.13px;
-    top: 388.31px;
-    height: 56.73px;
-  }
-
-  .fieldPassword {
-    left: 10.13px;
-    top: 452.04px;
-    height: 55.97px;
+  .field + .field {
+    margin-top: 10px;
   }
 
   .label {
-    left: 15.14px;
+    padding-left: 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
-  .input {
-    top: 17.91px;
-    width: 368.74px;
-    height: 38.81px;
-    padding: 0 15.14px;
+  .input,
+  .submit {
+    height: 39px;
+    min-height: 39px;
+    padding: 0 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
   .error {
-    left: 10.13px;
-    top: 515.01px;
-    width: 368.74px;
     min-height: 17px;
-    padding-left: 15.14px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .submit {
-    left: 10.13px;
-    top: 532.86px;
-    width: 368.74px;
-    height: 38.81px;
+    margin-top: 10px;
+    padding-inline: 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
   .links {
-    left: 104px;
-    top: 586.9px;
-    width: 180px;
-    height: 34.93px;
+    margin-top: 15px;
+    max-width: 220px;
     font-size: 12px;
     line-height: 17px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    padding: 50px;
+  }
+
+  .frame {
+    width: 475px;
+  }
+
+  .logo {
+    margin-top: 0;
+  }
+
+  .tagline {
+    margin-top: 20px;
+    font-size: 32px;
+    line-height: 46px;
+  }
+
+  .form {
+    margin-top: 7px;
+    gap: 0;
+  }
+
+  .field + .field {
+    margin-top: 7px;
+  }
+
+  .links {
+    width: 241px;
+    max-width: 241px;
+    margin-top: 20px;
+    font-size: 16px;
+    line-height: 23px;
+  }
+}
+
+@media (max-height: 740px) {
+  .container {
+    align-items: flex-start;
+  }
+
+  .frame {
+    margin: 0;
+  }
+
+  .logo {
+    width: min(100%, 360px);
+    margin-top: 8px;
+  }
+
+  .tagline {
+    margin-top: 12px;
+    font-size: clamp(18px, 3vw, 24px);
+  }
+
+  .form {
+    margin-top: 7px;
+    gap: 0;
+  }
+
+  .field + .field {
+    margin-top: 7px;
+  }
+
+  .links {
+    margin-top: 14px;
   }
 }

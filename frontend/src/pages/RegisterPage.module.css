@@ -2,36 +2,36 @@
 
 .container {
   min-height: 100vh;
+  min-height: 100svh;
   width: 100%;
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
   background: var(--auth-page-bg);
-  overflow: hidden;
   font-family: "Jost", sans-serif;
 }
 
 .frame {
-  position: relative;
-  width: 1440px;
-  height: 1024px;
-  margin: 0 auto;
+  width: min(100%, 475px);
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .logo {
-  position: absolute;
-  left: 482.5px;
-  top: 216.97px;
-  width: 475px;
-  height: 140px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  position: relative;
+  width: min(100%, 475px);
+  margin: 0 auto;
+  aspect-ratio: 95 / 28;
 }
 
 .logoImage {
   position: absolute;
   inset: 0;
-  width: 475px;
-  height: 140px;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -48,74 +48,50 @@
 }
 
 .tagline {
-  position: absolute;
-  left: 503.5px;
-  top: 376.97px;
-  width: 435px;
-  height: 45px;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 20px 0 0;
   text-align: center;
   color: var(--auth-text);
   font-style: italic;
   font-weight: 400;
-  font-size: 32px;
-  line-height: 46px;
-  white-space: nowrap;
+  font-size: clamp(20px, 4vw, 32px);
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .form {
-  position: absolute;
-  inset: 0;
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .field {
-  position: absolute;
-  width: 475px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.fieldEmail {
-  left: 482.5px;
-  top: 428.97px;
-  height: 73.08px;
-}
-
-.fieldUsername {
-  left: 482.5px;
-  top: 509.05px;
-  height: 73.02px;
-}
-
-.fieldPassword {
-  left: 482.5px;
-  top: 589.06px;
-  height: 72.97px;
+.field + .field {
+  margin-top: 7px;
 }
 
 .label {
-  position: absolute;
-  left: 19.5px;
-  top: 0;
   margin: 0;
-  display: flex;
-  align-items: center;
+  padding-left: 20px;
   color: var(--auth-text);
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
+  text-wrap: pretty;
 }
 
 .input {
-  position: absolute;
-  left: 0;
-  top: 23.08px;
-  width: 475px;
+  width: 100%;
   height: 50px;
-  padding: 0 19.5px;
+  min-height: 50px;
+  padding: 0 20px;
   border: 0;
-  border-radius: 100px;
+  border-radius: 999px;
   background: var(--auth-surface);
   color: var(--auth-input-text);
   font-family: "Jost", sans-serif;
@@ -139,34 +115,30 @@
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 1000px #00ff00 inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--auth-surface) inset;
   caret-color: var(--auth-input-text);
   transition: background-color 9999s ease-in-out 0s;
 }
 
 .error {
-  position: absolute;
-  left: 482.5px;
-  top: 669.03px;
-  width: 475px;
   min-height: 23px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 19.5px;
+  margin-top: 7px;
+  padding: 0 20px;
   color: #d61f1f;
   font-size: 14px;
-  line-height: 20px;
+  line-height: 23px;
+}
+
+.errorHidden {
+  visibility: hidden;
 }
 
 .submit {
-  position: absolute;
-  left: 482.5px;
-  top: 692.03px;
-  width: 475px;
+  width: 100%;
   height: 50px;
+  min-height: 50px;
   border: 5px solid transparent;
-  border-radius: 100px;
+  border-radius: 999px;
   background: var(--auth-surface);
   color: var(--auth-button-text);
   font-family: "Jost", sans-serif;
@@ -187,28 +159,24 @@
 }
 
 .links {
-  position: absolute;
-  left: 635.5px;
-  top: 762.03px;
-  width: 169px;
-  height: 45px;
-  margin: 0;
+  margin: 20px auto 0;
+  max-width: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
   align-content: center;
   flex-wrap: wrap;
+  gap: 0 0.25ch;
   text-align: center;
   color: var(--auth-text);
   font-weight: 400;
   font-size: 16px;
-  line-height: 23px;
+  line-height: 1.4;
 }
 
 .linkButton {
   border: 0;
   padding: 0;
-  margin-left: 0.25ch;
   background: transparent;
   color: var(--auth-link-text);
   font: inherit;
@@ -228,143 +196,122 @@
   height: 0;
 }
 
-@media (max-width: 1023px) {
-  .frame {
-    width: 768px;
-    height: 1024px;
-  }
-
-  .logo {
-    left: 146.5px;
-    top: 216.97px;
-  }
-
-  .tagline {
-    left: 167.5px;
-    top: 376.97px;
-  }
-
-  .fieldEmail {
-    left: 146.5px;
-    top: 428.97px;
-  }
-
-  .fieldUsername {
-    left: 146.5px;
-    top: 509.05px;
-  }
-
-  .fieldPassword {
-    left: 146.5px;
-    top: 589.06px;
-  }
-
-  .error {
-    left: 146.5px;
-    top: 669.03px;
-  }
-
-  .submit {
-    left: 146.5px;
-    top: 692.03px;
-  }
-
-  .links {
-    left: 299.5px;
-    top: 762.03px;
-  }
-}
-
 @media (max-width: 767px) {
+  .container {
+    padding-inline: 10px;
+  }
+
   .frame {
-    width: 390px;
-    height: 844px;
-  }
-
-  .logo {
-    left: 10.13px;
-    top: 189.84px;
-    width: 368.74px;
-    height: 108.68px;
-  }
-
-  .logoImage {
-    width: 368.74px;
-    height: 108.68px;
+    width: min(100%, 390px);
   }
 
   .tagline {
-    left: 26.43px;
-    top: 314.04px;
-    width: 337.69px;
-    height: 34.93px;
-    font-size: 24px;
-    line-height: 35px;
-    white-space: nowrap;
+    margin-top: 16px;
+    font-size: clamp(18px, 6.2vw, 24px);
   }
 
-  .field {
-    width: 368.74px;
+  .form {
+    margin-top: 10px;
+    gap: 0;
   }
 
-  .fieldEmail {
-    left: 10.13px;
-    top: 355.98px;
-    height: 56.72px;
-  }
-
-  .fieldUsername {
-    left: 10.13px;
-    top: 419.71px;
-    height: 56.67px;
-  }
-
-  .fieldPassword {
-    left: 10.13px;
-    top: 483.39px;
-    height: 56.64px;
+  .field + .field {
+    margin-top: 10px;
   }
 
   .label {
-    left: 15.14px;
+    padding-left: 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
-  .input {
-    top: 17.91px;
-    width: 368.74px;
-    height: 38.81px;
-    padding: 0 15.14px;
+  .input,
+  .submit {
+    height: 39px;
+    min-height: 39px;
+    padding: 0 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
   .error {
-    left: 10.13px;
-    top: 547.03px;
-    width: 368.74px;
     min-height: 17px;
-    padding-left: 15.14px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .submit {
-    left: 10.13px;
-    top: 564.89px;
-    width: 368.74px;
-    height: 38.81px;
+    margin-top: 10px;
+    padding-inline: 16px;
     font-size: 12px;
     line-height: 17px;
   }
 
   .links {
-    left: 128.9px;
-    top: 619.23px;
-    width: 131.19px;
-    height: 34.93px;
+    margin-top: 15px;
+    max-width: 180px;
     font-size: 12px;
     line-height: 17px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    padding: 50px;
+  }
+
+  .frame {
+    width: 475px;
+  }
+
+  .tagline {
+    margin-top: 20px;
+    font-size: 32px;
+    line-height: 46px;
+  }
+
+  .form {
+    margin-top: 7px;
+    gap: 0;
+  }
+
+  .field + .field {
+    margin-top: 7px;
+  }
+
+  .links {
+    width: 169px;
+    max-width: 169px;
+    margin-top: 20px;
+    font-size: 16px;
+    line-height: 23px;
+  }
+}
+
+@media (max-height: 780px) {
+  .container {
+    align-items: flex-start;
+  }
+
+  .frame {
+    margin: 0;
+  }
+
+  .logo {
+    width: min(100%, 360px);
+    margin-top: 8px;
+  }
+
+  .tagline {
+    margin-top: 12px;
+    font-size: clamp(18px, 3vw, 24px);
+  }
+
+  .form {
+    margin-top: 7px;
+    gap: 0;
+  }
+
+  .field + .field {
+    margin-top: 7px;
+  }
+
+  .links {
+    margin-top: 14px;
   }
 }
