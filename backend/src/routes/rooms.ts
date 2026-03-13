@@ -218,9 +218,7 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
     const livekitToken = await at.toJwt();
 
     const livekitUrl =
-      config.nodeEnv === "production"
-        ? "https://voco-meet.ru/livekit/"
-        : config.livekit.url;
+      config.livekit.publicUrl || config.livekit.url;
 
     res.json({
       message: "Присоединились к комнате",
