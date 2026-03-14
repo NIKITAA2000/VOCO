@@ -53,8 +53,8 @@
   color: var(--auth-text);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(20px, 4vw, 32px);
-  line-height: 1.25;
+  font-size: 32px;
+  line-height: 46px;
   text-wrap: balance;
 }
 
@@ -207,7 +207,8 @@
 
   .tagline {
     margin-top: 16px;
-    font-size: clamp(18px, 6.2vw, 24px);
+    font-size: 24px;
+    line-height: 35px;
   }
 
   .form {
@@ -250,6 +251,33 @@
   }
 }
 
+@media (max-width: 389px) {
+  .container {
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-inline: 10px;
+  }
+
+  .frame {
+    width: 370px;
+    min-width: 370px;
+    max-width: 370px;
+    flex: none;
+  }
+
+  .logo {
+    width: 370px;
+    min-width: 370px;
+    max-width: 370px;
+  }
+
+  .tagline {
+    font-size: 24px;
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
   .container {
     padding: 50px;
@@ -283,35 +311,13 @@
   }
 }
 
-@media (max-height: 780px) {
+@media (max-height: 843px) {
   .container {
-    align-items: flex-start;
+    align-items: center;
+    justify-content: center;
   }
 
   .frame {
-    margin: 0;
-  }
-
-  .logo {
-    width: min(100%, 360px);
-    margin-top: 8px;
-  }
-
-  .tagline {
-    margin-top: 12px;
-    font-size: clamp(18px, 3vw, 24px);
-  }
-
-  .form {
-    margin-top: 7px;
-    gap: 0;
-  }
-
-  .field + .field {
-    margin-top: 7px;
-  }
-
-  .links {
-    margin-top: 14px;
+    margin: auto 0;
   }
 }

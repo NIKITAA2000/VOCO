@@ -44,6 +44,10 @@
   --menu-label-height: 40px;
   --menu-icon-width: calc(100px * var(--menu-scale));
   --menu-icon-height: calc(100px * var(--menu-scale));
+  --menu-stripe-fade: rgba(34, 34, 34, 0);
+  --menu-stripe-bg: #222222;
+  --menu-stripe-screen-bleed: max(0px, calc((100svh - var(--menu-stage-height)) / 2));
+  --menu-stripe-overlap: 1px;
   background: var(--screen-bg);
   overflow: hidden;
   font-family: 'Jost', sans-serif;
@@ -54,18 +58,18 @@
   left: 0;
   right: 0;
   top: 0;
-  bottom: var(--footer-height);
+  bottom: 0;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  overflow: hidden;
+  align-items: center;
+  overflow: visible;
 }
 
 .menu-core {
   position: relative;
   width: var(--menu-stage-width);
   height: var(--menu-stage-height);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .menu-core-source {
@@ -94,7 +98,10 @@
 
 .menu-core-stripes {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--menu-stripe-screen-bleed));
+  bottom: calc(-1 * var(--menu-stripe-screen-bleed));
   z-index: 3;
   pointer-events: none;
   display: none;
@@ -105,17 +112,17 @@
   left: 0;
   width: 100%;
   overflow: hidden;
-  background: #222222;
+  background: var(--menu-stripe-bg);
 }
 
 .menu-stripe-zone--top {
   top: 0;
-  height: var(--menu-stripes-top-height);
+  height: calc(var(--menu-stripes-top-height) + var(--menu-stripe-screen-bleed));
 }
 
 .menu-stripe-zone--bottom {
-  top: var(--menu-stripes-bottom-top);
-  height: var(--menu-bottom-length);
+  top: calc(var(--menu-stripes-bottom-top) + var(--menu-stripe-screen-bleed));
+  height: calc(var(--menu-bottom-length) + var(--menu-stripe-screen-bleed));
 }
 
 .menu-stripe.mask {
@@ -125,7 +132,17 @@
 .menu-stripe {
   position: absolute;
   top: 0;
-  background: linear-gradient(180deg, var(--stripe-color) 0%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(180deg, var(--stripe-color) 0%, var(--menu-stripe-fade) 100%);
+}
+
+.menu-stripe-zone--top .menu-stripe::before,
+.menu-stripe-zone--bottom .menu-stripe::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--stripe-color);
+  z-index: 1;
 }
 
 .menu-stripe-create {
@@ -153,24 +170,35 @@
 }
 
 .menu-stripe-zone--top .menu-stripe-create {
-  top: calc(-1 * var(--menu-top-extension));
+  top: calc(var(--menu-stripe-screen-bleed) - var(--menu-top-extension));
   height: calc(var(--menu-create-top-length) + var(--menu-top-extension));
 }
 
 .menu-stripe-zone--top .menu-stripe-connect,
 .menu-stripe-zone--top .menu-stripe-profile,
 .menu-stripe-zone--top .menu-stripe-settings {
-  top: calc(-1 * var(--menu-top-extension));
+  top: calc(var(--menu-stripe-screen-bleed) - var(--menu-top-extension));
   height: calc(var(--menu-top-length) + var(--menu-top-extension));
 }
+
+.menu-stripe-zone--top .menu-stripe::before {
+    top: calc(-1 * (var(--menu-stripe-screen-bleed) + var(--menu-top-extension)));
+    height: calc(var(--menu-stripe-screen-bleed) + var(--menu-top-extension) + var(--menu-stripe-overlap));
+  }
 
 .menu-stripe-zone--bottom .menu-stripe-create,
 .menu-stripe-zone--bottom .menu-stripe-connect,
 .menu-stripe-zone--bottom .menu-stripe-profile,
 .menu-stripe-zone--bottom .menu-stripe-settings {
   height: calc(var(--menu-bottom-length) + var(--menu-bottom-extension));
-  background: linear-gradient(0deg, var(--stripe-color) 0%, rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(0deg, var(--stripe-color) 0%, var(--menu-stripe-fade) 100%);
 }
+
+ .menu-stripe-zone--bottom .menu-stripe::after {
+    bottom: calc(-1 * (var(--menu-stripe-screen-bleed) + var(--menu-bottom-extension)));
+    height: calc(var(--menu-stripe-screen-bleed) + var(--menu-bottom-extension) + var(--menu-stripe-overlap));
+  }
+
 
 .footer {
   position: absolute;
@@ -355,6 +383,8 @@
   --screen-bg: #222222;
   --footer-bg: #ffffff;
   --menu-text: #ffffff;
+  --menu-stripe-bg: #222222;
+  --menu-stripe-fade: rgba(34, 34, 34, 0);
 }
 
 .theme-dark .menu-core-source--light {
@@ -392,6 +422,21 @@
   --screen-bg: #ffffff;
   --footer-bg: #000000;
   --menu-text: #000000;
+  --menu-stripe-bg: #ffffff;
+  --menu-stripe-fade: rgba(255, 255, 255, 0);
+}
+
+.theme-light .menu-core-source--dark,
+.theme-light .menu-core-stripes {
+  display: block;
+}
+
+.theme-light .menu-core-source--dark {
+  display: none;
+}
+
+.theme-light .menu-stripe-settings {
+  --stripe-color: #000000;
 }
 
 .settings-overlay {
@@ -1402,7 +1447,6 @@
 
   .content {
     top: 0;
-    bottom: 100px;
     padding: 0;
     box-sizing: border-box;
     align-items: center;
@@ -1413,6 +1457,34 @@
     width: 390px;
     height: 744px;
     flex: none;
+  }
+
+  .theme-light .menu-core-source--light {
+    display: none;
+  }
+
+  .theme-light .menu-core-stripes {
+    z-index: 3;
+  }
+
+  .theme-light .menu-mobile-brand {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 390px;
+    height: 744px;
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  .theme-light .menu-mobile-brand-logo {
+    position: absolute;
+    left: 10px;
+    top: 219.13px;
+    width: 370px;
+    height: 108.79px;
+    background: center / 100% 100% no-repeat url("/voco-mobile-logo-dark.svg");
   }
 
   .theme-dark .menu-core-source--dark {
@@ -1430,7 +1502,7 @@
     top: 0;
     width: 390px;
     height: 744px;
-    z-index: 3;
+    z-index: 6;
     pointer-events: none;
   }
 
@@ -1692,6 +1764,7 @@
 
   .theme-dark .menu-core-stripes {
     display: block;
+    z-index: 3;
   }
 
   .theme-dark .menu-button {
@@ -1772,38 +1845,46 @@
   }
 
   .button-create .menu-icon-stack {
-    left: 11.68px;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
   }
 
   .button-connect .menu-icon-stack {
     left: 0;
+    right: 0;
+    margin-inline: auto;
   }
 
   .button-profile .menu-icon-stack {
     left: 0;
+    right: 0;
+    margin-inline: auto;
   }
 
   .button-settings .menu-icon-stack {
-    left: 0.11px;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
   }
 
   .button-create .menu-button-text {
-    left: 11.68px;
-    right: auto;
-    width: 77.89px;
+    left: 0;
+    right: 0;
+    width: auto;
   }
 
   .button-connect .menu-button-text,
   .button-profile .menu-button-text {
     left: 0;
-    right: auto;
-    width: 77.89px;
+    right: 0;
+    width: auto;
   }
 
   .button-settings .menu-button-text {
-    left: 0.11px;
-    right: auto;
-    width: 77.89px;
+    left: 0;
+    right: 0;
+    width: auto;
   }
 
   .theme-buttons {
