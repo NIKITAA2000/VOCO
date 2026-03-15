@@ -35,7 +35,7 @@ let ownerToken = "";
 let modToken = "";
 let participantToken = "";
 let toBlockToken = "";
-let outsiderToken = "";
+let _outsiderToken = "";
 
 let modUserId = "";
 let participantUserId = "";
@@ -68,7 +68,7 @@ beforeAll(async () => {
   toBlockUserId = r4.body.user.id;
 
   const r5 = await request(app).post("/api/auth/register").send(OUTSIDER);
-  outsiderToken = r5.body.token;
+  _outsiderToken = r5.body.token;
 
   // Создаём комнату
   const r6 = await request(app)

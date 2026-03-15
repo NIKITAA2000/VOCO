@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import app from "../app.js";
-import { initDatabase, db } from "../lib/db.js";
+import { initDatabase } from "../lib/db.js";
 
 // Unique test data to avoid conflicts with existing users
 const testId = Date.now().toString(36);
