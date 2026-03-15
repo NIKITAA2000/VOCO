@@ -35,6 +35,18 @@
   display: block;
 }
 
+.logoImage picture {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.logoGraphic {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .logoImageLight {
   display: none;
 }
@@ -113,8 +125,14 @@
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
   -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 1000px var(--auth-surface) inset;
+  -webkit-box-shadow: 0 0 0 100px #0077ff inset !important;
+  box-shadow: 0 0 0 100px #0077ff inset !important;
+  border-radius: 999px;
+  outline: none !important;
   caret-color: var(--auth-input-text);
   transition: background-color 9999s ease-in-out 0s;
 }
@@ -184,10 +202,12 @@
 
 .linkRegister {
   color: #00ff00;
+  margin-left: 0.25ch;
 }
 
 .linkGuest {
   color: #8000ff;
+  margin-left: 0.25ch;
 }
 
 .break {
@@ -197,83 +217,274 @@
 
 @media (max-width: 767px) {
   .container {
-    padding-inline: 10px;
+    min-height: 100vh;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #ffffff;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .container::-webkit-scrollbar {
+    display: none;
   }
 
   .frame {
-    width: min(100%, 390px);
+    position: relative;
+    width: 389px;
+    min-width: 389px;
+    max-width: 389px;
+    height: 844px;
+    min-height: 844px;
+    margin: 0;
+    display: block;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .logo {
+    position: absolute;
+    left: 30px;
+    top: 243.07px;
+    width: 329px;
+    height: 96.97px;
+    margin: 0;
+    aspect-ratio: auto;
+  }
+
+  .logoImage {
+    width: 100%;
+    height: 100%;
+  }
+
+  .logoImageDark {
+    display: none !important;
+  }
+
+  .logoImageLight {
+    display: block !important;
   }
 
   .tagline {
-    margin-top: 16px;
-    font-size: 24px;
-    line-height: 35px;
+    position: absolute;
+    left: 30px;
+    top: 354.06px;
+    width: 329px;
+    height: 31px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000000;
+    text-align: center;
+    font-size: 22px;
+    line-height: 32px;
   }
 
   .form {
-    margin-top: 10px;
-    gap: 0;
+    margin: 0;
+    display: block;
+  }
+
+  .field {
+    position: absolute;
+    left: 0;
+    width: 389px;
+    display: block;
   }
 
   .field + .field {
-    margin-top: 10px;
+    margin-top: 0;
+  }
+
+  .fieldEmail {
+    top: 0;
+  }
+
+  .fieldPassword {
+    top: 0;
   }
 
   .label {
-    padding-left: 16px;
-    font-size: 12px;
-    line-height: 17px;
+    position: absolute;
+    left: 43px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: #000000;
+    font-size: 11px;
+    line-height: 16px;
   }
 
-  .input,
-  .submit {
-    height: 39px;
-    min-height: 39px;
-    padding: 0 16px;
-    font-size: 12px;
-    line-height: 17px;
+  .fieldEmail .label {
+    top: 392.06px;
+    width: 73px;
+    height: 16px;
+  }
+
+  .fieldPassword .label {
+    top: 449.5px;
+    width: 84px;
+    height: 15px;
+  }
+
+  .input {
+    position: absolute;
+    left: 30px;
+    width: 329px;
+    height: 34.63px;
+    min-height: 34.63px;
+    padding: 0 13px;
+    border-radius: 100px;
+    background: #000000;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .fieldEmail .input {
+    top: 407.87px;
+  }
+
+  .fieldPassword .input {
+    top: 464.41px;
+  }
+
+  .input::placeholder {
+    color: #999999;
   }
 
   .error {
-    min-height: 17px;
-    margin-top: 10px;
-    padding-inline: 16px;
-    font-size: 12px;
-    line-height: 17px;
+    position: absolute;
+    left: 43px;
+    top: 506.04px;
+    width: 286px;
+    min-height: 16px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: #000000;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .submit {
+    position: absolute;
+    left: 30px;
+    top: 521.25px;
+    width: 329px;
+    height: 34.63px;
+    min-height: 34.63px;
+    border-width: 3px;
+    border-radius: 100px;
+    background: #000000;
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .submit:disabled {
+    opacity: 1;
   }
 
   .links {
-    margin-top: 15px;
-    max-width: 220px;
-    font-size: 12px;
-    line-height: 17px;
+    position: absolute;
+    left: 104px;
+    top: 569.93px;
+    width: 180px;
+    height: 31px;
+    margin: 0;
+    max-width: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    color: #000000;
+    text-align: center;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .linkButton {
+    padding: 0;
+    line-height: 16px;
+  }
+
+  .break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  :global(:root[data-theme="dark"]) .container {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .frame {
+    background: #222222;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageDark {
+    display: block !important;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageLight {
+    display: none !important;
+  }
+
+  :global(:root[data-theme="dark"]) .tagline {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .label {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  :global(:root[data-theme="dark"]) .input::placeholder {
+    color: #999999;
+  }
+
+  :global(:root[data-theme="dark"]) .error {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submit {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  :global(:root[data-theme="dark"]) .links {
+    color: #ffffff;
   }
 }
 
 @media (max-width: 389px) {
   .container {
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     overflow-y: auto;
-    overflow-x: hidden;
-    padding-inline: 10px;
+    overflow-x: auto;
+    padding: 0;
   }
 
   .frame {
-    width: 370px;
-    min-width: 370px;
-    max-width: 370px;
     flex: none;
-  }
-
-  .logo {
-    width: 370px;
-    min-width: 370px;
-    max-width: 370px;
-  }
-
-  .tagline {
-    font-size: 24px;
   }
 }
 
@@ -299,28 +510,5 @@
   .form {
     margin-top: 7px;
     gap: 0;
-  }
-
-  .field + .field {
-    margin-top: 7px;
-  }
-
-  .links {
-    width: 241px;
-    max-width: 241px;
-    margin-top: 20px;
-    font-size: 16px;
-    line-height: 23px;
-  }
-}
-
-@media (max-height: 843px) {
-  .container {
-    align-items: center;
-    justify-content: center;
-  }
-
-  .frame {
-    margin: auto 0;
   }
 }

@@ -46,8 +46,15 @@ export function LoginPage({ onLogin }: Props) {
     <div className={styles.container}>
       <section className={styles.frame} aria-label="Вход">
         <div className={styles.logo}>
-          <img className={`${styles.logoImage} ${styles.logoImageDark}`} src="/voco-logo-white.svg" alt="VOCO" />
-          <img className={`${styles.logoImage} ${styles.logoImageLight}`} src="/voco-logo.svg" alt="VOCO" />
+          <div className={`${styles.logoImage} ${styles.logoImageDark}`}>
+            <img className={styles.logoGraphic} src="/voco-auth-logo-white.svg" alt="VOCO" />
+          </div>
+          <div className={`${styles.logoImage} ${styles.logoImageLight}`}>
+            <picture>
+              <source media="(min-width: 768px)" srcSet="/voco-auth-logo-black.svg" />
+              <img className={styles.logoGraphic} src="/voco-auth-logo-black.svg" alt="VOCO" />
+            </picture>
+          </div>
         </div>
         <p className={styles.tagline}>Видеоконференции без границ</p>
 

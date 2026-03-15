@@ -38,10 +38,10 @@
   --menu-stripe-rotated-length: calc(477px * var(--menu-scale));
   --menu-stripes-top-height: calc(257px * var(--menu-scale));
   --menu-stripes-bottom-top: calc(447px * var(--menu-scale));
-  --menu-label-font-size: 14px;
-  --menu-label-line-height: 20px;
+  --menu-label-font-size: 16px;
+  --menu-label-line-height: 23px;
   --menu-label-top: calc(110px * var(--menu-scale));
-  --menu-label-height: 40px;
+  --menu-label-height: 45px;
   --menu-icon-width: calc(100px * var(--menu-scale));
   --menu-icon-height: calc(100px * var(--menu-scale));
   --menu-stripe-fade: rgba(34, 34, 34, 0);
@@ -93,6 +93,42 @@
 }
 
 .menu-mobile-brand {
+  display: none;
+}
+
+.menu-brand {
+  position: absolute;
+  left: -16px;
+  top: 262px;
+  width: 507px;
+  height: 176px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.menu-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--screen-bg);
+}
+
+.menu-brand-logo {
+  position: absolute;
+  left: 16px;
+  top: 20px;
+  width: 475px;
+  height: 140px;
+  display: none;
+}
+
+.theme-light .menu-brand-logo--light,
+.theme-dark .menu-brand-logo--dark {
+  display: block;
+}
+
+.menu-mobile-brand-logo--light,
+.menu-mobile-brand-logo--dark {
   display: none;
 }
 
@@ -1407,42 +1443,42 @@
 
 @media (max-width: 767px) {
   .screen {
-    --footer-height: 100px;
+    --footer-height: 70px;
     --menu-stage-width: 390px;
-    --menu-stage-height: 744px;
+    --menu-stage-height: 844px;
     --menu-scale: 1;
-    --menu-source-width: 1121.6842105px;
-    --menu-source-height: 744px;
-    --menu-source-left: -375.7894737px;
-    --menu-button-width: 77.89px;
-    --menu-button-height: 112.67px;
-    --menu-button-top: 366.77px;
-    --menu-create-left: 10px;
-    --menu-connect-left: 122.95px;
-    --menu-profile-left: 212.53px;
-    --menu-settings-left: 302px;
-    --menu-create-stripe-left: 10px;
-    --menu-create-stripe-width: 101.26px;
-    --menu-connect-stripe-width: 77.89px;
-    --menu-profile-stripe-width: 77.89px;
-    --menu-settings-stripe-width: 77.89px;
-    --menu-connect-stripe-left: 122.95px;
-    --menu-profile-stripe-left: 212.53px;
-    --menu-settings-stripe-left: 302px;
-    --menu-top-length: 199.7px;
-    --menu-create-top-length: 199.7px;
-    --menu-bottom-length: 397px;
-    --menu-top-extension: 32px;
-    --menu-bottom-extension: 32px;
-    --menu-stripe-rotated-length: 397px;
-    --menu-stripes-top-height: 199.7px;
-    --menu-stripes-bottom-top: 347px;
-    --menu-label-font-size: 12px;
-    --menu-label-line-height: 17px;
-    --menu-label-top: 81.59px;
-    --menu-label-height: 31.08px;
-    --menu-icon-width: 77.89px;
-    --menu-icon-height: 77.71px;
+    --menu-source-width: 1440px;
+    --menu-source-height: 924px;
+    --menu-source-left: -525px;
+    --menu-button-width: 69.47px;
+    --menu-button-height: 101px;
+    --menu-button-top: 394px;
+    --menu-create-left: 27.77px;
+    --menu-connect-left: 131.76px;
+    --menu-profile-left: 212.76px;
+    --menu-settings-left: 292.76px;
+    --menu-create-stripe-left: 27.77px;
+    --menu-create-stripe-width: 90.23px;
+    --menu-connect-stripe-width: 71px;
+    --menu-profile-stripe-width: 69.47px;
+    --menu-settings-stripe-width: 69.47px;
+    --menu-connect-stripe-left: 131.76px;
+    --menu-profile-stripe-left: 212.76px;
+    --menu-settings-stripe-left: 292.76px;
+    --menu-top-length: 245px;
+    --menu-create-top-length: 245px;
+    --menu-bottom-length: 398px;
+    --menu-top-extension: 0px;
+    --menu-bottom-extension: 0px;
+    --menu-stripe-rotated-length: 398px;
+    --menu-stripes-top-height: 245px;
+    --menu-stripes-bottom-top: 376px;
+    --menu-label-font-size: 11px;
+    --menu-label-line-height: 16px;
+    --menu-label-top: 73px;
+    --menu-label-height: 28px;
+    --menu-icon-width: 69.47px;
+    --menu-icon-height: 69.47px;
   }
 
   .content {
@@ -1455,8 +1491,21 @@
 
   .menu-core {
     width: 390px;
-    height: 744px;
+    height: 844px;
     flex: none;
+    background: var(--screen-bg);
+  }
+
+  .menu-core::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 70px;
+    background: var(--footer-bg);
+    z-index: 1;
+    pointer-events: none;
   }
 
   .theme-light .menu-core-source--light {
@@ -1473,18 +1522,18 @@
     left: 0;
     top: 0;
     width: 390px;
-    height: 744px;
+    height: 844px;
     z-index: 6;
     pointer-events: none;
   }
 
-  .theme-light .menu-mobile-brand-logo {
+  .theme-light .menu-mobile-brand-logo--light {
     position: absolute;
-    left: 10px;
-    top: 219.13px;
-    width: 370px;
-    height: 108.79px;
-    background: center / 100% 100% no-repeat url("/voco-mobile-logo-dark.svg");
+    left: 31.51px;
+    top: 262.07px;
+    width: 330px;
+    height: 97.26px;
+    display: block;
   }
 
   .theme-dark .menu-core-source--dark {
@@ -1501,18 +1550,22 @@
     left: 0;
     top: 0;
     width: 390px;
-    height: 744px;
+    height: 844px;
     z-index: 6;
     pointer-events: none;
   }
 
-  .theme-dark .menu-mobile-brand-logo {
+  .theme-dark .menu-mobile-brand-logo--dark {
     position: absolute;
-    left: 10px;
-    top: 219.13px;
-    width: 370px;
-    height: 108.79px;
-    background: center / 100% 100% no-repeat url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='370' height='109' viewBox='0 0 370 109' fill='none'><path d='M370 69.9348C370 91.3926 352.562 108.788 331.052 108.788C309.542 108.788 292.105 91.3926 292.105 69.9348C292.105 48.477 309.542 31.082 331.052 31.082C352.562 31.082 370 48.477 370 69.9348ZM311.579 69.9348C311.579 80.6637 320.297 89.3612 331.052 89.3612C341.807 89.3612 350.526 80.6637 350.526 69.9348C350.526 59.2059 341.807 50.5084 331.052 50.5084C320.297 50.5084 311.579 59.2059 311.579 69.9348Z' fill='white'/><rect x='331.052' y='50.5098' width='19.4737' height='38.8528' fill='white'/><path d='M269.013 97.4079C263.567 102.842 256.627 106.542 249.072 108.041C241.517 109.54 233.686 108.771 226.569 105.83C219.452 102.889 213.37 97.9096 209.09 91.5203C204.81 85.131 202.526 77.6192 202.526 69.9348C202.526 62.2505 204.81 54.7387 209.09 48.3494C213.37 41.9601 219.452 36.9802 226.569 34.0395C233.686 31.0988 241.517 30.3294 249.072 31.8286C256.627 33.3277 263.567 37.0281 269.013 42.4617L255.244 56.1983C252.52 53.4815 249.05 51.6313 245.273 50.8817C241.495 50.1321 237.58 50.5168 234.021 51.9872C230.463 53.4575 227.422 55.9474 225.282 59.1421C223.142 62.3368 222 66.0927 222 69.9348C222 73.777 223.142 77.5329 225.282 80.7276C227.422 83.9222 230.463 86.4121 234.021 87.8825C237.58 89.3528 241.495 89.7375 245.273 88.988C249.05 88.2384 252.52 86.3882 255.244 83.6714L269.013 97.4079Z' fill='white'/><path d='M190.842 69.9348C190.842 91.3926 173.405 108.788 151.895 108.788C130.385 108.788 112.947 91.3926 112.947 69.9348C112.947 48.477 130.385 31.082 151.895 31.082C173.405 31.082 190.842 48.477 190.842 69.9348ZM132.421 69.9348C132.421 80.6637 141.14 89.3612 151.895 89.3612C162.65 89.3612 171.368 80.6637 171.368 69.9348C171.368 59.2059 162.65 50.5084 151.895 50.5084C141.14 50.5084 132.421 59.2059 132.421 69.9348Z' fill='white'/><rect x='151.895' y='50.5098' width='19.4737' height='38.8528' fill='white'/><path d='M23.3684 31.082L62.3158 108.788L101.263 31.082H81.7894L62.3158 69.9348L42.8421 31.082H23.3684Z' fill='white'/><rect x='23.3684' y='31.082' width='15.5789' height='19.4264' fill='white'/><rect x='31.1579' y='50.5098' width='15.5789' height='19.4264' fill='white'/><rect x='38.9473' y='69.9355' width='15.5789' height='19.4264' fill='white'/><rect x='46.7369' y='89.3618' width='15.5789' height='19.4264' fill='white'/><rect x='7.78946' y='31.082' width='7.78947' height='19.4264' fill='%230077FF'/><rect x='15.5789' y='50.5098' width='7.78947' height='19.4264' fill='%230077FF'/><rect x='31.1579' y='89.3618' width='7.78947' height='19.4264' fill='%230077FF'/><rect x='23.3685' y='69.9355' width='7.78947' height='19.4264' fill='%230077FF'/><rect y='31.082' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='7.78949' y='50.5098' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='15.5789' y='69.9355' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='23.3685' y='89.3618' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='23.3685' y='50.5098' width='7.78947' height='19.4264' fill='%238000FF'/><rect x='38.9473' y='89.3618' width='7.78947' height='19.4264' fill='%238000FF'/><rect x='31.1579' y='69.9355' width='7.78947' height='19.4264' fill='%238000FF'/><rect x='15.5789' y='31.082' width='7.78947' height='19.4264' fill='%238000FF'/><rect x='292.105' width='77.8947' height='19.4264' fill='white'/><rect x='299.894' width='7.78947' height='19.4264' fill='%230077FF'/><rect x='292.105' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='307.684' width='7.78947' height='19.4264' fill='%238000FF'/><rect x='112.947' width='77.8947' height='19.4264' fill='white'/><rect x='112.947' width='7.78947' height='19.4264' fill='%2300FF00'/><rect x='120.737' width='7.78947' height='19.4264' fill='%230077FF'/><rect x='128.526' width='7.78947' height='19.4264' fill='%238000FF'/></svg>");
+    left: 31.51px;
+    top: 262.07px;
+    width: 330px;
+    height: 97.26px;
+    display: block;
+  }
+
+  .menu-brand {
+    display: none;
   }
 
   .theme-dark .menu-mobile-brow {
@@ -1773,31 +1826,27 @@
 
   .theme-dark .menu-icon-face,
   .theme-dark .menu-icon-shadow {
-    display: none;
-  }
-
-  .theme-dark .menu-icon-stack::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: currentColor;
     display: block;
   }
 
+  .theme-dark .menu-icon-stack::before {
+    display: none;
+  }
+
   .button-create {
-    width: 101.26px;
+    width: 90.23px;
   }
 
   .button-connect {
-    width: 78.05px;
+    width: 71px;
   }
 
   .button-profile {
-    width: 77.89px;
+    width: 69.47px;
   }
 
   .button-settings {
-    width: 78px;
+    width: 69.47px;
   }
 
   .theme-dark .button-create .menu-icon-stack::before {
@@ -1885,6 +1934,14 @@
     left: 0;
     right: 0;
     width: auto;
+  }
+
+  .menu-button {
+    z-index: 7;
+  }
+
+  .menu-button-text {
+    align-items: center;
   }
 
   .theme-buttons {

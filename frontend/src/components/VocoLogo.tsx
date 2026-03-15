@@ -1,0 +1,71 @@
+import styles from "./VocoLogo.module.css";
+
+type Tone = "light" | "dark";
+type Size = "desktop" | "mobile";
+
+type Props = {
+  tone: Tone;
+  size?: Size;
+  className?: string;
+  surface?: string;
+};
+
+export function VocoLogo({ tone, size = "desktop", className = "" }: Props) {
+  const fill = tone === "light" ? "#000000" : "#FFFFFF";
+  const width = size === "mobile" ? 370 : 475;
+  const height = size === "mobile" ? 109 : 140;
+
+  return (
+    <div className={`${styles.logo} ${className}`.trim()} aria-label="VOCO">
+      <svg
+        className={styles.logoSvg}
+        viewBox="0 0 475 140"
+        width={width}
+        height={height}
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-hidden="true"
+      >
+        <path
+          d="M475 90C475 117.614 452.614 140 425 140C397.386 140 375 117.614 375 90C375 62.3858 397.386 40 425 40C452.614 40 475 62.3858 475 90ZM400 90C400 103.807 411.193 115 425 115C438.807 115 450 103.807 450 90C450 76.1929 438.807 65 425 65C411.193 65 400 76.1929 400 90Z"
+          fill={fill}
+        />
+        <rect x="425" y="61" width="40" height="58" fill={fill} />
+        <path
+          d="M345.355 125.355C338.363 132.348 329.454 137.11 319.755 139.039C310.055 140.969 300.002 139.978 290.866 136.194C281.73 132.41 273.921 126.001 268.427 117.779C262.932 109.556 260 99.8891 260 90C260 80.1109 262.932 70.4439 268.427 62.2215C273.921 53.999 281.73 47.5904 290.866 43.806C300.002 40.0216 310.055 39.0315 319.755 40.9607C329.454 42.89 338.363 47.652 345.355 54.6447L327.678 72.3223C324.181 68.826 319.727 66.445 314.877 65.4804C310.028 64.5157 305.001 65.0108 300.433 66.903C295.865 68.7952 291.96 71.9995 289.213 76.1107C286.466 80.222 285 85.0555 285 90C285 94.9445 286.466 99.778 289.213 103.889C291.96 108 295.865 111.205 300.433 113.097C305.001 114.989 310.028 115.484 314.877 114.52C319.727 113.555 324.181 111.174 327.678 107.678L345.355 125.355Z"
+          fill={fill}
+        />
+        <path
+          d="M245 90C245 117.614 222.614 140 195 140C167.386 140 145 117.614 145 90C145 62.3858 167.386 40 195 40C222.614 40 245 62.3858 245 90ZM170 90C170 103.807 181.193 115 195 115C208.807 115 220 103.807 220 90C220 76.1929 208.807 65 195 65C181.193 65 170 76.1929 170 90Z"
+          fill={fill}
+        />
+        <rect x="195" y="61" width="40" height="58" fill={fill} />
+        <path d="M30 40L80 140L130 40H105L80 90L55 40H30Z" fill={fill} />
+        <rect x="30" y="40" width="20" height="100" fill={fill} />
+        <rect x="30" y="115" width="30" height="25" fill="#00FF00" />
+        <rect x="20" y="90" width="30" height="25" fill="#00FF00" />
+        <rect x="10" y="65" width="30" height="25" fill="#00FF00" />
+        <rect y="40" width="30" height="25" fill="#00FF00" />
+        <rect x="40" y="50" width="20" height="90" fill={fill} />
+        <rect x="50" y="75" width="20" height="65" fill={fill} />
+        <rect x="60" y="100" width="20" height="40" fill={fill} />
+        <rect x="10" y="40" width="10" height="25" fill="#0077FF" />
+        <rect x="20" y="65" width="20" height="25" fill="#0077FF" />
+        <rect x="40" y="115" width="20" height="25" fill="#0077FF" />
+        <rect x="30" y="90" width="20" height="25" fill="#0077FF" />
+        <rect x="30" y="65" width="10" height="25" fill="#8000FF" />
+        <rect x="50" y="115" width="10" height="25" fill="#8000FF" />
+        <rect x="40" y="90" width="10" height="25" fill="#8000FF" />
+        <rect x="20" y="40" width="10" height="25" fill="#8000FF" />
+        <rect x="375" width="100" height="25" fill={fill} />
+        <rect x="375" width="30" height="25" fill="#00FF00" />
+        <rect x="385" width="20" height="25" fill="#0077FF" />
+        <rect x="395" width="10" height="25" fill="#8000FF" />
+        <rect x="145" width="100" height="25" fill={fill} />
+        <rect x="145" width="30" height="25" fill="#00FF00" />
+        <rect x="155" width="20" height="25" fill="#0077FF" />
+        <rect x="165" width="10" height="25" fill="#8000FF" />
+      </svg>
+    </div>
+  );
+}

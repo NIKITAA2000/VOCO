@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { VocoLogo } from "../components/VocoLogo";
 import "./Dashboard.css";
 
 interface Props {
@@ -269,8 +270,22 @@ export function DashboardPage({ user, onLogout }: Props) {
             height={744}
           />
 
+          <div className="menu-brand" aria-hidden="true">
+            <div className="menu-brand-logo menu-brand-logo--light">
+              <VocoLogo tone="light" />
+            </div>
+            <div className="menu-brand-logo menu-brand-logo--dark">
+              <VocoLogo tone="dark" />
+            </div>
+          </div>
+
           <div className="menu-mobile-brand" aria-hidden="true">
-            <div className="menu-mobile-brand-logo" />
+            <div className="menu-mobile-brand-logo menu-mobile-brand-logo--light">
+              <VocoLogo tone="light" size="mobile" />
+            </div>
+            <div className="menu-mobile-brand-logo menu-mobile-brand-logo--dark">
+              <VocoLogo tone="dark" size="mobile" />
+            </div>
           </div>
 
           <div className="menu-core-stripes" aria-hidden="true">

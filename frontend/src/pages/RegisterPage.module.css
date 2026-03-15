@@ -35,6 +35,18 @@
   display: block;
 }
 
+.logoImage picture {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.logoGraphic {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .logoImageLight {
   display: none;
 }
@@ -114,8 +126,14 @@
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
   -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 1000px var(--auth-surface) inset;
+  -webkit-box-shadow: 0 0 0 100px #00ff00 inset !important;
+  box-shadow: 0 0 0 100px #00ff00 inset !important;
+  border-radius: 999px;
+  outline: none !important;
   caret-color: var(--auth-input-text);
   transition: background-color 9999s ease-in-out 0s;
 }
@@ -198,83 +216,267 @@
 
 @media (max-width: 767px) {
   .container {
-    padding-inline: 10px;
-  }
-
-  .frame {
-    width: min(100%, 390px);
-  }
-
-  .tagline {
-    margin-top: 16px;
-    font-size: 24px;
-    line-height: 35px;
-  }
-
-  .form {
-    margin-top: 10px;
-    gap: 0;
-  }
-
-  .field + .field {
-    margin-top: 10px;
-  }
-
-  .label {
-    padding-left: 16px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .input,
-  .submit {
-    height: 39px;
-    min-height: 39px;
-    padding: 0 16px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .error {
-    min-height: 17px;
-    margin-top: 10px;
-    padding-inline: 16px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .links {
-    margin-top: 15px;
-    max-width: 180px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-}
-
-@media (max-width: 389px) {
-  .container {
-    align-items: flex-start;
+    min-height: 100vh;
+    min-height: 100svh;
+    align-items: center;
     justify-content: center;
-    overflow-y: auto;
-    overflow-x: hidden;
     padding-inline: 10px;
+    background: #ffffff;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .container::-webkit-scrollbar {
+    display: none;
   }
 
   .frame {
-    width: 370px;
-    min-width: 370px;
-    max-width: 370px;
-    flex: none;
+    position: relative;
+    width: 389px;
+    min-width: 389px;
+    max-width: 389px;
+    height: 844px;
+    min-height: 844px;
+    margin: 0;
+    display: block;
+    background: #ffffff;
+    color: #000000;
   }
 
   .logo {
-    width: 370px;
-    min-width: 370px;
-    max-width: 370px;
+    position: absolute;
+    left: 30px;
+    top: 215.39px;
+    width: 329px;
+    height: 96.97px;
+    margin: 0;
+    aspect-ratio: auto;
+  }
+
+  .logoImageDark {
+    display: none !important;
+  }
+
+  .logoImageLight {
+    display: block !important;
   }
 
   .tagline {
-    font-size: 24px;
+    position: absolute;
+    left: 30px;
+    top: 326.73px;
+    width: 329px;
+    height: 31px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000000;
+    text-align: center;
+    font-size: 22px;
+    line-height: 32px;
+  }
+
+  .form {
+    margin: 0;
+    display: block;
+  }
+
+  .field {
+    position: absolute;
+    left: 0;
+    width: 389px;
+    display: block;
+  }
+
+  .field + .field {
+    margin-top: 0;
+  }
+
+  .fieldEmail {
+    top: 0;
+  }
+
+  .fieldUsername {
+    top: 0;
+  }
+
+  .fieldPassword {
+    top: 0;
+  }
+
+  .label {
+    position: absolute;
+    left: 43px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: #000000;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .fieldEmail .label {
+    top: 364.73px;
+    width: 73px;
+    height: 15px;
+  }
+
+  .fieldUsername .label {
+    top: 421.26px;
+    width: 139px;
+    height: 15px;
+  }
+
+  .fieldPassword .label {
+    top: 477.68px;
+    width: 228px;
+    height: 15px;
+  }
+
+  .input {
+    position: absolute;
+    left: 30px;
+    width: 329px;
+    height: 34.63px;
+    min-height: 34.63px;
+    margin-top: 0;
+    padding: 0 13px;
+    border-radius: 100px;
+    background: #000000;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .fieldEmail .input {
+    top: 379.63px;
+  }
+
+  .fieldUsername .input {
+    top: 436.04px;
+  }
+
+  .fieldPassword .input {
+    top: 492.43px;
+  }
+
+  .input::placeholder {
+    color: #999999;
+  }
+
+  .error {
+    position: absolute;
+    left: 43px;
+    top: 534.06px;
+    width: 243px;
+    min-height: 15px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .submit {
+    position: absolute;
+    left: 30px;
+    top: 549.23px;
+    width: 329px;
+    height: 34.63px;
+    min-height: 34.63px;
+    font-size: 11px;
+    line-height: 16px;
+    border-width: 3px;
+  }
+
+  .links {
+    position: absolute;
+    left: 131px;
+    top: 597.61px;
+    width: 127px;
+    height: 31px;
+    margin: 0;
+    max-width: 127px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 0;
+    color: #000000;
+    text-align: center;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .linkButton {
+    padding: 0;
+    line-height: 16px;
+  }
+
+  .linkLogin,
+  .linkGuest {
+    margin-left: 0.25ch;
+  }
+
+  .break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  :global(:root[data-theme="dark"]) .container {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .frame {
+    background: #222222;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageDark {
+    display: block !important;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageLight {
+    display: none !important;
+  }
+
+  :global(:root[data-theme="dark"]) .tagline {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .label {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  :global(:root[data-theme="dark"]) .input::placeholder {
+    color: #999999;
+  }
+
+  :global(:root[data-theme="dark"]) .error {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submit {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  :global(:root[data-theme="dark"]) .links {
+    color: #ffffff;
   }
 }
 
@@ -296,28 +498,5 @@
   .form {
     margin-top: 7px;
     gap: 0;
-  }
-
-  .field + .field {
-    margin-top: 7px;
-  }
-
-  .links {
-    width: 169px;
-    max-width: 169px;
-    margin-top: 20px;
-    font-size: 16px;
-    line-height: 23px;
-  }
-}
-
-@media (max-height: 843px) {
-  .container {
-    align-items: center;
-    justify-content: center;
-  }
-
-  .frame {
-    margin: auto 0;
   }
 }
