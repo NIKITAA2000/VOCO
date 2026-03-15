@@ -32,6 +32,17 @@ export const createInviteSchema = z.object({
   allowGuests: z.boolean().optional().default(true),
 });
 
+export const blockUserSchema = z.object({
+  userId: z.string().uuid("Некорректный ID пользователя"),
+  reason: z.string().max(500).optional(),
+});
+
+export const changeRoleSchema = z.object({
+  role: z.enum(["MODERATOR", "PARTICIPANT"], {
+    errorMap: () => ({ message: "Роль должна быть MODERATOR или PARTICIPANT" }),
+  }),
+});
+
 export const joinGuestSchema = z.object({
   displayName: z
     .string()

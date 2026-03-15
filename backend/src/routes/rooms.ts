@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { AccessToken } from "livekit-server-sdk";
 import { db } from "../lib/db.js";
 import { authenticate } from "../middleware/auth.js";
-import { createRoomSchema, createInviteSchema } from "../schemas/index.js";
+import { createRoomSchema, createInviteSchema, blockUserSchema, changeRoleSchema } from "../schemas/index.js";
 import { config } from "../config/index.js";
 
 const router = Router();
@@ -172,6 +172,16 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       return;
     }
 
+    // Check if blocked
+    const blockedResult = await db.query(
+      "SELECT id FROM blocked_users WHERE room_id = $1 AND user_id = $2",
+      [room.id, req.user!.userId]
+    );
+    if (blockedResult.rows.length > 0) {
+      res.status(403).json({ error: "Вы заблокированы в этой комнате" });
+      return;
+    }
+
     // Check if already in room
     const existingResult = await db.query(
       "SELECT id FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
@@ -190,20 +200,40 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
         return;
       }
 
-      const role = room.ownerId === req.user!.userId ? "OWNER" : "PARTICIPANT";
+      // Сохраняем роль если пользователь уже был в комнате (MODERATOR не теряется после rejoin)
+      const lastRoleResult = await db.query(
+        "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 ORDER BY joined_at DESC LIMIT 1",
+        [req.user!.userId, room.id]
+      );
+      const lastRole = lastRoleResult.rows[0]?.role;
+      const role =
+        room.ownerId === req.user!.userId
+          ? "OWNER"
+          : lastRole === "MODERATOR"
+          ? "MODERATOR"
+          : "PARTICIPANT";
       await db.query(
         "INSERT INTO participants (user_id, room_id, role) VALUES ($1, $2, $3)",
         [req.user!.userId, room.id, role]
       );
     }
 
+    // Get participant role for LiveKit grants
+    const roleResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL ORDER BY joined_at DESC LIMIT 1",
+      [req.user!.userId, room.id]
+    );
+    const participantRole = roleResult.rows[0]?.role ?? "PARTICIPANT";
+    const canPublishData = participantRole === "OWNER" || participantRole === "MODERATOR";
+
     // Generate LiveKit token
+    const { displayName } = req.body ?? {};
     const at = new AccessToken(
       config.livekit.apiKey,
       config.livekit.apiSecret,
       {
         identity: req.user!.userId,
-        name: req.user!.username,
+        name: displayName || req.user!.username,
       }
     );
 
@@ -212,7 +242,7 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       room: room.slug,
       canPublish: true,
       canSubscribe: true,
-      canPublishData: true,
+      canPublishData,
     });
 
     const livekitToken = await at.toJwt();
@@ -375,6 +405,200 @@ router.delete("/:slug/invite/:code", async (req: Request, res: Response) => {
     res.json({ message: "Ссылка-приглашение деактивирована" });
   } catch (error) {
     console.error("Deactivate invite error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/rooms/:slug/block — заблокировать участника (owner или moderator)
+router.post("/:slug/block", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const parsed = blockUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { userId, reason } = parsed.data;
+
+    if (userId === req.user!.userId) {
+      res.status(400).json({ error: "Нельзя заблокировать самого себя" });
+      return;
+    }
+    if (userId === room.ownerId) {
+      res.status(400).json({ error: "Нельзя заблокировать владельца комнаты" });
+      return;
+    }
+
+    await db.query(
+      `INSERT INTO blocked_users (room_id, user_id, blocked_by, reason)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (room_id, user_id) DO NOTHING`,
+      [room.id, userId, req.user!.userId, reason ?? null]
+    );
+
+    // Выкидываем из комнаты если сейчас внутри
+    await db.query(
+      "UPDATE participants SET left_at = NOW() WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [userId, room.id]
+    );
+
+    res.json({ message: "Пользователь заблокирован" });
+  } catch (error) {
+    console.error("Block user error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// DELETE /api/rooms/:slug/block/:userId — разблокировать (owner или moderator)
+router.delete("/:slug/block/:userId", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const deleteResult = await db.query(
+      "DELETE FROM blocked_users WHERE room_id = $1 AND user_id = $2 RETURNING id",
+      [room.id, req.params.userId]
+    );
+    if (deleteResult.rows.length === 0) {
+      res.status(404).json({ error: "Пользователь не заблокирован в этой комнате" });
+      return;
+    }
+
+    res.json({ message: "Пользователь разблокирован" });
+  } catch (error) {
+    console.error("Unblock user error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// GET /api/rooms/:slug/blocked — список заблокированных (owner или moderator)
+router.get("/:slug/blocked", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const result = await db.query(
+      `SELECT bu.id, bu.reason, bu.blocked_at AS "blockedAt",
+              u.id AS "userId", u.username,
+              b.username AS "blockedByUsername"
+       FROM blocked_users bu
+       JOIN users u ON bu.user_id = u.id
+       JOIN users b ON bu.blocked_by = b.id
+       WHERE bu.room_id = $1
+       ORDER BY bu.blocked_at DESC`,
+      [room.id]
+    );
+
+    res.json({
+      blocked: result.rows.map((row) => ({
+        id: row.id,
+        reason: row.reason,
+        blockedAt: row.blockedAt,
+        user: { id: row.userId, username: row.username },
+        blockedBy: { username: row.blockedByUsername },
+      })),
+    });
+  } catch (error) {
+    console.error("List blocked error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PATCH /api/rooms/:slug/participants/:userId/role — изменить роль (только owner)
+router.patch("/:slug/participants/:userId/role", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      res.status(403).json({ error: "Только владелец может изменять роли" });
+      return;
+    }
+    if (req.params.userId === req.user!.userId) {
+      res.status(400).json({ error: "Нельзя изменить собственную роль" });
+      return;
+    }
+
+    const parsed = changeRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+
+    const updateResult = await db.query(
+      `UPDATE participants SET role = $1
+       WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL
+       RETURNING id`,
+      [parsed.data.role, req.params.userId, room.id]
+    );
+    if (updateResult.rows.length === 0) {
+      res.status(404).json({ error: "Участник не найден в комнате" });
+      return;
+    }
+
+    res.json({ message: "Роль обновлена" });
+  } catch (error) {
+    console.error("Change role error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
 });

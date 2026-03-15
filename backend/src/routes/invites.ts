@@ -67,13 +67,23 @@ async function validateInvite(
 // POST /api/invite/:code/join — войти по ссылке (с авторизацией)
 router.post("/:code/join", authenticate, async (req: Request, res: Response) => {
   try {
-    const validation = await validateInvite(req.params.code);
+    const validation = await validateInvite(req.params.code as string);
     if ("error" in validation) {
       res.status(validation.status).json({ error: validation.error });
       return;
     }
 
     const { invite } = validation;
+
+    // Проверяем блокировку
+    const blockedResult = await db.query(
+      "SELECT id FROM blocked_users WHERE room_id = $1 AND user_id = $2",
+      [invite.roomId, req.user!.userId]
+    );
+    if (blockedResult.rows.length > 0) {
+      res.status(403).json({ error: "Вы заблокированы в этой комнате" });
+      return;
+    }
 
     // Проверяем — не в комнате ли уже
     const existingResult = await db.query(
@@ -104,9 +114,18 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       );
     }
 
+    // Получаем роль для LiveKit грантов
+    const roleResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL ORDER BY joined_at DESC LIMIT 1",
+      [req.user!.userId, invite.roomId]
+    );
+    const participantRole = roleResult.rows[0]?.role ?? "PARTICIPANT";
+    const canPublishData = participantRole === "OWNER" || participantRole === "MODERATOR";
+
+    const { displayName } = req.body;
     const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
       identity: req.user!.userId,
-      name: req.user!.username,
+      name: displayName || req.user!.username,
     });
 
     at.addGrant({
@@ -114,7 +133,7 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       room: invite.roomSlug,
       canPublish: true,
       canSubscribe: true,
-      canPublishData: true,
+      canPublishData,
     });
 
     const livekitToken = await at.toJwt();
@@ -146,7 +165,7 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
 
     const { displayName } = parsed.data;
 
-    const validation = await validateInvite(req.params.code);
+    const validation = await validateInvite(req.params.code as string);
     if ("error" in validation) {
       res.status(validation.status).json({ error: validation.error });
       return;

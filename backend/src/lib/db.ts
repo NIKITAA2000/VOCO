@@ -40,6 +40,16 @@ export async function initDatabase() {
         left_at TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS blocked_users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id),
+        user_id UUID NOT NULL REFERENCES users(id),
+        blocked_by UUID NOT NULL REFERENCES users(id),
+        reason TEXT,
+        blocked_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(room_id, user_id)
+      );
+
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),
