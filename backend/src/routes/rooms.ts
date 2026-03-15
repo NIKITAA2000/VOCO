@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import { AccessToken } from "livekit-server-sdk";
 import { db } from "../lib/db.js";
 import { authenticate } from "../middleware/auth.js";
-import { createRoomSchema } from "../schemas/index.js";
+import { createRoomSchema, createInviteSchema } from "../schemas/index.js";
 import { config } from "../config/index.js";
 
 const router = Router();
@@ -254,6 +254,127 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
     res.json({ message: "Вы покинули комнату" });
   } catch (error) {
     console.error("Leave room error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/rooms/:slug/invite — создать ссылку-приглашение (только владелец)
+router.post("/:slug/invite", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      res.status(403).json({ error: "Только владелец может создавать ссылки-приглашения" });
+      return;
+    }
+
+    const parsed = createInviteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+
+    const { expiresAt, maxUses, allowGuests } = parsed.data;
+    const code = nanoid(8);
+
+    const result = await db.query(
+      `INSERT INTO invite_links (room_id, code, created_by, expires_at, max_uses, allow_guests)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, code, expires_at AS "expiresAt", max_uses AS "maxUses",
+                 uses_count AS "usesCount", is_active AS "isActive",
+                 allow_guests AS "allowGuests", created_at AS "createdAt"`,
+      [room.id, code, req.user!.userId, expiresAt ?? null, maxUses ?? null, allowGuests]
+    );
+
+    res.status(201).json({ message: "Ссылка-приглашение создана", invite: result.rows[0] });
+  } catch (error) {
+    console.error("Create invite error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// GET /api/rooms/:slug/invites — список ссылок-приглашений (только владелец)
+router.get("/:slug/invites", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      res.status(403).json({ error: "Только владелец может просматривать ссылки-приглашения" });
+      return;
+    }
+
+    const result = await db.query(
+      `SELECT id, code, expires_at AS "expiresAt", max_uses AS "maxUses",
+              uses_count AS "usesCount", is_active AS "isActive",
+              allow_guests AS "allowGuests", created_at AS "createdAt"
+       FROM invite_links
+       WHERE room_id = $1
+       ORDER BY created_at DESC`,
+      [room.id]
+    );
+
+    res.json({ invites: result.rows });
+  } catch (error) {
+    console.error("List invites error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// DELETE /api/rooms/:slug/invite/:code — деактивировать ссылку (только владелец)
+router.delete("/:slug/invite/:code", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      res.status(403).json({ error: "Только владелец может деактивировать ссылки-приглашения" });
+      return;
+    }
+
+    const inviteResult = await db.query(
+      `UPDATE invite_links SET is_active = false
+       WHERE code = $1 AND room_id = $2
+       RETURNING id`,
+      [req.params.code, room.id]
+    );
+
+    if (inviteResult.rows.length === 0) {
+      res.status(404).json({ error: "Ссылка-приглашение не найдена" });
+      return;
+    }
+
+    res.json({ message: "Ссылка-приглашение деактивирована" });
+  } catch (error) {
+    console.error("Deactivate invite error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
 });

@@ -23,6 +23,10 @@ nginx-temp.conf
 # Сборка фронтенда
 frontend/dist/
 
+# Claude Code
+CLAUDE.md
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

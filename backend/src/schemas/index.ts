@@ -26,6 +26,21 @@ export const createRoomSchema = z.object({
   maxUsers: z.number().int().min(2).max(50).optional().default(10),
 });
 
+export const createInviteSchema = z.object({
+  expiresAt: z.string().datetime({ offset: true }).optional(),
+  maxUses: z.number().int().min(1).max(1000).optional(),
+  allowGuests: z.boolean().optional().default(true),
+});
+
+export const joinGuestSchema = z.object({
+  displayName: z
+    .string()
+    .min(1, "Имя обязательно")
+    .max(50, "Имя — максимум 50 символов"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+export type JoinGuestInput = z.infer<typeof joinGuestSchema>;

@@ -39,6 +39,19 @@ export async function initDatabase() {
         joined_at TIMESTAMP DEFAULT NOW(),
         left_at TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS invite_links (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id),
+        code VARCHAR(20) UNIQUE NOT NULL,
+        created_by UUID NOT NULL REFERENCES users(id),
+        expires_at TIMESTAMP,
+        max_uses INT,
+        uses_count INT DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        allow_guests BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log("Database tables ready");
   } finally {
