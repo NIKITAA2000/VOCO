@@ -6,7 +6,21 @@ const pool = new pg.Pool({
     "postgresql://voco:voco_password@localhost:5432/voco_db",
 });
 
-// Initialize tables on startup
+// Проверка: пользователь уже активен в другой комнате
+async function isUserInAnotherRoom(
+  client: pg.PoolClient,
+  userId: string,
+  currentRoomId: string
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1 FROM participants
+     WHERE user_id = $1 AND room_id != $2
+     LIMIT 1`,
+    [userId, currentRoomId]
+  );
+  return result.rows.length > 0;
+}
+
 export async function initDatabase() {
   const client = await pool.connect();
   try {
@@ -33,11 +47,25 @@ export async function initDatabase() {
 
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id), -- NULL для гостей
+        room_id UUID NOT NULL REFERENCES rooms(id),
+        session_id VARCHAR(100) UNIQUE NOT NULL, -- Уникальный ID сессии (identity в LiveKit)
+        display_name VARCHAR(100) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'PARTICIPANT' CHECK (role IN ('OWNER', 'MODERATOR', 'PARTICIPANT')),
+        joined_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS user_room (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id),
         room_id UUID NOT NULL REFERENCES rooms(id),
-        role VARCHAR(20) DEFAULT 'PARTICIPANT',
-        joined_at TIMESTAMP DEFAULT NOW(),
-        left_at TIMESTAMP
+        room_slug VARCHAR(20) NOT NULL,
+        room_name VARCHAR(100) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'PARTICIPANT' CHECK (role IN ('OWNER', 'MODERATOR', 'PARTICIPANT')),
+        joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        left_at TIMESTAMP,
+        duration_minutes INT,
+        UNIQUE(user_id, room_id, joined_at)
       );
 
       CREATE TABLE IF NOT EXISTS blocked_users (
@@ -62,6 +90,11 @@ export async function initDatabase() {
         allow_guests BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      -- Индексы для скорости
+      CREATE INDEX IF NOT EXISTS idx_participants_room_session ON participants(room_id, session_id);
+      CREATE INDEX IF NOT EXISTS idx_participants_user ON participants(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_room_user ON user_room(user_id);
     `);
     console.log("Database tables ready");
   } finally {
