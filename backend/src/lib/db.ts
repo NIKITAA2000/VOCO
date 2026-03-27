@@ -6,18 +6,29 @@ const pool = new pg.Pool({
     "postgresql://voco:voco_password@localhost:5432/voco_db",
 });
 
-// Проверка: пользователь уже активен в другой комнате
-async function isUserInAnotherRoom(
+export async function isUserInAnotherRoom(
   client: pg.PoolClient,
   userId: string,
-  currentRoomId: string
+  currentRoomId?: string
 ): Promise<boolean> {
-  const result = await client.query(
-    `SELECT 1 FROM participants
-     WHERE user_id = $1 AND room_id != $2
-     LIMIT 1`,
-    [userId, currentRoomId]
-  );
+  let query: string;
+  let params: any[];
+
+  if (currentRoomId) {
+    // Проверка: есть ли активная сессия в другой комнате (для join)
+    query = `SELECT 1 FROM participants
+             WHERE user_id = $1 AND room_id != $2 AND left_at IS NULL
+             LIMIT 1`;
+    params = [userId, currentRoomId];
+  } else {
+    // Проверка: есть ли любая активная сессия (для создания комнаты)
+    query = `SELECT 1 FROM participants
+             WHERE user_id = $1 AND left_at IS NULL
+             LIMIT 1`;
+    params = [userId];
+  }
+
+  const result = await client.query(query, params);
   return result.rows.length > 0;
 }
 
@@ -25,6 +36,7 @@ export async function initDatabase() {
   const client = await pool.connect();
   try {
     await client.query(`
+      -- Таблица пользователей
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -34,6 +46,7 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      -- Таблица комнат
       CREATE TABLE IF NOT EXISTS rooms (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL,
@@ -45,29 +58,22 @@ export async function initDatabase() {
         closed_at TIMESTAMP
       );
 
+      -- Единая таблица участников (активные сессии + история)
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID REFERENCES users(id), -- NULL для гостей
+        user_id UUID REFERENCES users(id),  -- NULL для гостей
         room_id UUID NOT NULL REFERENCES rooms(id),
-        session_id VARCHAR(100) UNIQUE NOT NULL, -- Уникальный ID сессии (identity в LiveKit)
+        session_id VARCHAR(100) UNIQUE NOT NULL,  -- identity в LiveKit
         display_name VARCHAR(100) NOT NULL,
-        role VARCHAR(20) NOT NULL DEFAULT 'PARTICIPANT' CHECK (role IN ('OWNER', 'MODERATOR', 'PARTICIPANT')),
-        joined_at TIMESTAMP DEFAULT NOW()
+        role VARCHAR(20) NOT NULL DEFAULT 'PARTICIPANT'
+          CHECK (role IN ('OWNER', 'MODERATOR', 'PARTICIPANT')),
+        joined_at TIMESTAMP DEFAULT NOW(),
+        left_at TIMESTAMP,  -- NULL = активная сессия
+        duration_minutes INT,  -- заполняется при выходе
+        is_guest BOOLEAN DEFAULT FALSE  -- флаг гостя
       );
 
-      CREATE TABLE IF NOT EXISTS user_room (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id),
-        room_id UUID NOT NULL REFERENCES rooms(id),
-        room_slug VARCHAR(20) NOT NULL,
-        room_name VARCHAR(100) NOT NULL,
-        role VARCHAR(20) NOT NULL DEFAULT 'PARTICIPANT' CHECK (role IN ('OWNER', 'MODERATOR', 'PARTICIPANT')),
-        joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        left_at TIMESTAMP,
-        duration_minutes INT,
-        UNIQUE(user_id, room_id, joined_at)
-      );
-
+      -- Таблица заблокированных пользователей
       CREATE TABLE IF NOT EXISTS blocked_users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),
@@ -78,6 +84,7 @@ export async function initDatabase() {
         UNIQUE(room_id, user_id)
       );
 
+      -- Таблица ссылок-приглашений
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),
@@ -91,10 +98,31 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
-      -- Индексы для скорости
-      CREATE INDEX IF NOT EXISTS idx_participants_room_session ON participants(room_id, session_id);
+      -- ИНДЕКСЫ для производительности
+
+      -- Уникальность: один пользователь — одна активная сессия в комнате
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_participants_active_session
+        ON participants(user_id, room_id)
+        WHERE user_id IS NOT NULL AND left_at IS NULL;
+
+      -- Быстрый поиск активных участников в комнате
+      CREATE INDEX IF NOT EXISTS idx_participants_room_active
+        ON participants(room_id, left_at)
+        WHERE left_at IS NULL;
+
+      -- История посещений пользователя
+      CREATE INDEX IF NOT EXISTS idx_participants_user_history
+        ON participants(user_id, room_id, joined_at DESC);
+
+      -- Поиск по session_id (для кика, токенов)
+      CREATE INDEX IF NOT EXISTS idx_participants_session
+        ON participants(session_id);
+
+      -- Индексы для других таблиц
       CREATE INDEX IF NOT EXISTS idx_participants_user ON participants(user_id);
-      CREATE INDEX IF NOT EXISTS idx_user_room_user ON user_room(user_id);
+      CREATE INDEX IF NOT EXISTS idx_blocked_users_room ON blocked_users(room_id, user_id);
+      CREATE INDEX IF NOT EXISTS idx_invite_links_code ON invite_links(code);
+      CREATE INDEX IF NOT EXISTS idx_invite_links_room ON invite_links(room_id);
     `);
     console.log("Database tables ready");
   } finally {

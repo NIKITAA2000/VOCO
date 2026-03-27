@@ -6,13 +6,13 @@ import { config } from "../config/index.js";
 import { joinInviteSchema } from "../schemas/index.js";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "../middleware/auth.js";
+import { isUserInAnotherRoom } from "../lib/db.js";
 
 const router = Router();
 
 // ============================================================================
 // Вспомогательные функции
 // ============================================================================
-
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
@@ -28,25 +28,9 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction): v
     (req as any).user = decoded;
   } catch {
     // Токен невалиден, игнорируем и продолжаем как гость
-    // return res.status(401).json({ error: "Недействительный токен" });
   }
 
   next();
-}
-
-// Проверка: пользователь уже активен в другой комнате
-async function isUserInAnotherRoom(
-  client: any,
-  userId: string,
-  currentRoomId: string
-): Promise<boolean> {
-  const result = await client.query(
-    `SELECT 1 FROM participants
-     WHERE user_id = $1 AND room_id != $2
-     LIMIT 1`,
-    [userId, currentRoomId]
-  );
-  return result.rows.length > 0;
 }
 
 interface InviteRow {
@@ -68,12 +52,10 @@ async function validateInvite(
   code: string
 ): Promise<{ invite: InviteRow } | { error: string; status: 400 | 404 }> {
   const result = await db.query(
-    `SELECT il.id, il.room_id AS "roomId", il.code,
-            il.expires_at AS "expiresAt", il.max_uses AS "maxUses",
-            il.uses_count AS "usesCount", il.is_active AS "isActive",
-            il.allow_guests AS "allowGuests",
-            r.is_active AS "roomIsActive", r.slug AS "roomSlug",
-            r.name AS "roomName", r.max_users AS "maxUsers"
+    `SELECT il.id, il.room_id AS "roomId", il.code, il.expires_at AS "expiresAt",
+            il.max_uses AS "maxUses", il.uses_count AS "usesCount", il.is_active AS "isActive",
+            il.allow_guests AS "allowGuests", r.is_active AS "roomIsActive",
+            r.slug AS "roomSlug", r.name AS "roomName", r.max_users AS "maxUsers"
      FROM invite_links il
      JOIN rooms r ON il.room_id = r.id
      WHERE il.code = $1`,
@@ -87,21 +69,26 @@ async function validateInvite(
   const invite: InviteRow = result.rows[0];
 
   if (!invite.isActive) return { error: "Ссылка деактивирована", status: 400 };
-  if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) return { error: "Ссылка истекла", status: 400 };
-  if (invite.maxUses !== null && invite.usesCount >= invite.maxUses) return { error: "Лимит исчерпан", status: 400 };
+
+  if (invite.expiresAt && new Date(invite.expiresAt) < new Date())
+    return { error: "Ссылка истекла", status: 400 };
+
+  if (invite.maxUses !== null && invite.usesCount >= invite.maxUses)
+    return { error: "Лимит исчерпан", status: 400 };
+
   if (!invite.roomIsActive) return { error: "Комната закрыта", status: 400 };
 
   return { invite };
 }
 
 // ============================================================================
-// POST /api/invite/:code/join — Универсальный вход (для авторизованных пользователей и гостей)
+// POST /api/invite/:code/join — Универсальный вход
 // ============================================================================
 router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => {
   const client = await db.connect();
 
   try {
-    // 1. Валидация тела запроса
+    // Валидация тела запроса
     const parsed = joinInviteSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -111,7 +98,7 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
     }
     const { displayName } = parsed.data;
 
-    // 2. Валидация инвайта
+    // Валидация инвайта
     const validation = await validateInvite(req.params.code);
     if ("error" in validation) {
       return res.status(validation.status).json({ error: validation.error });
@@ -120,7 +107,7 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
 
     await client.query('BEGIN');
 
-    // 3. Определение типа пользователя
+    // Определение типа пользователя
     const isAuthenticated = !!(req as any).user;
     let sessionId: string;
     let role: string = 'PARTICIPANT';
@@ -143,16 +130,19 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
         return res.status(403).json({ error: "Вы заблокированы в этой комнате" });
       }
 
-      // Проверка: Уже в другой комнате?
+      // Проверка: уже в другой комнате?
       const inOtherRoom = await isUserInAnotherRoom(client, userId, invite.roomId);
       if (inOtherRoom) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: "Вы уже находитесь в другой комнате. Покиньте её перед входом." });
+        return res.status(400).json({
+          error: "Вы уже находитесь в другой комнате. Покиньте её перед входом."
+        });
       }
 
       // Проверка существующей сессии в ЭТОЙ комнате
       const existing = await client.query(
-        `SELECT session_id, role FROM participants WHERE user_id = $1 AND room_id = $2`,
+        `SELECT session_id, role FROM participants
+         WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
         [userId, invite.roomId]
       );
 
@@ -160,17 +150,20 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
         // Повторный вход: обновляем имя, используем старую сессию
         sessionId = existing.rows[0].session_id;
         role = existing.rows[0].role;
+
         await client.query(
-          `UPDATE participants SET display_name = $1 WHERE user_id = $2 AND room_id = $3`,
+          `UPDATE participants SET display_name = $1
+           WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL`,
           [dbDisplayName, userId, invite.roomId]
         );
       } else {
         // Новый вход
         sessionId = nanoid(16);
 
-        // Проверка лимита участников
+        // Проверка лимита участников (только активные сессии)
         const count = await client.query(
-          `SELECT COUNT(*) as c FROM participants WHERE room_id = $1`,
+          `SELECT COUNT(*) as c FROM participants
+           WHERE room_id = $1 AND left_at IS NULL`,
           [invite.roomId]
         );
         if (parseInt(count.rows[0].c) >= invite.maxUsers) {
@@ -183,12 +176,14 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
           `SELECT owner_id FROM rooms WHERE id = $1`,
           [invite.roomId]
         );
+
         if (roomOwner.rows[0].owner_id === userId) {
           role = 'OWNER';
         } else {
+          // Восстановление роли из истории (завершённые сессии)
           const lastRole = await client.query(
-            `SELECT role FROM user_room
-             WHERE user_id = $1 AND room_id = $2
+            `SELECT role FROM participants
+             WHERE user_id = $1 AND room_id = $2 AND left_at IS NOT NULL
              ORDER BY joined_at DESC LIMIT 1`,
             [userId, invite.roomId]
           );
@@ -199,28 +194,10 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
 
         // Добавление в participants
         await client.query(
-          `INSERT INTO participants (user_id, room_id, session_id, display_name, role)
-           VALUES ($1, $2, $3, $4, $5)`,
+          `INSERT INTO participants (user_id, room_id, session_id, display_name, role, is_guest)
+           VALUES ($1, $2, $3, $4, $5, FALSE)`,
           [userId, invite.roomId, sessionId, dbDisplayName, role]
         );
-
-        // Обновление истории user_room
-        const openHistory = await client.query(
-          `SELECT id FROM user_room WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
-          [userId, invite.roomId]
-        );
-        if (openHistory.rows.length === 0) {
-          await client.query(
-            `INSERT INTO user_room (user_id, room_id, room_slug, room_name, role, joined_at)
-             VALUES ($1, $2, $3, $4, $5, NOW())`,
-            [userId, invite.roomId, invite.roomSlug, invite.roomName, role]
-          );
-        } else {
-          await client.query(
-            `UPDATE user_room SET role = $1 WHERE id = $2`,
-            [role, openHistory.rows[0].id]
-          );
-        }
 
         // Увеличение счётчика инвайта
         await client.query(
@@ -230,15 +207,16 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
       }
 
     } else {
-      // ГОСТЬ
+      // Гость
       if (!invite.allowGuests) {
         await client.query('ROLLBACK');
         return res.status(403).json({ error: "Гостевой вход запрещён в этой комнате" });
       }
 
-      // Проверка лимита
+      // Проверка лимита (только активные сессии)
       const count = await client.query(
-        `SELECT COUNT(*) as c FROM participants WHERE room_id = $1`,
+        `SELECT COUNT(*) as c FROM participants
+         WHERE room_id = $1 AND left_at IS NULL`,
         [invite.roomId]
       );
       if (parseInt(count.rows[0].c) >= invite.maxUsers) {
@@ -250,10 +228,10 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
       userId = null;
       role = 'PARTICIPANT';
 
-      // Гость: user_id = NULL, в user_room не пишем
+      // Гость: user_id = NULL, is_guest = TRUE
       await client.query(
-        `INSERT INTO participants (user_id, room_id, session_id, display_name, role)
-         VALUES (NULL, $1, $2, $3, $4)`,
+        `INSERT INTO participants (user_id, room_id, session_id, display_name, role, is_guest)
+         VALUES (NULL, $1, $2, $3, $4, TRUE)`,
         [invite.roomId, sessionId, dbDisplayName, role]
       );
 
@@ -265,7 +243,7 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
 
     await client.query('COMMIT');
 
-    // 4. Генерация LiveKit-токена
+    // Генерация LiveKit-токена
     const tokenPayload: any = {
       identity: sessionId,
       name: dbDisplayName,
@@ -277,7 +255,6 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
     };
 
     const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, tokenPayload);
-
     at.addGrant({
       roomJoin: true,
       room: invite.roomSlug,
@@ -287,7 +264,7 @@ router.post("/:code/join", optionalAuth, async (req: Request, res: Response) => 
       roomAdmin: role === 'OWNER',
     });
 
-    // 5. Формирование ответа
+    // Формирование ответа
     const response: any = {
       message: isAuthenticated ? "Вход выполнен" : "Гостевой вход",
       token: await at.toJwt(),

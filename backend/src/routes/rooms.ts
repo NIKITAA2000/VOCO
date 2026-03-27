@@ -9,9 +9,10 @@ import {
   blockUserSchema,
   changeRoleSchema,
   joinRoomSchema,
-  kickUserSchema
+  kickUserSchema,
 } from "../schemas/index.js";
 import { config } from "../config/index.js";
+import { isUserInAnotherRoom } from "../lib/db.js";
 
 const router = Router();
 
@@ -29,51 +30,23 @@ async function generateLiveKitToken(
   userId?: string,
   isGuest: boolean = false
 ) {
-
   const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
-    identity: sessionId, // <-- session_id становится identity в LiveKit
+    identity: sessionId,
     name: displayName,
     metadata: JSON.stringify({ userId, role, isGuest }),
   });
-
   at.addGrant({
     roomJoin: true,
     room: roomSlug,
     canPublish: true,
     canSubscribe: true,
     canPublishData: true,
-    roomAdmin: role === 'OWNER', // Полные права только у владельца
+    roomAdmin: role === "OWNER",
   });
-
   return {
     token: await at.toJwt(),
     livekitUrl: config.livekit.publicUrl || config.livekit.url,
   };
-}
-
-// ============================================================================
-// Вспомогательная функция: Проверка на наличие в другой комнате
-// ============================================================================
-async function isUserInAnotherRoom(
-  client: any,
-  userId: string,
-  currentRoomId?: string // Делаем необязательным
-): Promise<boolean> {
-  let query: string;
-  let params: any[];
-
-  if (currentRoomId) {
-    // Проверка: есть ли активная сессия в ДРУГОЙ комнате (для входа/join)
-    query = `SELECT 1 FROM participants WHERE user_id = $1 AND room_id != $2 LIMIT 1`;
-    params = [userId, currentRoomId];
-  } else {
-    // Проверка: есть ли ЛЮБАЯ активная сессия (для создания/create)
-    query = `SELECT 1 FROM participants WHERE user_id = $1 LIMIT 1`;
-    params = [userId];
-  }
-
-  const result = await client.query(query, params);
-  return result.rows.length > 0;
 }
 
 // ============================================================================
@@ -84,13 +57,14 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const parsed = createRoomSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      res.status(400).json({
+        error: "Ошибка валидации",
+        details: parsed.error.flatten().fieldErrors,
+      });
       return;
     }
 
     const userId = req.user!.userId;
-
-    // Проверка: Не находится ли пользователь уже в другой комнате?
     const { name, maxUsers } = parsed.data;
     const slug = nanoid(10);
     const username = req.user!.username;
@@ -98,15 +72,14 @@ router.post("/", async (req: Request, res: Response) => {
 
     const client = await db.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Проверка: Не находится ли пользователь уже в какой-либо комнате?
       const inOtherRoom = await isUserInAnotherRoom(client, userId);
-
       if (inOtherRoom) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         res.status(400).json({
-          error: "Нельзя создать новую комнату, пока вы находитесь в другой. Покиньте текущую комнату."
+          error: "Нельзя создать новую комнату, пока вы находитесь в другой. Покиньте текущую комнату.",
         });
         return;
       }
@@ -120,24 +93,22 @@ router.post("/", async (req: Request, res: Response) => {
       );
       const room = roomResult.rows[0];
 
-      // Записываем владельца в активные участники
+      // Записываем владельца в participants (активная сессия)
       await client.query(
-        `INSERT INTO participants (user_id, room_id, session_id, display_name, role)
-         VALUES ($1, $2, $3, $4, 'OWNER')`,
+        `INSERT INTO participants (user_id, room_id, session_id, display_name, role, is_guest)
+         VALUES ($1, $2, $3, $4, 'OWNER', FALSE)`,
         [userId, room.id, sessionId, username]
       );
 
-      // Записываем в историю
-      await client.query(
-        `INSERT INTO user_room (user_id, room_id, room_slug, room_name, role, joined_at)
-         VALUES ($1, $2, $3, $4, 'OWNER', NOW())`,
-        [userId, room.id, slug, name]
-      );
-
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       const { token, livekitUrl } = await generateLiveKitToken(
-        room.slug, sessionId, username, 'OWNER', userId, false
+        room.slug,
+        sessionId,
+        username,
+        "OWNER",
+        userId,
+        false
       );
 
       res.status(201).json({
@@ -147,7 +118,7 @@ router.post("/", async (req: Request, res: Response) => {
         livekitUrl,
       });
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
@@ -159,7 +130,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // ============================================================================
-// 2. Список комнат
+// 2. Список комнат пользователя
 // GET /api/rooms
 // ============================================================================
 router.get("/", async (req: Request, res: Response) => {
@@ -170,11 +141,12 @@ router.get("/", async (req: Request, res: Response) => {
               r.max_users AS "maxUsers", r.owner_id AS "ownerId",
               r.created_at AS "createdAt", r.closed_at AS "closedAt",
               u.username AS "owner_username",
-              (SELECT COUNT(*) FROM participants p WHERE p.room_id = r.id) AS "activeCount"
+              (SELECT COUNT(*) FROM participants p
+               WHERE p.room_id = r.id AND p.left_at IS NULL) AS "activeCount"
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
-       JOIN user_room ur ON ur.room_id = r.id
-       WHERE ur.user_id = $1
+       JOIN participants ur ON ur.room_id = r.id
+       WHERE ur.user_id = $1 AND ur.is_guest = FALSE
        ORDER BY r.created_at DESC`,
       [userId]
     );
@@ -217,42 +189,59 @@ router.get("/:slug", async (req: Request, res: Response) => {
     }
     const row = roomResult.rows[0];
 
-    // Проверка доступа
+    // Проверка доступа (участник или владелец)
     const accessCheck = await db.query(
-      `SELECT 1 FROM user_room WHERE user_id = $1 AND room_id = $2 LIMIT 1`,
+      `SELECT 1 FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL
+       LIMIT 1`,
       [userId, row.id]
     );
+
+    // Если не активный участник, проверяем историю посещений
     if (accessCheck.rows.length === 0 && row.ownerId !== userId) {
-      res.status(403).json({ error: "Доступ запрещен" });
-      return;
+      const historyCheck = await db.query(
+        `SELECT 1 FROM participants
+         WHERE user_id = $1 AND room_id = $2 AND is_guest = FALSE
+         LIMIT 1`,
+        [userId, row.id]
+      );
+
+      if (historyCheck.rows.length === 0) {
+        res.status(403).json({ error: "Доступ запрещён" });
+        return;
+      }
     }
 
     const participantsResult = await db.query(
       `SELECT p.id, p.session_id, p.display_name, p.role, p.joined_at,
-              p.user_id AS "db_user_id", u.username, u.avatar_url AS "avatarUrl"
+              p.user_id AS "db_user_id", u.username, u.avatar_url AS "avatarUrl",
+              p.is_guest
        FROM participants p
        LEFT JOIN users u ON p.user_id = u.id
-       WHERE p.room_id = $1
+       WHERE p.room_id = $1 AND p.left_at IS NULL
        ORDER BY p.joined_at ASC`,
       [row.id]
     );
 
-    // Определяем роль текущего пользователя для фильтрации session_id
+    // Определяем роль текущего пользователя
     const myParticipant = await db.query(
-      `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
+      `SELECT role FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
       [userId, row.id]
     );
     const myRole = myParticipant.rows[0]?.role;
-    const isAdmin = myRole === 'OWNER' || myRole === 'MODERATOR';
+    const isAdmin = myRole === "OWNER" || myRole === "MODERATOR";
 
     const participants = participantsResult.rows.map((p) => ({
       id: p.id,
-      sessionId: isAdmin ? p.session_id : undefined, // Скрываем ID от обычных участников
+      sessionId: isAdmin ? p.session_id : undefined,
       displayName: p.display_name,
       role: p.role,
       joinedAt: p.joined_at,
-      user: p.db_user_id ? { id: p.db_user_id, username: p.username, avatarUrl: p.avatarUrl } : null,
-      isGuest: !p.db_user_id
+      user: p.db_user_id
+        ? { id: p.db_user_id, username: p.username, avatarUrl: p.avatarUrl }
+        : null,
+      isGuest: p.is_guest || !p.db_user_id,
     }));
 
     res.json({
@@ -277,62 +266,66 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const username = req.user!.username;
     const { slug } = req.params;
-    const { displayName: customDisplayName } = joinRoomSchema.parse(req.body || {});
+    const { displayName: customDisplayName } = joinRoomSchema.parse(
+      req.body || {}
+    );
     const displayName = customDisplayName || username;
 
-    // 1. Получаем информацию о комнате (без транзакции)
+    // Получаем информацию о комнате
     const roomResult = await db.query(
       `SELECT id, name, slug, is_active AS "isActive", max_users AS "maxUsers", owner_id AS "ownerId"
        FROM rooms WHERE slug = $1`,
       [slug]
     );
+
     if (roomResult.rows.length === 0) {
       res.status(404).json({ error: "Комната не найдена" });
       return;
     }
     const room = roomResult.rows[0];
+
     if (!room.isActive) {
       res.status(400).json({ error: "Комната закрыта" });
       return;
     }
 
-    // 2. Подключаемся к БД для транзакции
+    // Транзакция
     const client = await db.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
-      // 3. Проверка блокировки (внутри транзакции для консистентности)
+      // Проверка блокировки
       const blockedResult = await client.query(
         "SELECT id FROM blocked_users WHERE room_id = $1 AND user_id = $2",
         [room.id, userId]
       );
       if (blockedResult.rows.length > 0) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         res.status(403).json({ error: "Вы заблокированы в этой комнате" });
         return;
       }
 
-      // 4. Проверка: Уже в другой комнате?
+      // Проверка: Уже в другой комнате?
       const inOtherRoom = await isUserInAnotherRoom(client, userId, room.id);
       if (inOtherRoom) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         res.status(400).json({ error: "Вы уже находитесь в другой комнате" });
         return;
       }
 
-      // 5. Основная логика входа
+      // Основная логика входа
       const existing = await client.query(
-        "SELECT id, session_id, role FROM participants WHERE user_id = $1 AND room_id = $2",
+        "SELECT id, session_id, role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
         [userId, room.id]
       );
 
-      let role: 'OWNER' | 'MODERATOR' | 'PARTICIPANT' = 'PARTICIPANT';
+      let role: "OWNER" | "MODERATOR" | "PARTICIPANT" = "PARTICIPANT";
       let sessionId = nanoid(16);
 
       if (existing.rows.length > 0) {
         // Уже внутри: обновляем имя, используем старую сессию
         await client.query(
-          "UPDATE participants SET display_name = $1 WHERE user_id = $2 AND room_id = $3",
+          "UPDATE participants SET display_name = $1 WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL",
           [displayName, userId, room.id]
         );
         role = existing.rows[0].role;
@@ -340,53 +333,48 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       } else {
         // Новый вход
         const countResult = await client.query(
-          "SELECT COUNT(*) as count FROM participants WHERE room_id = $1",
+          "SELECT COUNT(*) as count FROM participants WHERE room_id = $1 AND left_at IS NULL",
           [room.id]
         );
         if (parseInt(countResult.rows[0].count) >= room.maxUsers) {
-          await client.query('ROLLBACK');
+          await client.query("ROLLBACK");
           res.status(400).json({ error: "Комната заполнена" });
           return;
         }
 
         // Определение роли
         if (room.ownerId === userId) {
-          role = 'OWNER';
+          role = "OWNER";
         } else {
+          // Восстановление роли из истории (завершённые сессии)
           const lastRoleRes = await client.query(
-            `SELECT role FROM user_room WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL ORDER BY joined_at DESC LIMIT 1`,
+            `SELECT role FROM participants
+             WHERE user_id = $1 AND room_id = $2 AND left_at IS NOT NULL
+             ORDER BY joined_at DESC LIMIT 1`,
             [userId, room.id]
           );
-          if (lastRoleRes.rows[0]?.role === 'MODERATOR') role = 'MODERATOR';
+          if (lastRoleRes.rows[0]?.role === "MODERATOR") {
+            role = "MODERATOR";
+          }
         }
 
         await client.query(
-          `INSERT INTO participants (user_id, room_id, session_id, display_name, role)
-           VALUES ($1, $2, $3, $4, $5)`,
+          `INSERT INTO participants (user_id, room_id, session_id, display_name, role, is_guest)
+           VALUES ($1, $2, $3, $4, $5, FALSE)`,
           [userId, room.id, sessionId, displayName, role]
         );
-
-        const openHistory = await client.query(
-          `SELECT id FROM user_room WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
-          [userId, room.id]
-        );
-
-        if (openHistory.rows.length === 0) {
-          await client.query(
-            `INSERT INTO user_room (user_id, room_id, room_slug, room_name, role, joined_at)
-             VALUES ($1, $2, $3, $4, $5, NOW())`,
-            [userId, room.id, room.slug, room.name, role]
-          );
-        } else {
-          await client.query(`UPDATE user_room SET role = $1 WHERE id = $2`, [role, openHistory.rows[0].id]);
-        }
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       // Генерация токена
       const { token, livekitUrl } = await generateLiveKitToken(
-        room.slug, sessionId, displayName, role, userId, false
+        room.slug,
+        sessionId,
+        displayName,
+        role,
+        userId,
+        false
       );
 
       res.json({
@@ -398,13 +386,13 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
         role,
       });
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    if (error.name === 'ZodError') {
+    if (error.name === "ZodError") {
       res.status(400).json({ error: "Ошибка валидации", details: error.errors });
       return;
     }
@@ -422,7 +410,10 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { slug } = req.params;
 
-    const roomResult = await db.query("SELECT id FROM rooms WHERE slug = $1", [slug]);
+    const roomResult = await db.query(
+      "SELECT id FROM rooms WHERE slug = $1",
+      [slug]
+    );
     if (roomResult.rows.length === 0) {
       res.status(404).json({ error: "Комната не найдена" });
       return;
@@ -431,24 +422,28 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
 
     const client = await db.connect();
     try {
-      await client.query('BEGIN');
-      const delRes = await client.query(
-        `DELETE FROM participants WHERE user_id = $1 AND room_id = $2 RETURNING joined_at`,
+      await client.query("BEGIN");
+
+      // Обновляем сессию: ставим left_at и считаем длительность
+      const updateRes = await client.query(
+        `UPDATE participants
+         SET left_at = NOW(),
+             duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - joined_at)) / 60)
+         WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL
+         RETURNING joined_at`,
         [userId, roomId]
       );
 
-      if (delRes.rows.length > 0) {
-        await client.query(
-          `UPDATE user_room SET left_at = NOW(),
-               duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - $1)) / 60)
-           WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL`,
-          [delRes.rows[0].joined_at, userId, roomId]
-        );
+      if (updateRes.rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(400).json({ error: "Вы не находитесь в этой комнате" });
+        return;
       }
-      await client.query('COMMIT');
+
+      await client.query("COMMIT");
       res.json({ message: "Вы покинули комнату" });
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
@@ -468,11 +463,10 @@ router.post("/:slug/kick", async (req: Request, res: Response) => {
     const requesterId = req.user!.userId;
     const { slug } = req.params;
     const { sessionId, reason } = kickUserSchema.parse(req.body);
-    // Примечание: поле 'reason' теперь игнорируется для базы данных,
-    // но может использоваться для логирования или отправки уведомления в чат.
 
     const roomResult = await db.query(
-      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1 AND is_active = true`,
+      `SELECT id, owner_id AS "ownerId" FROM rooms
+       WHERE slug = $1 AND is_active = true`,
       [slug]
     );
     if (roomResult.rows.length === 0) {
@@ -483,18 +477,20 @@ router.post("/:slug/kick", async (req: Request, res: Response) => {
 
     // Проверка прав инициатора
     const requesterPart = await db.query(
-      `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
+      `SELECT role FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
       [requesterId, room.id]
     );
     const requesterRole = requesterPart.rows[0]?.role;
-    if (!['OWNER', 'MODERATOR'].includes(requesterRole)) {
+    if (!["OWNER", "MODERATOR"].includes(requesterRole)) {
       res.status(403).json({ error: "Недостаточно прав" });
       return;
     }
 
     // Поиск жертвы
     const targetPart = await db.query(
-      `SELECT id, user_id, role FROM participants WHERE room_id = $1 AND session_id = $2`,
+      `SELECT id, user_id, role FROM participants
+       WHERE room_id = $1 AND session_id = $2 AND left_at IS NULL`,
       [room.id, sessionId]
     );
     if (targetPart.rows.length === 0) {
@@ -510,39 +506,39 @@ router.post("/:slug/kick", async (req: Request, res: Response) => {
     }
 
     // Ограничения для модераторов
-    if (requesterRole === 'MODERATOR' && ['OWNER', 'MODERATOR'].includes(target.role)) {
-      res.status(403).json({ error: "Модераторы не могут кикать владельцев и других модераторов" });
+    if (
+      requesterRole === "MODERATOR" &&
+      ["OWNER", "MODERATOR"].includes(target.role)
+    ) {
+      res.status(403).json({
+        error: "Модераторы не могут кикать владельцев и других модераторов",
+      });
       return;
     }
 
     const client = await db.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
-      // 1. Удаляем из активных участников (разрыв сессии)
-      await client.query(`DELETE FROM participants WHERE id = $1`, [target.id]);
+      // Закрываем сессию
+      await client.query(
+        `UPDATE participants
+         SET left_at = NOW(),
+             duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - joined_at)) / 60)
+         WHERE id = $1 AND left_at IS NULL`,
+        [target.id]
+      );
 
-      // 2. Закрываем историю для авторизованных пользователей
-      if (target.user_id) {
-        await client.query(
-          `UPDATE user_room SET left_at = NOW(),
-               duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - joined_at)) / 60)
-           WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
-          [target.user_id, room.id]
-        );
-      }
-
-      await client.query('COMMIT');
-
+      await client.query("COMMIT");
       res.json({ message: "Участник исключён из комнаты" });
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    if (error.name === 'ZodError') {
+    if (error.name === "ZodError") {
       res.status(400).json({ error: "Ошибка валидации", details: error.errors });
       return;
     }
@@ -555,104 +551,130 @@ router.post("/:slug/kick", async (req: Request, res: Response) => {
 // 7. Изменение роли
 // PATCH /api/rooms/:slug/participants/:userId/role
 // ============================================================================
-router.patch("/:slug/participants/:userId/role", async (req: Request, res: Response) => {
-  try {
-    const requesterId = req.user!.userId;
-    const { slug, userId } = req.params;
-    const { role } = changeRoleSchema.parse(req.body);
-
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
-    if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== requesterId) {
-      res.status(403).json({ error: "Только владелец может менять роли" });
-      return;
-    }
-    if (userId === requesterId) {
-      res.status(400).json({ error: "Нельзя изменить свою роль" });
-      return;
-    }
-
-    const client = await db.connect();
+router.patch(
+  "/:slug/participants/:userId/role",
+  async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
-      const up1 = await client.query(
-        `UPDATE participants SET role = $1 WHERE user_id = $2 AND room_id = $3 RETURNING id`,
-        [role, userId, roomResult.rows[0].id]
+      const requesterId = req.user!.userId;
+      const { slug, userId } = req.params;
+      const { role } = changeRoleSchema.parse(req.body);
+
+      const roomResult = await db.query(
+        `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+        [slug]
       );
-      if (up1.rows.length === 0) {
-        await client.query('ROLLBACK');
-        res.status(404).json({ error: "Пользователь не найден" });
+      if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== requesterId) {
+        res.status(403).json({ error: "Только владелец может менять роли" });
         return;
       }
-      await client.query(
-        `UPDATE user_room SET role = $1 WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL`,
-        [role, userId, roomResult.rows[0].id]
-      );
-      await client.query('COMMIT');
-      res.json({ message: `Роль изменена на ${role}` });
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
+      if (userId === requesterId) {
+        res.status(400).json({ error: "Нельзя изменить свою роль" });
+        return;
+      }
+
+      const client = await db.connect();
+      try {
+        await client.query("BEGIN");
+
+        const up1 = await client.query(
+          `UPDATE participants
+           SET role = $1
+           WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL
+           RETURNING id`,
+          [role, userId, roomResult.rows[0].id]
+        );
+
+        if (up1.rows.length === 0) {
+          await client.query("ROLLBACK");
+          res.status(404).json({ error: "Пользователь не найден в комнате" });
+          return;
+        }
+
+        await client.query("COMMIT");
+        res.json({ message: `Роль изменена на ${role}` });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
+      }
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        res
+          .status(400)
+          .json({ error: "Ошибка валидации", details: error.errors });
+        return;
+      }
+      console.error("Change role error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      res.status(400).json({ error: "Ошибка валидации", details: error.errors });
-      return;
-    }
-    console.error("Change role error:", error);
-    res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
-});
+);
 
 // ============================================================================
 // 8. Снятие модератора
 // POST /api/rooms/:slug/moderators/:userId/demote
 // ============================================================================
-router.post("/:slug/moderators/:userId/demote", async (req: Request, res: Response) => {
-  try {
-    const requesterId = req.user!.userId;
-    const { slug, userId } = req.params;
-
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
-    if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== requesterId) {
-      res.status(403).json({ error: "Только владелец может снимать модераторов" });
-      return;
-    }
-    if (userId === requesterId) {
-      res.status(400).json({ error: "Нельзя снять себя" });
-      return;
-    }
-
-    const client = await db.connect();
+router.post(
+  "/:slug/moderators/:userId/demote",
+  async (req: Request, res: Response) => {
     try {
-      await client.query('BEGIN');
-      const targetCheck = await client.query(
-        `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
-        [userId, roomResult.rows[0].id]
+      const requesterId = req.user!.userId;
+      const { slug, userId } = req.params;
+
+      const roomResult = await db.query(
+        `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+        [slug]
       );
-      if (targetCheck.rows.length === 0 || targetCheck.rows[0].role !== 'MODERATOR') {
-        await client.query('ROLLBACK');
-        res.status(400).json({ error: "Пользователь не является модератором" });
+      if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== requesterId) {
+        res.status(403).json({ error: "Только владелец может снимать модераторов" });
+        return;
+      }
+      if (userId === requesterId) {
+        res.status(400).json({ error: "Нельзя снять себя" });
         return;
       }
 
-      await client.query(`UPDATE participants SET role = 'PARTICIPANT' WHERE user_id = $1 AND room_id = $2`, [userId, roomResult.rows[0].id]);
-      await client.query(`UPDATE user_room SET role = 'PARTICIPANT' WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`, [userId, roomResult.rows[0].id]);
+      const client = await db.connect();
+      try {
+        await client.query("BEGIN");
 
-      await client.query('COMMIT');
-      res.json({ message: "Модератор снят" });
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
+        const targetCheck = await client.query(
+          `SELECT role FROM participants
+           WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
+          [userId, roomResult.rows[0].id]
+        );
+
+        if (
+          targetCheck.rows.length === 0 ||
+          targetCheck.rows[0].role !== "MODERATOR"
+        ) {
+          await client.query("ROLLBACK");
+          res.status(400).json({ error: "Пользователь не является модератором" });
+          return;
+        }
+
+        await client.query(
+          `UPDATE participants
+           SET role = 'PARTICIPANT'
+           WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
+          [userId, roomResult.rows[0].id]
+        );
+
+        await client.query("COMMIT");
+        res.json({ message: "Модератор снят" });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Demote error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
-  } catch (error) {
-    console.error("Demote error:", error);
-    res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
-});
+);
 
 // ============================================================================
 // 9. Блокировка пользователя
@@ -664,7 +686,10 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
     const { slug } = req.params;
     const { userId, reason } = blockUserSchema.parse(req.body);
 
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0) {
       res.status(404).json({ error: "Комната не найдена" });
       return;
@@ -672,11 +697,12 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
     const room = roomResult.rows[0];
 
     const requesterPart = await db.query(
-      `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
+      `SELECT role FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
       [requesterId, room.id]
     );
     const requesterRole = requesterPart.rows[0]?.role;
-    if (!['OWNER', 'MODERATOR'].includes(requesterRole)) {
+    if (!["OWNER", "MODERATOR"].includes(requesterRole)) {
       res.status(403).json({ error: "Недостаточно прав" });
       return;
     }
@@ -690,51 +716,61 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
       return;
     }
 
-    if (requesterRole === 'MODERATOR') {
-        const targetRoleRes = await db.query(`SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`, [userId, room.id]);
-        const targetRole = targetRoleRes.rows[0]?.role;
-        if (targetRole === 'OWNER' || targetRole === 'MODERATOR') {
-            res.status(403).json({ error: "Модераторы не могут блокировать владельцев и других модераторов" });
-            return;
-        }
+    if (requesterRole === "MODERATOR") {
+      const targetRoleRes = await db.query(
+        `SELECT role FROM participants
+         WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
+        [userId, room.id]
+      );
+      const targetRole = targetRoleRes.rows[0]?.role;
+      if (targetRole === "OWNER" || targetRole === "MODERATOR") {
+        res.status(403).json({
+          error: "Модераторы не могут блокировать владельцев и других модераторов",
+        });
+        return;
+      }
     }
 
     const client = await db.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
+      // Блокировка
       await client.query(
         `INSERT INTO blocked_users (room_id, user_id, blocked_by, reason)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT (room_id, user_id) DO UPDATE SET reason = $4, blocked_at = NOW()`,
+         ON CONFLICT (room_id, user_id) DO UPDATE
+         SET reason = $4, blocked_at = NOW()`,
         [room.id, userId, requesterId, reason || null]
       );
 
+      // Исключение из комнаты (закрываем сессию)
       const targetPart = await client.query(
-        `SELECT id, joined_at FROM participants WHERE user_id = $1 AND room_id = $2`,
+        `SELECT id, joined_at FROM participants
+         WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
         [userId, room.id]
       );
 
       if (targetPart.rows.length > 0) {
-        await client.query(`DELETE FROM participants WHERE id = $1`, [targetPart.rows[0].id]);
         await client.query(
-          `UPDATE user_room SET left_at = NOW(),
-              duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - $1)) / 60)
-           WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL`,
-          [targetPart.rows[0].joined_at, userId, room.id]
+          `UPDATE participants
+           SET left_at = NOW(),
+               duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - joined_at)) / 60)
+           WHERE id = $1 AND left_at IS NULL`,
+          [targetPart.rows[0].id]
         );
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       res.json({ message: "Пользователь заблокирован и исключён" });
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw e;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    if (error.name === 'ZodError') {
+    if (error.name === "ZodError") {
       res.status(400).json({ error: "Ошибка валидации", details: error.errors });
       return;
     }
@@ -752,7 +788,10 @@ router.get("/:slug/blocked", async (req: Request, res: Response) => {
     const requesterId = req.user!.userId;
     const { slug } = req.params;
 
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0) {
       res.status(404).json({ error: "Комната не найдена" });
       return;
@@ -760,11 +799,12 @@ router.get("/:slug/blocked", async (req: Request, res: Response) => {
     const room = roomResult.rows[0];
 
     const requesterPart = await db.query(
-      `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
+      `SELECT role FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
       [requesterId, room.id]
     );
     const requesterRole = requesterPart.rows[0]?.role;
-    if (!['OWNER', 'MODERATOR'].includes(requesterRole)) {
+    if (!["OWNER", "MODERATOR"].includes(requesterRole)) {
       res.status(403).json({ error: "Недостаточно прав" });
       return;
     }
@@ -805,7 +845,10 @@ router.delete("/:slug/block/:userId", async (req: Request, res: Response) => {
     const requesterId = req.user!.userId;
     const { slug, userId } = req.params;
 
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0) {
       res.status(404).json({ error: "Комната не найдена" });
       return;
@@ -813,11 +856,12 @@ router.delete("/:slug/block/:userId", async (req: Request, res: Response) => {
     const room = roomResult.rows[0];
 
     const requesterPart = await db.query(
-      `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2`,
+      `SELECT role FROM participants
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
       [requesterId, room.id]
     );
     const requesterRole = requesterPart.rows[0]?.role;
-    if (!['OWNER', 'MODERATOR'].includes(requesterRole)) {
+    if (!["OWNER", "MODERATOR"].includes(requesterRole)) {
       res.status(403).json({ error: "Недостаточно прав" });
       return;
     }
@@ -846,8 +890,11 @@ router.post("/:slug/invite", async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
     const userId = req.user!.userId;
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
 
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== userId) {
       res.status(403).json({ error: "Только владелец" });
       return;
@@ -855,7 +902,10 @@ router.post("/:slug/invite", async (req: Request, res: Response) => {
 
     const parsed = createInviteSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      res.status(400).json({
+        error: "Ошибка валидации",
+        details: parsed.error.flatten().fieldErrors,
+      });
       return;
     }
 
@@ -882,10 +932,13 @@ router.get("/:slug/invites", async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
     const userId = req.user!.userId;
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
 
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== userId) {
-      res.status(403).json({ error: "Доступ запрещен" });
+      res.status(403).json({ error: "Доступ запрещён" });
       return;
     }
 
@@ -908,10 +961,13 @@ router.delete("/:slug/invite/:code", async (req: Request, res: Response) => {
   try {
     const { slug, code } = req.params;
     const userId = req.user!.userId;
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
 
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== userId) {
-      res.status(403).json({ error: "Доступ запрещен" });
+      res.status(403).json({ error: "Доступ запрещён" });
       return;
     }
 
@@ -940,15 +996,29 @@ router.delete("/:slug", async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
     const userId = req.user!.userId;
-    const roomResult = await db.query(`SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`, [slug]);
 
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [slug]
+    );
     if (roomResult.rows.length === 0 || roomResult.rows[0].ownerId !== userId) {
       res.status(403).json({ error: "Только владелец" });
       return;
     }
 
-    await db.query("UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1", [roomResult.rows[0].id]);
-    await db.query("DELETE FROM participants WHERE room_id = $1", [roomResult.rows[0].id]);
+    // Закрываем все активные сессии перед закрытием комнаты
+    await db.query(
+      `UPDATE participants
+       SET left_at = NOW(),
+           duration_minutes = ROUND(EXTRACT(EPOCH FROM (NOW() - joined_at)) / 60)
+       WHERE room_id = $1 AND left_at IS NULL`,
+      [roomResult.rows[0].id]
+    );
+
+    await db.query(
+      "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
+      [roomResult.rows[0].id]
+    );
 
     res.json({ message: "Комната закрыта" });
   } catch (error) {

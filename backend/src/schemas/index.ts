@@ -36,7 +36,7 @@ export const joinRoomSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
 });
 
-// НОВАЯ УНИВЕРСАЛЬНАЯ СХЕМА ДЛЯ ИНВАЙТОВ
+// Универсальная схема для приглашений
 export const joinInviteSchema = z.object({
   displayName: z.string().min(1, "Имя обязательно").max(50, "Максимум 50 символов"),
 });
@@ -52,7 +52,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
-export type JoinInviteInput = z.infer<typeof joinInviteSchema>; // Новый тип
+export type JoinInviteInput = z.infer<typeof joinInviteSchema>;
 export type KickUserInput = z.infer<typeof kickUserSchema>;
 export type BlockUserInput = z.infer<typeof blockUserSchema>;
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
