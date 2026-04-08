@@ -53,10 +53,10 @@ const CONNECT_PATHS = [
 ];
 
 const PROFILE_PATHS = [
-  "M742 547C745.283 547 748.534 547.647 751.567 548.903C754.6 550.16 757.356 552.001 759.678 554.322C761.999 556.644 763.84 559.4 765.097 562.433C766.353 565.466 767 568.717 767 572H792C792 565.434 790.707 558.932 788.194 552.866C785.682 546.8 781.998 541.287 777.355 536.645C772.713 532.002 767.2 528.318 761.134 525.806C755.068 523.293 748.566 522 742 522V547Z",
-  "M842 547C838.717 547 835.466 547.647 832.433 548.903C829.4 550.16 826.644 552.001 824.322 554.322C822.001 556.644 820.16 559.4 818.903 562.433C817.647 565.466 817 568.717 817 572H792C792 565.434 793.293 558.932 795.806 552.866C798.318 546.8 802.002 541.287 806.645 536.645C811.287 532.002 816.8 528.318 822.866 525.806C828.932 523.293 835.434 522 842 522V547Z",
-  "M792 497C795.283 497 798.534 497.647 801.567 498.903C804.6 500.16 807.356 502.001 809.678 504.322C811.999 506.644 813.84 509.4 815.097 512.433C816.353 515.466 817 518.717 817 522H842C842 515.434 840.707 508.932 838.194 502.866C835.682 496.8 831.998 491.287 827.355 486.645C822.713 482.002 817.2 478.318 811.134 475.806C805.068 473.293 798.566 472 792 472V497Z",
-  "M792 497C788.717 497 785.466 497.647 782.433 498.903C779.4 500.16 776.644 502.001 774.322 504.322C772.001 506.644 770.16 509.4 768.903 512.433C767.647 515.466 767 518.717 767 522H742C742 515.434 743.293 508.932 745.806 502.866C748.318 496.8 752.002 491.287 756.645 486.645C761.287 482.002 766.8 478.318 772.866 475.806C778.932 473.293 785.434 472 792 472V497Z",
+  "M720 597C723.283 597 726.534 597.647 729.567 598.903C732.6 600.16 735.356 602.001 737.678 604.322C739.999 606.644 741.84 609.4 743.097 612.433C744.353 615.466 745 618.717 745 622H770C770 615.434 768.707 608.932 766.194 602.866C763.682 596.8 759.998 591.287 755.355 586.645C750.713 582.002 745.2 578.318 739.134 575.806C733.068 573.293 726.566 572 720 572V597Z",
+  "M820 597C816.717 597 813.466 597.647 810.433 598.903C807.4 600.16 804.644 602.001 802.322 604.322C800.001 606.644 798.16 609.4 796.903 612.433C795.647 615.466 795 618.717 795 622H770C770 615.434 771.293 608.932 773.806 602.866C776.318 596.8 780.002 591.287 784.645 586.645C789.287 582.002 794.8 578.318 800.866 575.806C806.932 573.293 813.434 572 820 572V597Z",
+  "M770 547C773.283 547 776.534 547.647 779.567 548.903C782.6 550.16 785.356 552.001 787.678 554.322C789.999 556.644 791.84 559.4 793.097 562.433C794.353 565.466 795 568.717 795 572H820C820 565.434 818.707 558.932 816.194 552.866C813.682 546.8 809.998 541.287 805.355 536.645C800.713 532.002 795.2 528.318 789.134 525.806C783.068 523.293 776.566 522 770 522V547Z",
+  "M820 572C820 565.434 818.707 558.932 816.194 552.866C813.681 546.8 809.998 541.288 805.355 536.645C800.712 532.002 795.2 528.319 789.134 525.806C783.068 523.293 776.566 522 770 522C763.434 522 756.932 523.293 750.866 525.806C744.8 528.319 739.288 532.002 734.645 536.645C730.002 541.288 726.319 546.8 723.806 552.866C721.293 558.932 720 565.434 720 572L745 572C745 568.717 745.647 565.466 746.903 562.433C748.159 559.4 750.001 556.644 752.322 554.322C754.644 552.001 757.4 550.159 760.433 548.903C763.466 547.647 766.717 547 770 547C773.283 547 776.534 547.647 779.567 548.903C782.6 550.159 785.356 552.001 787.678 554.322C789.999 556.644 791.841 559.4 793.097 562.433C794.353 565.466 795 568.717 795 572H820Z",
 ];
 
 const SETTINGS_PATHS = [
@@ -92,6 +92,18 @@ export function DashboardPage({ user, onLogout }: Props) {
     const mode = getInitialThemeMode();
     return mode === "system" ? getSystemTheme() : mode;
   });
+  const createIconSrc =
+    resolvedTheme === "dark" ? "/create-icons-dark.svg" : "/create-icons.svg";
+  const joinTopIconSrc =
+    resolvedTheme === "dark" ? "/join-icons-top-dark.svg" : "/join-icons-top.svg";
+  const joinBottomIconSrc =
+    resolvedTheme === "dark" ? "/join-icons-bottom-dark.svg" : "/join-icons-bottom.svg";
+  const profileTopIconSrc =
+    resolvedTheme === "dark" ? "/profile-icons-top-dark.svg" : "/profile-icons-top.svg";
+  const profileBottomIconSrc =
+    resolvedTheme === "dark"
+      ? "/profile-icons-bottom-dark.svg"
+      : "/profile-icons-bottom.svg";
   const navigate = useNavigate();
   const isGuestUser = user?.id === "guest" || user?.email === "guest@local";
 
@@ -179,6 +191,8 @@ export function DashboardPage({ user, onLogout }: Props) {
     navigate(`/room/${joinCodeInput.trim()}`);
     setJoinOpen(false);
   };
+
+  const recentRooms = activeRooms.slice(0, 4);
 
   const handleProfile = () => {
     if (isGuestUser) {
@@ -339,7 +353,7 @@ export function DashboardPage({ user, onLogout }: Props) {
               aria-label="Профиль"
               onClick={handleProfile}
             >
-              <MenuIcon viewBox="742 472 100 100" paths={PROFILE_PATHS} />
+              <MenuIcon viewBox="720 522 100 100" paths={PROFILE_PATHS} />
               <span className="menu-button-text" data-text="Профиль">
                 Профиль
               </span>
@@ -361,7 +375,8 @@ export function DashboardPage({ user, onLogout }: Props) {
       </section>
       {settingsOpen && (
         <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Настройки">
-          <div className="settings-bg-icons" aria-hidden="true" />
+          <div className="settings-icons" aria-hidden="true" />
+          <div className="settings-icons-bottom" aria-hidden="true" />
           <section className="settings-panel">
             <div className="settings-header">
               <h2>Настройки</h2>
@@ -373,207 +388,248 @@ export function DashboardPage({ user, onLogout }: Props) {
               />
             </div>
 
-            <p className="settings-label">Тема</p>
+            <div className="settings-theme-group">
+              <p className="settings-label">Тема</p>
 
-            <div className="theme-buttons">
-              <button
-                type="button"
-                className={`theme-button ${themeMode === "light" ? "is-active" : ""}`}
-                onClick={() => setThemeMode("light")}
-              >
-                Светлая
-              </button>
-              <button
-                type="button"
-                className={`theme-button ${themeMode === "dark" ? "is-active" : ""}`}
-                onClick={() => setThemeMode("dark")}
-              >
-                Тёмная
-              </button>
-              <button
-                type="button"
-                className={`theme-button ${themeMode === "system" ? "is-active" : ""}`}
-                onClick={() => setThemeMode("system")}
-              >
-                Системная
-              </button>
+              <div className="theme-buttons">
+                <button
+                  type="button"
+                  className={`theme-button ${themeMode === "light" ? "is-active" : ""}`}
+                  onClick={() => setThemeMode("light")}
+                >
+                  Светлая
+                </button>
+                <button
+                  type="button"
+                  className={`theme-button ${themeMode === "dark" ? "is-active" : ""}`}
+                  onClick={() => setThemeMode("dark")}
+                >
+                  Тёмная
+                </button>
+                <button
+                  type="button"
+                  className={`theme-button ${themeMode === "system" ? "is-active" : ""}`}
+                  onClick={() => setThemeMode("system")}
+                >
+                  Системная
+                </button>
+              </div>
             </div>
           </section>
         </div>
       )}
       {createOpen && (
         <div className="create-overlay" role="dialog" aria-modal="true" aria-label="Новая комната">
-          <div className="create-bg-icons" aria-hidden="true" />
-          <section className="create-panel">
-            <div className="create-header">
-              <h2>Новая комната</h2>
-              <button
-                className="create-close"
-                type="button"
-                onClick={() => setCreateOpen(false)}
-                aria-label="Закрыть создание комнаты"
-              />
-            </div>
-
-            <label className="create-label" htmlFor="new-room-name">
-              Название комнаты
-            </label>
-            <input
-              id="new-room-name"
-              className="create-input"
-              value={roomNameInput}
-              onChange={(e) => setRoomNameInput(e.target.value)}
-              placeholder="my room"
-              maxLength={100}
-              autoFocus
+          <div className="create-stage">
+            <img
+              className="create-bg-icons"
+              src={createIconSrc}
+              alt=""
+              aria-hidden="true"
             />
+            <section className="create-panel">
+              <div className="create-header">
+                <h2>Новая комната</h2>
+                <button
+                  className="create-close"
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  aria-label="Закрыть создание комнаты"
+                />
+              </div>
 
-            <button
-              className="create-submit"
-              type="button"
-              onClick={handleCreateRoomSubmit}
-              disabled={loading || !roomNameInput.trim()}
-            >
-              Создать
-            </button>
-          </section>
+              <label className="create-label" htmlFor="new-room-name">
+                Название комнаты
+              </label>
+              <input
+                id="new-room-name"
+                className="create-input"
+                value={roomNameInput}
+                onChange={(e) => setRoomNameInput(e.target.value)}
+                placeholder="Введите название комнаты"
+                maxLength={100}
+                autoFocus
+              />
+
+              <button
+                className="create-submit"
+                type="button"
+                onClick={handleCreateRoomSubmit}
+                disabled={loading || !roomNameInput.trim()}
+              >
+                Создать
+              </button>
+            </section>
+          </div>
         </div>
       )}
       {joinOpen && (
         <div className="join-overlay" role="dialog" aria-modal="true" aria-label="Присоединиться">
-          <div className="join-bg-icons" aria-hidden="true" />
-          <section className="join-panel">
-            <div className="join-header">
-              <h2>Присоединиться</h2>
-              <button
-                className="join-close"
-                type="button"
-                onClick={() => setJoinOpen(false)}
-                aria-label="Закрыть присоединение"
+          <div className="join-stage">
+              <div className="join-bg-wrapper" aria-hidden="true">
+                <img className="join-bg-icons join-bg-icons--top" src={joinTopIconSrc} alt="" />
+                <img className="join-bg-icons join-bg-icons--center" src="/join-icons.svg" alt="" />
+                <img className="join-bg-icons join-bg-icons--bottom" src={joinBottomIconSrc} alt="" />
+              </div>
+            <section className="join-panel">
+              <div className="join-header">
+                <h2>Присоединиться</h2>
+                <button
+                  className="join-close"
+                  type="button"
+                  onClick={() => setJoinOpen(false)}
+                  aria-label="Закрыть присоединение"
+                />
+              </div>
+
+              <label className="join-label" htmlFor="join-room-code">
+                Код комнаты
+              </label>
+              <input
+                id="join-room-code"
+                className="join-input"
+                value={joinCodeInput}
+                onChange={(e) => setJoinCodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && joinCodeInput.trim()) {
+                    handleJoinSubmit();
+                  }
+                }}
+                placeholder="ABC123"
+                maxLength={120}
+                autoFocus
               />
-            </div>
 
-            <label className="join-label" htmlFor="join-room-code">
-              Код комнаты
-            </label>
-            <input
-              id="join-room-code"
-              className="join-input"
-              value={joinCodeInput}
-              onChange={(e) => setJoinCodeInput(e.target.value)}
-              placeholder="ABC123"
-              maxLength={120}
-              autoFocus
-            />
+              <button
+                className="join-submit"
+                type="button"
+                onClick={handleJoinSubmit}
+                disabled={!joinCodeInput.trim()}
+              >
+                Войти
+              </button>
 
-            <button
-              className="join-submit"
-              type="button"
-              onClick={handleJoinSubmit}
-              disabled={!joinCodeInput.trim()}
-            >
-              Войти
-            </button>
-
-            <p className="join-active-label">Недавние комнаты</p>
-            <section className="join-active-rooms" aria-label="Недавние комнаты">
-              {activeRoomsLoading && <p className="join-rooms-hint">Загрузка комнат...</p>}
-              {!activeRoomsLoading && activeRooms.length === 0 && (
-                <p className="join-rooms-hint">Нет недавних комнат</p>
-              )}
-              {!activeRoomsLoading && activeRooms.length > 0 && (
-                <ul className="join-rooms-list">
-                  {activeRooms.slice(0, 4).map((room) => (
-                    <li key={room.id} className="join-room-item">
-                      <button
-                        type="button"
-                        className="join-room-link"
-                        onClick={() => navigate(`/room/${room.slug}`)}
-                      >
-                        <span className="join-room-name">{room.name}</span>
-                        <span className="join-room-code">{room.slug}</span>
-                        <span className="join-room-count">{room?._count?.participants ?? 0}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="join-active-label">Недавние комнаты</p>
+              <section className="join-active-rooms" aria-label="Недавние комнаты">
+                {activeRoomsLoading && <p className="join-rooms-hint">Загрузка комнат...</p>}
+                {!activeRoomsLoading && (
+                  <ul className="join-rooms-list">
+                    {recentRooms.length === 0 ? (
+                      <li className="join-room-item join-room-item--empty">
+                        <span className="join-room-empty">Нет недавних комнат</span>
+                      </li>
+                    ) : (
+                      recentRooms.map((room) => (
+                        <li key={room.id} className="join-room-item">
+                          <button
+                            type="button"
+                            className="join-room-link"
+                            onClick={() => {
+                              navigate(`/room/${room.slug}`);
+                              setJoinOpen(false);
+                            }}
+                          >
+                            <span className="join-room-name">{room.name}</span>
+                            <span className="join-room-code">{room.slug}</span>
+                            <span className="join-room-count">
+                              {room?._count?.participants ?? 0}
+                            </span>
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </section>
             </section>
-          </section>
+          </div>
         </div>
       )}
       {profileOpen && (
         <div className="profile-overlay" role="dialog" aria-modal="true" aria-label="Профиль">
-          <div className="profile-bg-icons" aria-hidden="true" />
-          <section className="profile-panel">
-            <div className="profile-header">
-              <h2 className="profile-title">Профиль</h2>
-              <button
-                className="profile-close"
-                type="button"
-                onClick={() => setProfileOpen(false)}
-                aria-label="Закрыть профиль"
+          <div className="profile-stage">
+            <section className="profile-panel">
+              <img
+                className="profile-bg-icons profile-bg-icons-top"
+                src={profileTopIconSrc}
+                alt=""
+                aria-hidden="true"
               />
-            </div>
+              <img
+                className="profile-bg-icons profile-bg-icons-bottom"
+                src={profileBottomIconSrc}
+                alt=""
+                aria-hidden="true"
+              />
+              <div className="profile-header">
+                <h2 className="profile-title">Профиль</h2>
+                <button
+                  className="profile-close"
+                  type="button"
+                  onClick={() => setProfileOpen(false)}
+                  aria-label="Закрыть профиль"
+                />
+              </div>
 
-            <div className="profile-avatar" aria-hidden="true">
-              {profileInitials}
-            </div>
-            <p className="profile-name">{profileName}</p>
+              <div className="profile-avatar" aria-hidden="true">
+                {profileInitials}
+              </div>
+              <p className="profile-name">{profileName}</p>
 
-            <p className="profile-edit-title">Редактирование профиля</p>
+              <p className="profile-edit-title">Редактирование профиля</p>
 
-            <label className="profile-label profile-label-username" htmlFor="profile-username">
-              Имя пользователя
-            </label>
-            <input
-              id="profile-username"
-              className="profile-input profile-input-username"
-              value={profileUsernameInput}
-              onChange={(e) => setProfileUsernameInput(e.target.value)}
-              placeholder="yourusername"
-              maxLength={120}
-            />
+              <label className="profile-label profile-label-username" htmlFor="profile-username">
+                Имя пользователя
+              </label>
+              <input
+                id="profile-username"
+                className="profile-input profile-input-username"
+                value={profileUsernameInput}
+                onChange={(e) => setProfileUsernameInput(e.target.value)}
+                placeholder="yourusername"
+                maxLength={120}
+              />
 
-            <label className="profile-label profile-label-email" htmlFor="profile-email">
-              Почта
-            </label>
-            <input
-              id="profile-email"
-              type="email"
-              className="profile-input profile-input-email"
-              value={profileEmailInput}
-              onChange={(e) => setProfileEmailInput(e.target.value)}
-              placeholder="your@email.com"
-              maxLength={180}
-            />
+              <label className="profile-label profile-label-email" htmlFor="profile-email">
+                Почта
+              </label>
+              <input
+                id="profile-email"
+                type="email"
+                className="profile-input profile-input-email"
+                value={profileEmailInput}
+                onChange={(e) => setProfileEmailInput(e.target.value)}
+                placeholder="your@email.com"
+                maxLength={180}
+              />
 
-            <label className="profile-label profile-label-password" htmlFor="profile-password">
-              Пароль
-            </label>
-            <input
-              id="profile-password"
-              type="password"
-              className="profile-input profile-input-password"
-              value={profilePasswordInput}
-              onChange={(e) => setProfilePasswordInput(e.target.value)}
-              placeholder="yourpassword"
-              maxLength={120}
-            />
+              <label className="profile-label profile-label-password" htmlFor="profile-password">
+                Пароль
+              </label>
+              <input
+                id="profile-password"
+                type="password"
+                className="profile-input profile-input-password"
+                value={profilePasswordInput}
+                onChange={(e) => setProfilePasswordInput(e.target.value)}
+                placeholder="yourpassword"
+                maxLength={120}
+              />
 
-            <button
-              className="profile-save"
-              type="button"
-              onClick={handleProfileSave}
-              disabled={!profileHasChanges}
-            >
-              Сохранить
-            </button>
+              <button
+                className="profile-save"
+                type="button"
+                onClick={handleProfileSave}
+                disabled={!profileHasChanges}
+              >
+                Сохранить
+              </button>
 
-            <button className="profile-logout" type="button" onClick={onLogout}>
-              Выйти
-            </button>
-          </section>
+              <button className="profile-logout" type="button" onClick={onLogout}>
+                Выйти
+              </button>
+            </section>
+          </div>
         </div>
       )}
       <footer className="footer" aria-label="Подвал" />

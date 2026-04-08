@@ -7,24 +7,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
-  background: var(--auth-page-bg);
+  padding: 0;
+  background: url("/voco-login-white-desktop-bg.svg") center / cover no-repeat;
   font-family: "Jost", sans-serif;
+  overflow: auto;
+}
+
+:global(:root[data-theme="dark"]) .container {
+  background: url("/voco-login-dark-desktop-bg.svg") center / cover no-repeat;
 }
 
 .frame {
-  width: min(100%, 475px);
-  margin: auto 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  position: relative;
+  width: 1440px;
+  height: 1024px;
+  min-width: 1440px;
+  min-height: 1024px;
+  margin: 0 auto;
+  display: block;
 }
 
 .logo {
-  position: relative;
-  width: min(100%, 475px);
-  margin: 0 auto;
-  aspect-ratio: 95 / 28;
+  position: absolute;
+  width: 475px;
+  height: 140px;
+  left: 482.5px;
+  top: 256.98px;
+  margin: 0;
+  aspect-ratio: auto;
 }
 
 .logoImage {
@@ -60,51 +70,75 @@
 }
 
 .tagline {
-  margin: 20px 0 0;
+  position: absolute;
+  width: 435px;
+  height: 45px;
+  left: 503.5px;
+  top: 416.98px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  color: var(--auth-text);
+  color: #000000;
   font-style: italic;
   font-weight: 400;
   font-size: 32px;
   line-height: 46px;
-  text-wrap: balance;
+  white-space: nowrap;
+  letter-spacing: 0;
 }
 
 .form {
-  margin-top: 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: block;
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  position: absolute;
+  width: 475px;
+  left: 482.5px;
 }
 
-.field + .field {
-  margin-top: 7px;
+.fieldEmail {
+  top: 468.98px;
+  height: 73.08px;
+}
+
+.fieldPassword {
+  top: 549.06px;
+  height: 73.46px;
 }
 
 .label {
+  position: absolute;
   margin: 0;
-  padding-left: 20px;
-  color: var(--auth-text);
+  padding: 0;
+  left: 19.5px;
+  top: 0;
+  color: #000000;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
+  display: flex;
+  align-items: center;
 }
 
 .input {
+  position: absolute;
   width: 100%;
   height: 50px;
   min-height: 50px;
-  padding: 0 20px;
+  left: 0;
+  top: 23.08px;
+  margin-top: 0;
+  padding: 0 19.5px;
   border: 0;
   border-radius: 999px;
-  background: var(--auth-surface);
-  color: var(--auth-input-text);
+  background: #dddddd;
+  color: #000000;
   font-family: "Jost", sans-serif;
   font-weight: 400;
   font-size: 16px;
@@ -114,35 +148,38 @@
 }
 
 .input::placeholder {
-  color: var(--auth-placeholder);
+  color: #999999;
 }
 
 .input:focus {
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgba(0, 119, 255, 0.22);
 }
 
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
-  background: transparent !important;
-  background-color: transparent !important;
+  background-color: #deeeff !important;
   border: 0 !important;
-  -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 100px #0077ff inset !important;
-  box-shadow: 0 0 0 100px #0077ff inset !important;
+  -webkit-text-fill-color: #000000;
+  -webkit-box-shadow: 0 0 0 100px #deeeff inset !important;
+  box-shadow: 0 0 0 100px #deeeff inset !important;
   border-radius: 999px;
   outline: none !important;
-  caret-color: var(--auth-input-text);
+  caret-color: #000000;
   transition: background-color 9999s ease-in-out 0s;
 }
 
 .error {
+  position: absolute;
+  width: 475px;
   min-height: 23px;
-  margin-top: 7px;
-  padding: 0 20px;
-  color: #d61f1f;
-  font-size: 14px;
+  left: 482.5px;
+  top: 629.52px;
+  margin: 0;
+  padding: 0 19.5px;
+  color: #000000;
+  font-size: 16px;
   line-height: 23px;
 }
 
@@ -151,23 +188,31 @@
 }
 
 .submit {
-  width: 100%;
+  position: absolute;
+  width: 475px;
   height: 50px;
   min-height: 50px;
-  border: 5px solid transparent;
+  left: 482.5px;
+  top: 652.52px;
+  margin-top: 0;
+  border: 0;
   border-radius: 999px;
-  background: var(--auth-surface);
-  color: var(--auth-button-text);
+  background: #dddddd;
+  color: #000000;
   font-family: "Jost", sans-serif;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
   text-align: center;
   cursor: pointer;
+  transition: opacity 0.2s ease;
 }
 
 .submitActive {
-  border-color: #0077ff;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
 }
 
 .submit:disabled {
@@ -176,8 +221,12 @@
 }
 
 .links {
-  margin: 20px auto 0;
-  max-width: 280px;
+  position: absolute;
+  width: 240px;
+  height: 45px;
+  left: 600px;
+  top: 722.02px;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,17 +234,17 @@
   flex-wrap: wrap;
   gap: 0 0.25ch;
   text-align: center;
-  color: var(--auth-text);
+  color: #000000;
   font-weight: 400;
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 23px;
 }
 
 .linkButton {
   border: 0;
   padding: 0;
   background: transparent;
-  color: var(--auth-link-text);
+  color: #000000;
   font: inherit;
   cursor: pointer;
 }
@@ -213,6 +262,55 @@
 .break {
   flex-basis: 100%;
   height: 0;
+}
+
+:global(:root[data-theme="dark"]) .input {
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .input::placeholder {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .input:-webkit-autofill,
+:global(:root[data-theme="dark"]) .input:-webkit-autofill:hover,
+:global(:root[data-theme="dark"]) .input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  background-color: #002550 !important;
+  -webkit-box-shadow: 0 0 0 100px #002550 inset !important;
+  box-shadow: 0 0 0 100px #002550 inset !important;
+  caret-color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .submit {
+  border: 0;
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .submitActive {
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .tagline,
+:global(:root[data-theme="dark"]) .label,
+:global(:root[data-theme="dark"]) .links,
+:global(:root[data-theme="dark"]) .linkButton,
+:global(:root[data-theme="dark"]) .error {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .linkRegister {
+  color: #00ff00;
+}
+
+:global(:root[data-theme="dark"]) .linkGuest {
+  color: #8000ff;
 }
 
 @media (max-width: 767px) {
@@ -474,6 +572,13 @@
   }
 }
 
+@media (min-width: 768px) and (max-width: 1439px) {
+  .frame {
+    transform: scale(calc(100vw / 1440));
+    transform-origin: top center;
+  }
+}
+
 @media (max-width: 389px) {
   .container {
     align-items: center;
@@ -488,27 +593,3 @@
   }
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
-  .container {
-    padding: 50px;
-  }
-
-  .frame {
-    width: 475px;
-  }
-
-  .logo {
-    margin-top: 0;
-  }
-
-  .tagline {
-    margin-top: 20px;
-    font-size: 32px;
-    line-height: 46px;
-  }
-
-  .form {
-    margin-top: 7px;
-    gap: 0;
-  }
-}
