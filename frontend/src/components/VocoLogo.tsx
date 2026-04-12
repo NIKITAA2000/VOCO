@@ -12,8 +12,8 @@ type Props = {
 
 export function VocoLogo({ tone, size = "desktop", className = "" }: Props) {
   const fill = tone === "light" ? "#000000" : "#FFFFFF";
-  const width = size === "mobile" ? 370 : 475;
-  const height = size === "mobile" ? 109 : 140;
+  const width = size === "mobile" ? 330 : 475;
+  const height = size === "mobile" ? 97.26 : 140;
 
   return (
     <div className={`${styles.logo} ${className}`.trim()} aria-label="VOCO">

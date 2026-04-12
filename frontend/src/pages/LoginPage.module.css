@@ -189,6 +189,7 @@
 
 .submit {
   position: absolute;
+  box-sizing: border-box;
   width: 475px;
   height: 50px;
   min-height: 50px;
@@ -333,9 +334,9 @@
 
   .frame {
     position: relative;
-    width: 389px;
-    min-width: 389px;
-    max-width: 389px;
+    width: 390px;
+    min-width: 390px;
+    max-width: 390px;
     height: 844px;
     min-height: 844px;
     margin: 0;
@@ -347,9 +348,9 @@
   .logo {
     position: absolute;
     left: 30px;
-    top: 243.07px;
-    width: 329px;
-    height: 96.97px;
+    top: 242.8px;
+    width: 330px;
+    height: 97.26px;
     margin: 0;
     aspect-ratio: auto;
   }
@@ -370,8 +371,8 @@
   .tagline {
     position: absolute;
     left: 30px;
-    top: 354.06px;
-    width: 329px;
+    top: 354.01px;
+    width: 330px;
     height: 31px;
     margin: 0;
     display: flex;
@@ -391,7 +392,7 @@
   .field {
     position: absolute;
     left: 0;
-    width: 389px;
+    width: 390px;
     display: block;
   }
 
@@ -420,13 +421,13 @@
   }
 
   .fieldEmail .label {
-    top: 392.06px;
+    top: 392.01px;
     width: 73px;
     height: 16px;
   }
 
   .fieldPassword .label {
-    top: 449.5px;
+    top: 448.89px;
     width: 84px;
     height: 15px;
   }
@@ -434,13 +435,13 @@
   .input {
     position: absolute;
     left: 30px;
-    width: 329px;
-    height: 34.63px;
-    min-height: 34.63px;
-    padding: 0 13px;
+    width: 330px;
+    height: 34.74px;
+    min-height: 34.74px;
+    padding: 0 13.5px;
     border-radius: 100px;
-    background: #000000;
-    color: #ffffff;
+    background: #dddddd;
+    color: #000000;
     display: flex;
     align-items: center;
     font-size: 11px;
@@ -448,11 +449,11 @@
   }
 
   .fieldEmail .input {
-    top: 407.87px;
+    top: 407.16px;
   }
 
   .fieldPassword .input {
-    top: 464.41px;
+    top: 463.99px;
   }
 
   .input::placeholder {
@@ -462,8 +463,8 @@
   .error {
     position: absolute;
     left: 43px;
-    top: 506.04px;
-    width: 286px;
+    top: 505.73px;
+    width: 303px;
     min-height: 16px;
     margin: 0;
     padding: 0;
@@ -477,16 +478,25 @@
   .submit {
     position: absolute;
     left: 30px;
-    top: 521.25px;
-    width: 329px;
-    height: 34.63px;
-    min-height: 34.63px;
+    top: 521.66px;
+    box-sizing: border-box;
+    width: 330px;
+    height: 34.74px;
+    min-height: 34.74px;
     border-width: 3px;
     border-radius: 100px;
-    background: #000000;
-    color: #ffffff;
+    background: #dddddd;
+    color: #000000;
     font-size: 11px;
     line-height: 16px;
+  }
+
+  .submitActive {
+    border: 3px solid transparent;
+    background:
+      linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+      linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
+    color: #000000;
   }
 
   .submit:disabled {
@@ -496,7 +506,7 @@
   .links {
     position: absolute;
     left: 104px;
-    top: 569.93px;
+    top: 570.2px;
     width: 180px;
     height: 31px;
     margin: 0;
@@ -550,8 +560,8 @@
   }
 
   :global(:root[data-theme="dark"]) .input {
-    background: #ffffff;
-    color: #000000;
+    background: #444444;
+    color: #ffffff;
   }
 
   :global(:root[data-theme="dark"]) .input::placeholder {
@@ -563,19 +573,276 @@
   }
 
   :global(:root[data-theme="dark"]) .submit {
-    background: #ffffff;
-    color: #000000;
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submitActive {
+    border: 3px solid transparent;
+    background:
+      linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+      linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
+    color: #ffffff;
   }
 
   :global(:root[data-theme="dark"]) .links {
     color: #ffffff;
   }
+
+  :global(:root[data-theme="dark"]) .label {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkButton {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkRegister {
+    color: #00ff00;
+  }
+
+  :global(:root[data-theme="dark"]) .linkGuest {
+    color: #8000ff;
+  }
 }
 
 @media (min-width: 768px) and (max-width: 1439px) {
+  .container {
+    min-height: 100vh;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #ffffff;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .container::-webkit-scrollbar {
+    display: none;
+  }
+
   .frame {
-    transform: scale(calc(100vw / 1440));
-    transform-origin: top center;
+    position: relative;
+    width: 768px;
+    min-width: 768px;
+    max-width: 768px;
+    height: 1024px;
+    min-height: 1024px;
+    margin: 0;
+    display: block;
+    background: #ffffff;
+    color: #000000;
+    transform: none;
+  }
+
+  .logo {
+    left: 146.5px;
+    top: 256.93px;
+    width: 475px;
+    height: 140px;
+  }
+
+  .logoImageDark {
+    display: none !important;
+  }
+
+  .logoImageLight {
+    display: block !important;
+  }
+
+  .tagline {
+    left: 167.5px;
+    top: 416.93px;
+    width: 435px;
+    height: 45px;
+    color: #000000;
+    font-size: 32px;
+    line-height: 46px;
+  }
+
+  .field {
+    width: 475px;
+    left: 146.5px;
+  }
+
+  .fieldEmail {
+    top: 468.93px;
+    height: 73.08px;
+  }
+
+  .fieldPassword {
+    top: 549px;
+    height: 72.99px;
+  }
+
+  .label {
+    left: 19.5px;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .fieldEmail .label {
+    top: 0;
+    width: auto;
+    height: 23px;
+  }
+
+  .fieldPassword .label {
+    top: 0;
+    width: auto;
+    height: 23px;
+  }
+
+  .input {
+    left: 0;
+    width: 475px;
+    height: 50px;
+    min-height: 50px;
+    padding: 0 19.5px;
+    border-radius: 100px;
+    background: #dddddd;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .fieldEmail .input {
+    top: 23.07px;
+  }
+
+  .fieldPassword .input {
+    top: 22.99px;
+  }
+
+  .error {
+    left: 146.5px;
+    top: 628.99px;
+    width: 475px;
+    min-height: 23px;
+    padding: 0 19.5px;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .submit {
+    left: 146.5px;
+    top: 651.99px;
+    box-sizing: border-box;
+    width: 475px;
+    height: 50px;
+    min-height: 50px;
+    border-width: 5px;
+    border-radius: 100px;
+    background: #dddddd;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+      linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
+    color: #000000;
+  }
+
+  .links {
+    left: 264px;
+    top: 722.07px;
+    width: 241px;
+    height: 45px;
+    max-width: 241px;
+    gap: 0;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .linkButton {
+    line-height: 23px;
+  }
+
+  :global(:root[data-theme="dark"]) .container {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .frame {
+    background: #222222;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageDark {
+    display: block !important;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageLight {
+    display: none !important;
+  }
+
+  :global(:root[data-theme="dark"]) .tagline {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .label {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input::placeholder {
+    color: #999999;
+  }
+
+  :global(:root[data-theme="dark"]) .input:-webkit-autofill,
+  :global(:root[data-theme="dark"]) .input:-webkit-autofill:hover,
+  :global(:root[data-theme="dark"]) .input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff;
+    background-color: #002550 !important;
+    -webkit-box-shadow: 0 0 0 100px #002550 inset !important;
+    box-shadow: 0 0 0 100px #002550 inset !important;
+    caret-color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .error {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submit {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+      linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .links {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkButton {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkRegister {
+    color: #00ff00;
+  }
+
+  :global(:root[data-theme="dark"]) .linkGuest {
+    color: #8000ff;
   }
 }
 

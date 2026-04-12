@@ -74,6 +74,8 @@ export function DashboardPage({ user, onLogout }: Props) {
   const [roomNameInput, setRoomNameInput] = useState("");
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
+  const [joinError, setJoinError] = useState("");
+  const [joinLoading, setJoinLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUsernameInput, setProfileUsernameInput] = useState("");
   const [profileEmailInput, setProfileEmailInput] = useState("");
@@ -92,18 +94,47 @@ export function DashboardPage({ user, onLogout }: Props) {
     const mode = getInitialThemeMode();
     return mode === "system" ? getSystemTheme() : mode;
   });
-  const createIconSrc =
-    resolvedTheme === "dark" ? "/create-icons-dark.svg" : "/create-icons.svg";
+  const [isTabletViewport, setIsTabletViewport] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 768px) and (max-width: 1220px)").matches;
+  });
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  });
+  const createIconSrc = isMobileViewport
+    ? "/create-screen-mobile-light.svg"
+    : isTabletViewport
+      ? "/create-icons-tablet-light.svg"
+      : resolvedTheme === "dark"
+        ? "/create-icons-dark.svg"
+        : "/create-icons.svg";
   const joinTopIconSrc =
     resolvedTheme === "dark" ? "/join-icons-top-dark.svg" : "/join-icons-top.svg";
   const joinBottomIconSrc =
     resolvedTheme === "dark" ? "/join-icons-bottom-dark.svg" : "/join-icons-bottom.svg";
-  const profileTopIconSrc =
-    resolvedTheme === "dark" ? "/profile-icons-top-dark.svg" : "/profile-icons-top.svg";
-  const profileBottomIconSrc =
-    resolvedTheme === "dark"
-      ? "/profile-icons-bottom-dark.svg"
-      : "/profile-icons-bottom.svg";
+  const joinMobileIconSrc =
+    resolvedTheme === "dark" ? "/join-icons-mobile-dark.svg" : "/join-icons-mobile-light.svg";
+  const joinTabletIconSrc =
+    resolvedTheme === "dark" ? "/join-icons-tablet-dark.svg" : "/join-icons-tablet-light.svg";
+  const profileTopIconSrc = isMobileViewport
+    ? resolvedTheme === "dark"
+      ? "/profile-icons-mobile-dark.svg"
+      : "/profile-icons-mobile.svg"
+    : isTabletViewport
+      ? "/profile-icons-tablet.svg"
+      : resolvedTheme === "dark"
+        ? "/profile-icons-top-dark.svg"
+        : "/profile-icons-top.svg";
+  const profileBottomIconSrc = isMobileViewport
+    ? resolvedTheme === "dark"
+      ? "/profile-icons-mobile-dark.svg"
+      : "/profile-icons-mobile.svg"
+    : isTabletViewport
+      ? "/profile-icons-tablet.svg"
+      : resolvedTheme === "dark"
+        ? "/profile-icons-bottom-dark.svg"
+        : "/profile-icons-bottom.svg";
   const navigate = useNavigate();
   const isGuestUser = user?.id === "guest" || user?.email === "guest@local";
 
@@ -121,6 +152,24 @@ export function DashboardPage({ user, onLogout }: Props) {
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [themeMode]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px) and (max-width: 1220px)");
+    const apply = () => setIsTabletViewport(media.matches);
+
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobileViewport(media.matches);
+
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("voco_theme_mode", themeMode);
@@ -181,15 +230,27 @@ export function DashboardPage({ user, onLogout }: Props) {
   };
 
   const handleJoinBySlug = () => {
+    setJoinError("");
     setJoinCodeInput("");
     setCreateOpen(false);
     setJoinOpen(true);
   };
 
-  const handleJoinSubmit = () => {
+  const handleJoinSubmit = async () => {
     if (!joinCodeInput.trim()) return;
-    navigate(`/room/${joinCodeInput.trim()}`);
-    setJoinOpen(false);
+    setJoinError("");
+    setJoinLoading(true);
+
+    try {
+      const slug = joinCodeInput.trim();
+      await api.getRoom(slug);
+      navigate(`/room/${slug}`);
+      setJoinOpen(false);
+    } catch (err: any) {
+      setJoinError(err?.message || "Ошибка входа");
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   const recentRooms = activeRooms.slice(0, 4);
@@ -375,47 +436,49 @@ export function DashboardPage({ user, onLogout }: Props) {
       </section>
       {settingsOpen && (
         <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Настройки">
-          <div className="settings-icons" aria-hidden="true" />
-          <div className="settings-icons-bottom" aria-hidden="true" />
-          <section className="settings-panel">
-            <div className="settings-header">
-              <h2>Настройки</h2>
-              <button
-                className="settings-close"
-                type="button"
-                onClick={() => setSettingsOpen(false)}
-                aria-label="Закрыть настройки"
-              />
-            </div>
-
-            <div className="settings-theme-group">
-              <p className="settings-label">Тема</p>
-
-              <div className="theme-buttons">
+          <div className="settings-stage">
+            <div className="settings-icons" aria-hidden="true" />
+            <div className="settings-icons-bottom" aria-hidden="true" />
+            <section className="settings-panel">
+              <div className="settings-header">
+                <h2>Настройки</h2>
                 <button
+                  className="settings-close"
                   type="button"
-                  className={`theme-button ${themeMode === "light" ? "is-active" : ""}`}
-                  onClick={() => setThemeMode("light")}
-                >
-                  Светлая
-                </button>
-                <button
-                  type="button"
-                  className={`theme-button ${themeMode === "dark" ? "is-active" : ""}`}
-                  onClick={() => setThemeMode("dark")}
-                >
-                  Тёмная
-                </button>
-                <button
-                  type="button"
-                  className={`theme-button ${themeMode === "system" ? "is-active" : ""}`}
-                  onClick={() => setThemeMode("system")}
-                >
-                  Системная
-                </button>
+                  onClick={() => setSettingsOpen(false)}
+                  aria-label="Закрыть настройки"
+                />
               </div>
-            </div>
-          </section>
+
+              <div className="settings-theme-group">
+                <p className="settings-label">Тема</p>
+
+                <div className="theme-buttons">
+                  <button
+                    type="button"
+                    className={`theme-button ${themeMode === "light" ? "is-active" : ""}`}
+                    onClick={() => setThemeMode("light")}
+                  >
+                    Светлая
+                  </button>
+                  <button
+                    type="button"
+                    className={`theme-button ${themeMode === "dark" ? "is-active" : ""}`}
+                    onClick={() => setThemeMode("dark")}
+                  >
+                    Тёмная
+                  </button>
+                  <button
+                    type="button"
+                    className={`theme-button ${themeMode === "system" ? "is-active" : ""}`}
+                    onClick={() => setThemeMode("system")}
+                  >
+                    Системная
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       )}
       {createOpen && (
@@ -467,6 +530,8 @@ export function DashboardPage({ user, onLogout }: Props) {
         <div className="join-overlay" role="dialog" aria-modal="true" aria-label="Присоединиться">
           <div className="join-stage">
               <div className="join-bg-wrapper" aria-hidden="true">
+                <img className="join-bg-icons join-bg-icons--mobile" src={joinMobileIconSrc} alt="" />
+                <img className="join-bg-icons join-bg-icons--tablet" src={joinTabletIconSrc} alt="" />
                 <img className="join-bg-icons join-bg-icons--top" src={joinTopIconSrc} alt="" />
                 <img className="join-bg-icons join-bg-icons--center" src="/join-icons.svg" alt="" />
                 <img className="join-bg-icons join-bg-icons--bottom" src={joinBottomIconSrc} alt="" />
@@ -489,7 +554,10 @@ export function DashboardPage({ user, onLogout }: Props) {
                 id="join-room-code"
                 className="join-input"
                 value={joinCodeInput}
-                onChange={(e) => setJoinCodeInput(e.target.value)}
+                onChange={(e) => {
+                  setJoinCodeInput(e.target.value);
+                  if (joinError) setJoinError("");
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && joinCodeInput.trim()) {
                     handleJoinSubmit();
@@ -500,13 +568,17 @@ export function DashboardPage({ user, onLogout }: Props) {
                 autoFocus
               />
 
+              <div className={`join-error ${joinError ? "" : "join-error-hidden"}`} aria-live="polite">
+                {joinError || "\u00A0"}
+              </div>
+
               <button
                 className="join-submit"
                 type="button"
                 onClick={handleJoinSubmit}
-                disabled={!joinCodeInput.trim()}
+                disabled={joinLoading || !joinCodeInput.trim()}
               >
-                Войти
+                {joinLoading ? "Входим..." : "Войти"}
               </button>
 
               <p className="join-active-label">Недавние комнаты</p>
