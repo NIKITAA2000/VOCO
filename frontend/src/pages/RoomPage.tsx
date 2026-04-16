@@ -38,6 +38,7 @@ interface Props {
 interface ConferenceRoomContentProps {
   roomName: string;
   slug?: string;
+  onExitIntent: () => void;
 }
 
 function toStagePercent(value: number, max: number) {
@@ -389,7 +390,7 @@ function PlaceholderLogo() {
   );
 }
 
-function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
+function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomContentProps) {
   const participants = useParticipants();
   const {
     localParticipant,
@@ -460,6 +461,7 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
     year: "numeric",
   }).format(new Date());
   const roomTitle = roomName || "Название конференции";
+  const roomCodeLabel = slug ? `Код комнаты: ${slug}` : "Код комнаты";
 
   const focusChatInput = () => chatInputRef.current?.focus();
   const blurChatInput = () => chatInputRef.current?.blur();
@@ -491,6 +493,31 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
         <span className={textClass}>{getParticipantDisplayName(participant, localIdentity)}</span>
       </div>
     ));
+
+  const renderStageParticipantRows = () =>
+    orderedParticipants.map((participant: any) => {
+      const isLocal = participant.identity === localIdentity;
+      const micEnabled = Boolean(participant.isMicrophoneEnabled);
+
+      return (
+        <div className={styles.stageParticipantRow} key={participant.identity}>
+          <span className={styles.stageParticipantText}>
+            {getParticipantDisplayName(participant, localIdentity)}
+          </span>
+
+          {isLocal ? (
+            <span
+              className={`${styles.stageParticipantStatus} ${
+                micEnabled ? styles.stageParticipantStatusOn : styles.stageParticipantStatusOff
+              }`}
+              aria-hidden="true"
+            >
+              <UtilityAudioIcon />
+            </span>
+          ) : null}
+        </div>
+      );
+    });
 
   const renderChatMessages = (emptyClass?: string) =>
     chatMessages.length === 0 ? (
@@ -527,7 +554,11 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
             <div className={styles.compactRoomCode}>Код комнаты: {slug}</div>
           </div>
 
-          <DisconnectButton className={styles.compactExitButton} aria-label="Выйти">
+          <DisconnectButton
+            className={styles.compactExitButton}
+            aria-label="Выйти"
+            onClick={onExitIntent}
+          >
             <ExitArrowIcon />
           </DisconnectButton>
         </header>
@@ -700,9 +731,7 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
         <aside className={`${styles.sidePanel} ${styles.participantsPanel}`} style={stageRect(0, 100, 250, 824)}>
           <div className={styles.sideHeaderFade} />
           <div className={styles.sideTitle}>Участники</div>
-          <div className={styles.participantsScroll}>
-            {renderParticipantRows(styles.participantRow, styles.participantText)}
-          </div>
+          <div className={styles.participantsScroll}>{renderStageParticipantRows()}</div>
           <div className={styles.sideFooterFade} />
           <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
         </aside>
@@ -718,7 +747,7 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
 
           <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
             <button
-              className={styles.chatIconButton}
+              className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
               type="button"
               aria-label="Добавить вложение"
               onClick={focusChatInput}
@@ -736,7 +765,7 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
             />
 
             <button
-              className={styles.chatIconButton}
+              className={`${styles.chatIconButton} ${styles.chatSendButton}`}
               type="submit"
               aria-label="Отправить сообщение"
               disabled={isSending || !message.trim()}
@@ -767,19 +796,27 @@ function ConferenceRoomContent({ roomName, slug }: ConferenceRoomContentProps) {
           );
         })}
 
-        <h1 className={styles.stageConferenceName} style={stageText(25, 27, 460)}>
+        <h1 className={styles.stageConferenceName} style={stageText(25, 20, 460)}>
           {roomTitle}
         </h1>
-        <div className={styles.stageRoomCode} style={stageText(485, 27, 470)}>
-          Код комнаты: {slug}
+        <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
+          {roomCodeLabel}
         </div>
 
-        <DisconnectButton className={styles.exitButton} style={stageRect(1215, 25, 200, 50)}>
+        <DisconnectButton
+          className={styles.exitButton}
+          style={stageRect(1215, 25, 200, 50)}
+          aria-label="Выйти"
+          onClick={onExitIntent}
+        >
           <span className={styles.exitGlow} aria-hidden="true" />
           <span className={styles.exitIcon} aria-hidden="true">
             <ExitArrowIcon />
           </span>
           <span className={styles.exitLabel}>Выйти</span>
+          <span className={styles.exitMenu} aria-hidden="true">
+            <ChevronDownIcon />
+          </span>
         </DisconnectButton>
 
         <TrackToggle
@@ -854,6 +891,8 @@ export function RoomPage({ user }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [conferenceReady, setConferenceReady] = useState(false);
+  // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
+  const leaveRequestedRef = useRef(false);
   const [displayName, setDisplayName] = useState(() => {
     const saved = localStorage.getItem("voco_room_display_name");
     if (saved && saved.trim()) return saved;
@@ -879,7 +918,9 @@ export function RoomPage({ user }: Props) {
     joinRoom();
   }, [slug]);
 
-  const handleDisconnect = useCallback(async () => {
+  const leaveRoomAndNavigate = useCallback(async () => {
+    leaveRequestedRef.current = false;
+
     if (slug) {
       try {
         await api.leaveRoom(slug);
@@ -890,6 +931,22 @@ export function RoomPage({ user }: Props) {
     navigate("/dashboard");
   }, [slug, navigate]);
 
+  const handleWaitingLeave = useCallback(() => {
+    void leaveRoomAndNavigate();
+  }, [leaveRoomAndNavigate]);
+
+  const handleConferenceLeaveIntent = useCallback(() => {
+    leaveRequestedRef.current = true;
+  }, []);
+
+  const handleConferenceDisconnected = useCallback(() => {
+    if (!leaveRequestedRef.current) {
+      return;
+    }
+
+    void leaveRoomAndNavigate();
+  }, [leaveRoomAndNavigate]);
+
   const handleEnterConference = useCallback(() => {
     if (!token || !livekitUrl || error) return;
 
@@ -898,6 +955,8 @@ export function RoomPage({ user }: Props) {
       localStorage.setItem("voco_room_display_name", normalizedName);
       setDisplayName(normalizedName);
     }
+
+    leaveRequestedRef.current = false;
     setConferenceReady(true);
   }, [displayName, error, livekitUrl, token, user]);
 
@@ -933,7 +992,7 @@ export function RoomPage({ user }: Props) {
               <button
                 className={styles.waitingClose}
                 type="button"
-                onClick={handleDisconnect}
+                onClick={handleWaitingLeave}
                 aria-label="Вернуться на главную"
               />
             </div>
@@ -978,11 +1037,15 @@ export function RoomPage({ user }: Props) {
         serverUrl={livekitUrl}
         token={token}
         connect={true}
-        onDisconnected={handleDisconnect}
+        onDisconnected={handleConferenceDisconnected}
         data-lk-theme="default"
         className={styles.livekitRoot}
       >
-        <ConferenceRoomContent roomName={roomName} slug={slug} />
+        <ConferenceRoomContent
+          roomName={roomName}
+          slug={slug}
+          onExitIntent={handleConferenceLeaveIntent}
+        />
       </LiveKitRoom>
     </div>
   );
