@@ -29,7 +29,11 @@ import styles from "./Room.module.css";
 
 const STAGE_WIDTH = 1440;
 const STAGE_HEIGHT = 1024;
-const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 1180px), (max-height: 820px)";
+const TABLET_WIDTH = 768;
+const TABLET_HEIGHT = 1024;
+const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
+  "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
+const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px), (max-height: 820px)";
 
 interface Props {
   user: any;
@@ -62,6 +66,23 @@ function stageText(left: number, top: number, width: number): CSSProperties {
   };
 }
 
+function tabletRect(left: number, top: number, width: number, height: number): CSSProperties {
+  return {
+    left: toStagePercent(left, TABLET_WIDTH),
+    top: toStagePercent(top, TABLET_HEIGHT),
+    width: toStagePercent(width, TABLET_WIDTH),
+    height: toStagePercent(height, TABLET_HEIGHT),
+  };
+}
+
+function tabletText(left: number, top: number, width: number): CSSProperties {
+  return {
+    left: toStagePercent(left, TABLET_WIDTH),
+    top: toStagePercent(top, TABLET_HEIGHT),
+    width: toStagePercent(width, TABLET_WIDTH),
+  };
+}
+
 function getStageTileFrames(count: number) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
@@ -89,6 +110,36 @@ function getStageTileFrames(count: number) {
     { id: "tile-2", accent: false, style: stageRect(720, 100, 470, 412) },
     { id: "tile-3", accent: false, style: stageRect(250, 512, 470, 412) },
     { id: "tile-4", accent: false, style: stageRect(720, 512, 470, 412) },
+  ];
+}
+
+function getTabletTileFrames(count: number) {
+  const normalizedCount = Math.max(1, Math.min(count, 4));
+
+  if (normalizedCount === 1) {
+    return [{ id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 768, 824) }];
+  }
+
+  if (normalizedCount === 2) {
+    return [
+      { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 384, 824) },
+      { id: "tablet-tile-2", accent: false, style: tabletRect(384, 100, 384, 824) },
+    ];
+  }
+
+  if (normalizedCount === 3) {
+    return [
+      { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 768, 412) },
+      { id: "tablet-tile-2", accent: false, style: tabletRect(0, 512, 384, 412) },
+      { id: "tablet-tile-3", accent: false, style: tabletRect(384, 512, 384, 412) },
+    ];
+  }
+
+  return [
+    { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 384, 412) },
+    { id: "tablet-tile-2", accent: false, style: tabletRect(384, 100, 384, 412) },
+    { id: "tablet-tile-3", accent: false, style: tabletRect(0, 512, 384, 412) },
+    { id: "tablet-tile-4", accent: false, style: tabletRect(384, 512, 384, 412) },
   ];
 }
 
@@ -134,6 +185,36 @@ function useCompactRoomLayout() {
     }
 
     const mediaQuery = window.matchMedia(COMPACT_ROOM_LAYOUT_MEDIA_QUERY);
+    const handleChange = () => setIsCompactLayout(mediaQuery.matches);
+
+    handleChange();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  return isCompactLayout;
+}
+
+function useTabletRoomLayout() {
+  const [isCompactLayout, setIsCompactLayout] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.matchMedia(TABLET_ROOM_LAYOUT_MEDIA_QUERY).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(TABLET_ROOM_LAYOUT_MEDIA_QUERY);
     const handleChange = () => setIsCompactLayout(mediaQuery.matches);
 
     handleChange();
@@ -224,8 +305,14 @@ function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
         fill="currentColor"
         mask={`url(#${maskId})`}
       />
-      <path d="M12 4C15.3137 4 18 6.68629 18 10C18 13.3137 15.3137 16 12 16V14C14.2091 14 16 12.2091 16 10C16 7.79086 14.2091 6 12 6V4Z" fill="currentColor" />
-      <path d="M12 0C17.5228 0 22 4.47715 22 10C22 15.5228 17.5228 20 12 20V18C16.4183 18 20 14.4183 20 10C20 5.58172 16.4183 2 12 2V0Z" fill="currentColor" />
+      <path
+        d="M12 4C15.3137 4 18 6.68629 18 10C18 13.3137 15.3137 16 12 16V14C14.2091 14 16 12.2091 16 10C16 7.79086 14.2091 6 12 6V4Z"
+        fill="currentColor"
+      />
+      <path
+        d="M12 0C17.5228 0 22 4.47715 22 10C22 15.5228 17.5228 20 12 20V18C16.4183 18 20 14.4183 20 10C20 5.58172 16.4183 2 12 2V0Z"
+        fill="currentColor"
+      />
       <path d="M12 8C13.1046 8 14 8.89543 14 10C14 11.1046 13.1046 12 12 12V8Z" fill="currentColor" />
     </svg>
   );
@@ -279,20 +366,20 @@ function ChatIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function UtilityAudioIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 10 30" fill="none" aria-hidden="true" {...props}>
-      <rect x="1" y="1" width="8" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
-      <circle cx="5" cy="25" r="4" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function SettingsIcon(props: SVGProps<SVGSVGElement>) {
+function RecordingIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
       <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" />
       <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function RaisedHandIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 10 30" fill="none" aria-hidden="true" {...props}>
+      <rect x="1" y="1" width="8" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
+      <circle cx="5" cy="25" r="4" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -356,6 +443,31 @@ function DeviceControlContent({
   );
 }
 
+function TabletDeviceControlContent({
+  active,
+  icon,
+}: {
+  active: boolean;
+  icon: ReactNode;
+}) {
+  return (
+    <>
+      <span
+        className={`${styles.tabletDeviceStatus} ${
+          active ? styles.tabletDeviceStatusOn : styles.tabletDeviceStatusOff
+        }`}
+        aria-hidden="true"
+      />
+      <span className={styles.tabletDeviceIcon} aria-hidden="true">
+        {icon}
+      </span>
+      <span className={styles.tabletDeviceMenu} aria-hidden="true">
+        <ChevronDownIcon />
+      </span>
+    </>
+  );
+}
+
 function TileSignal({ active }: { active: boolean }) {
   return (
     <span
@@ -405,7 +517,9 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
   const chatSectionRef = useRef<HTMLElement>(null);
   const [message, setMessage] = useState("");
   const [outputEnabled, setOutputEnabled] = useState(true);
+  const [isHandRaised, setIsHandRaised] = useState(false);
   const localIdentity = localParticipant?.identity;
+  const isTabletLayout = useTabletRoomLayout();
   const isCompactLayout = useCompactRoomLayout();
 
   const tracks = [...(useTracks([
@@ -434,6 +548,7 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
 
   const visibleTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
   const tileFrames = getStageTileFrames(visibleTracks.length);
+  const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({
@@ -465,6 +580,7 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
 
   const focusChatInput = () => chatInputRef.current?.focus();
   const blurChatInput = () => chatInputRef.current?.blur();
+  const toggleRaisedHand = () => setIsHandRaised((current) => !current);
   const scrollToParticipants = () =>
     participantsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const scrollToChat = () => {
@@ -497,7 +613,7 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
   const renderStageParticipantRows = () =>
     orderedParticipants.map((participant: any) => {
       const isLocal = participant.identity === localIdentity;
-      const micEnabled = Boolean(participant.isMicrophoneEnabled);
+      const shouldShowRaisedHand = isLocal && isHandRaised;
 
       return (
         <div className={styles.stageParticipantRow} key={participant.identity}>
@@ -505,14 +621,9 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
             {getParticipantDisplayName(participant, localIdentity)}
           </span>
 
-          {isLocal ? (
-            <span
-              className={`${styles.stageParticipantStatus} ${
-                micEnabled ? styles.stageParticipantStatusOn : styles.stageParticipantStatusOff
-              }`}
-              aria-hidden="true"
-            >
-              <UtilityAudioIcon />
+          {shouldShowRaisedHand ? (
+            <span className={`${styles.stageParticipantStatus} ${styles.stageParticipantStatusOn}`} aria-hidden="true">
+              <RaisedHandIcon />
             </span>
           ) : null}
         </div>
@@ -544,6 +655,123 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
       <ConnectionStateToast />
     </>
   );
+
+  if (isTabletLayout) {
+    return (
+      <div className={styles.tabletViewport}>
+        <div className={styles.tabletStage}>
+          <div className={styles.topBar} />
+          <div className={styles.bottomBar} />
+
+          {tabletTileFrames.map((frame, index) => {
+            const trackRef = visibleTracks[index];
+            const micEnabled = getTrackMicEnabled(trackRef);
+            const displayName = getTrackDisplayName(trackRef, localIdentity);
+
+            return (
+              <article
+                className={`${styles.tileCard} ${styles.tabletTileCard} ${
+                  frame.accent ? styles.tileCardAccent : ""
+                }`}
+                style={frame.style}
+                key={frame.id}
+              >
+                <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+
+                <div className={styles.tileFooter}>
+                  <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
+                  <TileSignal active={micEnabled} />
+                </div>
+              </article>
+            );
+          })}
+
+          <h1 className={styles.stageConferenceName} style={tabletText(25, 20, 460)}>
+            {roomTitle}
+          </h1>
+          <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
+            {roomCodeLabel}
+          </div>
+
+          <DisconnectButton
+            className={styles.tabletExitButton}
+            style={tabletRect(643, 25, 100, 50)}
+            aria-label="Выйти"
+            onClick={onExitIntent}
+          >
+            <span className={styles.exitGlow} aria-hidden="true" />
+            <span className={styles.tabletExitIcon} aria-hidden="true">
+              <ExitArrowIcon />
+            </span>
+            <span className={styles.tabletExitMenu} aria-hidden="true">
+              <ChevronDownIcon />
+            </span>
+          </DisconnectButton>
+
+          <TrackToggle
+            className={styles.tabletDeviceButton}
+            style={tabletRect(25, 949, 100, 50)}
+            source={Track.Source.Microphone}
+            showIcon={false}
+          >
+            <TabletDeviceControlContent active={isMicrophoneEnabled} icon={<MicIcon />} />
+          </TrackToggle>
+
+          <button
+            className={styles.tabletDeviceButton}
+            style={tabletRect(140, 949, 100, 50)}
+            type="button"
+            onClick={() => setOutputEnabled((current) => !current)}
+            aria-label="Звук"
+            aria-pressed={outputEnabled}
+          >
+            <TabletDeviceControlContent active={outputEnabled} icon={<SpeakerIcon />} />
+          </button>
+
+          <TrackToggle
+            className={styles.tabletDeviceButton}
+            style={tabletRect(255, 949, 100, 50)}
+            source={Track.Source.Camera}
+            showIcon={false}
+          >
+            <TabletDeviceControlContent active={isCameraEnabled} icon={<CameraIcon />} />
+          </TrackToggle>
+
+          <TrackToggle
+            className={styles.tabletDeviceButton}
+            style={tabletRect(370, 949, 100, 50)}
+            source={Track.Source.ScreenShare}
+            showIcon={false}
+          >
+            <TabletDeviceControlContent active={isScreenShareEnabled} icon={<ScreenIcon />} />
+          </TrackToggle>
+
+          <div className={styles.utilityGroup} style={tabletRect(543, 949, 200, 50)}>
+            <button className={styles.utilityButton} type="button" aria-label="Участники" onClick={blurChatInput}>
+              <UserIcon />
+            </button>
+            <button className={styles.utilityButton} type="button" aria-label="Чат" onClick={focusChatInput}>
+              <ChatIcon />
+            </button>
+            <button
+              className={styles.utilityButton}
+              type="button"
+              aria-label="Поднять руку"
+              aria-pressed={isHandRaised}
+              onClick={toggleRaisedHand}
+            >
+              <RaisedHandIcon />
+            </button>
+            <button className={styles.utilityButton} type="button" aria-label="Запись" onClick={blurChatInput}>
+              <RecordingIcon />
+            </button>
+          </div>
+
+          {sharedLiveKitUi}
+        </div>
+      </div>
+    );
+  }
 
   if (isCompactLayout) {
     return (
@@ -700,10 +928,11 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
             <button
               className={`${styles.compactUtilityButton} ${styles.compactUtilityAudio}`}
               type="button"
-              onClick={() => setOutputEnabled((current) => !current)}
+              aria-pressed={isHandRaised}
+              onClick={toggleRaisedHand}
             >
-              <UtilityAudioIcon />
-              <span>Звук</span>
+              <RaisedHandIcon />
+              <span>Рука</span>
             </button>
 
             <button
@@ -711,8 +940,8 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
               type="button"
               onClick={blurChatInput}
             >
-              <SettingsIcon />
-              <span>Панель</span>
+              <RecordingIcon />
+              <span>Запись</span>
             </button>
           </div>
         </div>
@@ -866,13 +1095,14 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
           <button
             className={styles.utilityButton}
             type="button"
-            aria-label="Звук"
-            onClick={() => setOutputEnabled((current) => !current)}
+            aria-label="Поднять руку"
+            aria-pressed={isHandRaised}
+            onClick={toggleRaisedHand}
           >
-            <UtilityAudioIcon />
+            <RaisedHandIcon />
           </button>
-          <button className={styles.utilityButton} type="button" aria-label="Настройки">
-            <SettingsIcon />
+          <button className={styles.utilityButton} type="button" aria-label="Запись" onClick={blurChatInput}>
+            <RecordingIcon />
           </button>
         </div>
 
@@ -883,170 +1113,170 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
 }
 
 export function RoomPage({ user }: Props) {
-  const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
-  const [token, setToken] = useState("");
-  const [livekitUrl, setLivekitUrl] = useState("");
-  const [roomName, setRoomName] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [conferenceReady, setConferenceReady] = useState(false);
-  // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
-  const leaveRequestedRef = useRef(false);
-  const [displayName, setDisplayName] = useState(() => {
-    const saved = localStorage.getItem("voco_room_display_name");
-    if (saved && saved.trim()) return saved;
-    return user?.username || user?.email || "";
-  });
+    const { slug } = useParams<{ slug: string }>();
+    const navigate = useNavigate();
+    const [token, setToken] = useState("");
+    const [livekitUrl, setLivekitUrl] = useState("");
+    const [roomName, setRoomName] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [conferenceReady, setConferenceReady] = useState(false);
+    // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
+    const leaveRequestedRef = useRef(false);
+    const [displayName, setDisplayName] = useState(() => {
+        const saved = localStorage.getItem("voco_room_display_name");
+        if (saved && saved.trim()) return saved;
+        return user?.username || user?.email || "";
+    });
 
-  useEffect(() => {
-    if (!slug) return;
+    useEffect(() => {
+        if (!slug) return;
 
-    const joinRoom = async () => {
-      try {
-        const data = await api.joinRoom(slug);
-        setToken(data.token);
-        setLivekitUrl(data.livekitUrl);
-        setRoomName(data.room.name);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+        const joinRoom = async () => {
+            try {
+                const data = await api.joinRoom(slug);
+                setToken(data.token);
+                setLivekitUrl(data.livekitUrl);
+                setRoomName(data.room.name);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    joinRoom();
-  }, [slug]);
+        joinRoom();
+    }, [slug]);
 
-  const leaveRoomAndNavigate = useCallback(async () => {
-    leaveRequestedRef.current = false;
+    const leaveRoomAndNavigate = useCallback(async () => {
+        leaveRequestedRef.current = false;
 
-    if (slug) {
-      try {
-        await api.leaveRoom(slug);
-      } catch {
-        // ignore
-      }
-    }
-    navigate("/dashboard");
-  }, [slug, navigate]);
+        if (slug) {
+            try {
+                await api.leaveRoom(slug);
+            } catch {
+                // ignore
+            }
+        }
+        navigate("/dashboard");
+    }, [slug, navigate]);
 
-  const handleWaitingLeave = useCallback(() => {
-    void leaveRoomAndNavigate();
-  }, [leaveRoomAndNavigate]);
+    const handleWaitingLeave = useCallback(() => {
+        void leaveRoomAndNavigate();
+    }, [leaveRoomAndNavigate]);
 
-  const handleConferenceLeaveIntent = useCallback(() => {
-    leaveRequestedRef.current = true;
-  }, []);
+    const handleConferenceLeaveIntent = useCallback(() => {
+        leaveRequestedRef.current = true;
+    }, []);
 
-  const handleConferenceDisconnected = useCallback(() => {
-    if (!leaveRequestedRef.current) {
-      return;
-    }
+    const handleConferenceDisconnected = useCallback(() => {
+        if (!leaveRequestedRef.current) {
+            return;
+        }
 
-    void leaveRoomAndNavigate();
-  }, [leaveRoomAndNavigate]);
+        void leaveRoomAndNavigate();
+    }, [leaveRoomAndNavigate]);
 
-  const handleEnterConference = useCallback(() => {
-    if (!token || !livekitUrl || error) return;
+    const handleEnterConference = useCallback(() => {
+        if (!token || !livekitUrl || error) return;
 
-    const normalizedName = displayName.trim() || user?.username || user?.email || "";
-    if (normalizedName) {
-      localStorage.setItem("voco_room_display_name", normalizedName);
-      setDisplayName(normalizedName);
-    }
+        const normalizedName = displayName.trim() || user?.username || user?.email || "";
+        if (normalizedName) {
+            localStorage.setItem("voco_room_display_name", normalizedName);
+            setDisplayName(normalizedName);
+        }
 
-    leaveRequestedRef.current = false;
-    setConferenceReady(true);
-  }, [displayName, error, livekitUrl, token, user]);
+        leaveRequestedRef.current = false;
+        setConferenceReady(true);
+    }, [displayName, error, livekitUrl, token, user]);
 
-  if (loading) {
-    return (
-      <div className={styles.loading}>
-        <div className={styles.spinner} />
-        <p>Подключение к комнате...</p>
-      </div>
-    );
-  }
-
-  if (!conferenceReady) {
-    return (
-      <div className={styles.waitingScreen}>
-        <div className={styles.waitingStage}>
-          <div className={styles.waitingBackdrop} aria-hidden="true">
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle2}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle3}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle4}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle5}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle6}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle7}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle8}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle9}`} />
-            <div className={`${styles.waitingCircle} ${styles.waitingCircle10}`} />
-          </div>
-
-          <section className={styles.waitingPanel} aria-label="Комната ожидания">
-            <div className={styles.waitingHeader}>
-              <h2>Комната ожидания</h2>
-              <button
-                className={styles.waitingClose}
-                type="button"
-                onClick={handleWaitingLeave}
-                aria-label="Вернуться на главную"
-              />
+    if (loading) {
+        return (
+            <div className={styles.loading}>
+                <div className={styles.spinner} />
+                <p>Подключение к комнате...</p>
             </div>
+        );
+    }
 
-            <label className={styles.waitingLabel} htmlFor="waiting-display-name">
-              Имя в конференции (или войдите с текущим)
-            </label>
+    if (!conferenceReady) {
+        return (
+            <div className={styles.waitingScreen}>
+                <div className={styles.waitingStage}>
+                    <div className={styles.waitingBackdrop} aria-hidden="true">
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle2}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle3}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle4}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle5}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle6}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle7}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle8}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle9}`} />
+                        <div className={`${styles.waitingCircle} ${styles.waitingCircle10}`} />
+                    </div>
 
-            <input
-              id="waiting-display-name"
-              className={styles.waitingInput}
-              type="text"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="your@email.com"
-            />
+                    <section className={styles.waitingPanel} aria-label="Комната ожидания">
+                        <div className={styles.waitingHeader}>
+                            <h2>Комната ожидания</h2>
+                            <button
+                                className={styles.waitingClose}
+                                type="button"
+                                onClick={handleWaitingLeave}
+                                aria-label="Вернуться на главную"
+                            />
+                        </div>
 
-            <div
-              className={`${styles.waitingError} ${error ? "" : styles.waitingErrorHidden}`}
-              aria-live="polite"
-            >
-              {error ? `Ошибка входа: ${error}` : "\u00A0"}
+                        <label className={styles.waitingLabel} htmlFor="waiting-display-name">
+                            Имя в конференции (или войдите с текущим)
+                        </label>
+
+                        <input
+                            id="waiting-display-name"
+                            className={styles.waitingInput}
+                            type="text"
+                            value={displayName}
+                            onChange={(event) => setDisplayName(event.target.value)}
+                            placeholder="your@email.com"
+                        />
+
+                        <div
+                            className={`${styles.waitingError} ${error ? "" : styles.waitingErrorHidden}`}
+                            aria-live="polite"
+                        >
+                            {error ? `Ошибка входа: ${error}` : "\u00A0"}
+                        </div>
+
+                        <button
+                            className={styles.waitingSubmit}
+                            type="button"
+                            onClick={handleEnterConference}
+                            disabled={!token || !livekitUrl || !!error}
+                        >
+                            Войти
+                        </button>
+                    </section>
+                </div>
             </div>
+        );
+    }
 
-            <button
-              className={styles.waitingSubmit}
-              type="button"
-              onClick={handleEnterConference}
-              disabled={!token || !livekitUrl || !!error}
+    return (
+        <div className={styles.container}>
+            <LiveKitRoom
+                serverUrl={livekitUrl}
+                token={token}
+                connect={true}
+                onDisconnected={handleConferenceDisconnected}
+                data-lk-theme="default"
+                className={styles.livekitRoot}
             >
-              Войти
-            </button>
-          </section>
+                <ConferenceRoomContent
+                    roomName={roomName}
+                    slug={slug}
+                    onExitIntent={handleConferenceLeaveIntent}
+                />
+            </LiveKitRoom>
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className={styles.container}>
-      <LiveKitRoom
-        serverUrl={livekitUrl}
-        token={token}
-        connect={true}
-        onDisconnected={handleConferenceDisconnected}
-        data-lk-theme="default"
-        className={styles.livekitRoot}
-      >
-        <ConferenceRoomContent
-          roomName={roomName}
-          slug={slug}
-          onExitIntent={handleConferenceLeaveIntent}
-        />
-      </LiveKitRoom>
-    </div>
-  );
 }
