@@ -1994,7 +1994,6 @@
 
 .waitingSecondary {
   height: 50px;
-  border: 2px solid #8000ff;
   border-radius: 100px;
   cursor: pointer;
   font-family: "Jost", sans-serif;
@@ -2002,13 +2001,16 @@
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
-  color: #8000ff;
-  background: transparent;
+  color: #000;
+  background:
+    linear-gradient(90deg, #8000ff 0%, #eedcff 50%, #8000ff 100%) padding-box,
+    linear-gradient(90deg, #eedcff 0%, #8000ff 50%, #eedcff 100%) border-box;
+  border: 5px solid transparent;
   box-sizing: border-box;
 }
 
-.waitingSecondary:hover {
-  background: rgba(128, 0, 255, 0.08);
+.waitingSecondary:disabled {
+  cursor: not-allowed;
 }
 
 .waitingSecondary:focus-visible {
@@ -2314,12 +2316,11 @@
 }
 
 :global(:root[data-theme="dark"]) .waitingSecondary {
-  color: #b685ff;
-  border-color: #b685ff;
-}
-
-:global(:root[data-theme="dark"]) .waitingSecondary:hover {
-  background: rgba(182, 133, 255, 0.12);
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, #8000ff 0%, #280055 50%, #8000ff 100%) padding-box,
+    linear-gradient(90deg, #280055 0%, #8000ff 50%, #280055 100%) border-box;
+  border: 5px solid transparent;
 }
 
 :global(:root[data-theme="dark"]) .waitingInput {
