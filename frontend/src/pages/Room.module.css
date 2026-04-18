@@ -519,8 +519,52 @@ button.stageRoomCode:disabled {
   opacity: 0.7;
 }
 
-button.stageRoomCode:hover:not(:disabled) {
+.roomCodeCopy {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.roomCodeCopy:hover:not(:disabled) .roomCodeCopyLabel {
   text-decoration: underline;
+}
+
+.roomCodeCopy[data-copy-status="copied"] {
+  color: #1f8a3a;
+}
+
+.roomCodeCopy[data-copy-status="error"] {
+  color: #b02a37;
+}
+
+.roomCodeCopyLabel {
+  font-weight: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.roomCodeCopyHint {
+  font-size: 10px;
+  opacity: 0.6;
+  font-weight: 400;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+:global(:root[data-theme="dark"]) .roomCodeCopy[data-copy-status="copied"] {
+  color: #7ee396;
+}
+
+:global(:root[data-theme="dark"]) .roomCodeCopy[data-copy-status="error"] {
+  color: #ff8a95;
 }
 
 .exitButton {
@@ -1401,8 +1445,12 @@ button.compactRoomCode:disabled {
   opacity: 0.7;
 }
 
-button.compactRoomCode:hover:not(:disabled) {
-  text-decoration: underline;
+button.compactRoomCode .roomCodeCopyHint {
+  font-size: 12px;
+}
+
+button.stageRoomCode .roomCodeCopyHint {
+  line-height: 1.1;
 }
 
 .compactExitButton {

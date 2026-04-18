@@ -927,13 +927,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
     { source: Track.Source.Camera, withPlaceholder: true },
     { source: Track.Source.ScreenShare, withPlaceholder: false },
   ]) as any[])].sort((left, right) => {
-    const leftLocal = left?.participant?.identity === localIdentity ? -1 : 0;
-    const rightLocal = right?.participant?.identity === localIdentity ? -1 : 0;
-    if (leftLocal !== rightLocal) return leftLocal - rightLocal;
-
     const leftScreen = left?.publication?.source === Track.Source.ScreenShare ? -1 : 0;
     const rightScreen = right?.publication?.source === Track.Source.ScreenShare ? -1 : 0;
     if (leftScreen !== rightScreen) return leftScreen - rightScreen;
+
+    const leftLocal = left?.participant?.identity === localIdentity ? -1 : 0;
+    const rightLocal = right?.participant?.identity === localIdentity ? -1 : 0;
+    if (leftLocal !== rightLocal) return leftLocal - rightLocal;
 
     return (left?.participant?.name || left?.participant?.identity || "").localeCompare(
       right?.participant?.name || right?.participant?.identity || "",
@@ -947,7 +947,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
     return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
   });
 
-  const visibleTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
+  const allTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
+  const hasScreenShare =
+    allTracks[0]?.publication?.source === Track.Source.ScreenShare;
+  const visibleTracks = hasScreenShare ? [allTracks[0]] : allTracks;
   const tileFrames = getStageTileFrames(visibleTracks.length);
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
 
@@ -987,6 +990,24 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
           ? "Не удалось скопировать"
           : roomCodeBase;
   const roomCodeTitle = isOwner && slug ? "Скопировать одноразовую ссылку" : undefined;
+
+  const renderOwnerCopyButton = (
+    className: string,
+    style?: CSSProperties,
+  ) => (
+    <button
+      type="button"
+      className={`${className} ${styles.roomCodeCopy}`}
+      style={style}
+      onClick={handleCopyRoomCode}
+      disabled={codeCopyStatus === "copying"}
+      title={roomCodeTitle}
+      data-copy-status={codeCopyStatus}
+    >
+      <span className={styles.roomCodeCopyLabel}>{roomCodeLabel}</span>
+      <span className={styles.roomCodeCopyHint}>Скопировать одноразовую ссылку</span>
+    </button>
+  );
 
   const focusChatInput = () => chatInputRef.current?.focus();
   const blurChatInput = () => chatInputRef.current?.blur();
@@ -1102,16 +1123,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
             {roomTitle}
           </h1>
           {isOwner && slug ? (
-            <button
-              type="button"
-              className={styles.stageRoomCode}
-              style={tabletText(25, 65, 326)}
-              onClick={handleCopyRoomCode}
-              disabled={codeCopyStatus === "copying"}
-              title={roomCodeTitle}
-            >
-              {roomCodeLabel}
-            </button>
+            renderOwnerCopyButton(styles.stageRoomCode, tabletText(25, 65, 326))
           ) : (
             <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
               {roomCodeLabel}
@@ -1274,15 +1286,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
           <div className={styles.compactHeaderText}>
             <h1 className={styles.compactTitle}>{roomTitle}</h1>
             {isOwner && slug ? (
-              <button
-                type="button"
-                className={styles.compactRoomCode}
-                onClick={handleCopyRoomCode}
-                disabled={codeCopyStatus === "copying"}
-                title={roomCodeTitle}
-              >
-                {roomCodeLabel}
-              </button>
+              renderOwnerCopyButton(styles.compactRoomCode)
             ) : (
               <div className={styles.compactRoomCode}>{roomCodeLabel}</div>
             )}
@@ -1593,16 +1597,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
           {roomTitle}
         </h1>
         {isOwner && slug ? (
-          <button
-            type="button"
-            className={styles.stageRoomCode}
-            style={stageText(25, 64, 326)}
-            onClick={handleCopyRoomCode}
-            disabled={codeCopyStatus === "copying"}
-            title={roomCodeTitle}
-          >
-            {roomCodeLabel}
-          </button>
+          renderOwnerCopyButton(styles.stageRoomCode, stageText(25, 64, 326))
         ) : (
           <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
             {roomCodeLabel}
