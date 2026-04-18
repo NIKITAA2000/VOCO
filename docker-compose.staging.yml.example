@@ -27,7 +27,7 @@ services:
       - "7890:7880"
       - "7891:7881"
       - "7892:7882"
-      - "50100-50160:50000-50060/udp"
+      - "50100-50160:50100-50160/udp"
     volumes:
       - ./livekit.staging.yaml:/etc/livekit.yaml
     networks:
