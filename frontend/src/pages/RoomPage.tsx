@@ -11,7 +11,6 @@ import {
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ConnectionStateToast,
   DisconnectButton,
   LiveKitRoom,
   ParticipantTile,
@@ -864,6 +863,37 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
+  const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  const codeCopyResetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (codeCopyResetRef.current) {
+        window.clearTimeout(codeCopyResetRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyRoomCode = useCallback(async () => {
+    if (!slug || !isOwner || codeCopyStatus === "copying") return;
+    setCodeCopyStatus("copying");
+    try {
+      const data = await api.createInvite(slug, { maxUses: 1 });
+      const url = `${window.location.origin}/invite/${data.invite.code}`;
+      await navigator.clipboard.writeText(url);
+      setCodeCopyStatus("copied");
+    } catch {
+      setCodeCopyStatus("error");
+    } finally {
+      if (codeCopyResetRef.current) {
+        window.clearTimeout(codeCopyResetRef.current);
+      }
+      codeCopyResetRef.current = window.setTimeout(() => {
+        setCodeCopyStatus("idle");
+        codeCopyResetRef.current = null;
+      }, 1800);
+    }
+  }, [slug, isOwner, codeCopyStatus]);
 
   const closeDeviceMenu = useCallback(() => setOpenDeviceMenu(null), []);
   const toggleDeviceMenu = useCallback(
@@ -947,7 +977,16 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
     year: "numeric",
   }).format(new Date());
   const roomTitle = roomName || "Название конференции";
-  const roomCodeLabel = slug ? `Код комнаты: ${slug}` : "Код комнаты";
+  const roomCodeBase = slug ? `Код комнаты: ${slug}` : "Код комнаты";
+  const roomCodeLabel =
+    codeCopyStatus === "copied"
+      ? "Ссылка скопирована"
+      : codeCopyStatus === "copying"
+        ? "Создаём ссылку..."
+        : codeCopyStatus === "error"
+          ? "Не удалось скопировать"
+          : roomCodeBase;
+  const roomCodeTitle = isOwner && slug ? "Скопировать одноразовую ссылку" : undefined;
 
   const focusChatInput = () => chatInputRef.current?.focus();
   const blurChatInput = () => chatInputRef.current?.blur();
@@ -1023,7 +1062,6 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
   const sharedLiveKitUi = (
     <>
       <RoomAudioRenderer muted={!outputEnabled} />
-      <ConnectionStateToast />
       {isOwner && slug && inviteManagerOpen ? (
         <InviteManagerModal slug={slug} onClose={() => setInviteManagerOpen(false)} />
       ) : null}
@@ -1063,9 +1101,22 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
           <h1 className={styles.stageConferenceName} style={tabletText(25, 20, 460)}>
             {roomTitle}
           </h1>
-          <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
-            {roomCodeLabel}
-          </div>
+          {isOwner && slug ? (
+            <button
+              type="button"
+              className={styles.stageRoomCode}
+              style={tabletText(25, 65, 326)}
+              onClick={handleCopyRoomCode}
+              disabled={codeCopyStatus === "copying"}
+              title={roomCodeTitle}
+            >
+              {roomCodeLabel}
+            </button>
+          ) : (
+            <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
+              {roomCodeLabel}
+            </div>
+          )}
 
           <DisconnectButton
             className={styles.tabletExitButton}
@@ -1222,7 +1273,19 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
         <header className={styles.compactHeader}>
           <div className={styles.compactHeaderText}>
             <h1 className={styles.compactTitle}>{roomTitle}</h1>
-            <div className={styles.compactRoomCode}>Код комнаты: {slug}</div>
+            {isOwner && slug ? (
+              <button
+                type="button"
+                className={styles.compactRoomCode}
+                onClick={handleCopyRoomCode}
+                disabled={codeCopyStatus === "copying"}
+                title={roomCodeTitle}
+              >
+                {roomCodeLabel}
+              </button>
+            ) : (
+              <div className={styles.compactRoomCode}>{roomCodeLabel}</div>
+            )}
           </div>
 
           <DisconnectButton
@@ -1529,9 +1592,22 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
         <h1 className={styles.stageConferenceName} style={stageText(25, 20, 460)}>
           {roomTitle}
         </h1>
-        <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
-          {roomCodeLabel}
-        </div>
+        {isOwner && slug ? (
+          <button
+            type="button"
+            className={styles.stageRoomCode}
+            style={stageText(25, 64, 326)}
+            onClick={handleCopyRoomCode}
+            disabled={codeCopyStatus === "copying"}
+            title={roomCodeTitle}
+          >
+            {roomCodeLabel}
+          </button>
+        ) : (
+          <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
+            {roomCodeLabel}
+          </div>
+        )}
 
         <DisconnectButton
           className={styles.exitButton}
