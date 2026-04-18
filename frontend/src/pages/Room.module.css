@@ -837,9 +837,17 @@
 .inviteForm {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  align-items: end;
   gap: 12px 16px;
   padding: 20px 24px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 640px) {
+  .inviteForm {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
 }
 
 .inviteField {
@@ -924,7 +932,7 @@
   margin: 0;
   border: 1px solid rgba(0, 0, 0, 0.25);
   border-radius: 4px;
-  background: #fafafa;
+  background-color: #fafafa;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
@@ -1087,7 +1095,7 @@
 }
 
 :global(:root[data-theme="dark"]) .inviteCheckbox input {
-  background: #fafafa;
+  background-color: #fafafa;
   border-color: rgba(0, 0, 0, 0.25);
 }
 
@@ -1940,6 +1948,74 @@
   cursor: not-allowed;
 }
 
+.waitingPanelTall {
+  height: 260px;
+}
+
+.waitingHint {
+  position: absolute;
+  left: 20px;
+  top: 55px;
+  width: 435px;
+  margin: 0;
+  color: #000;
+  font-family: "Jost", sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.waitingPanelTall .waitingActions {
+  top: 200px;
+}
+
+.waitingPanelTall .waitingError {
+  top: 170px;
+}
+
+.waitingActions {
+  position: absolute;
+  left: 0;
+  top: 155px;
+  width: 100%;
+  display: flex;
+  gap: 12px;
+}
+
+.waitingActions .waitingSubmit,
+.waitingActions .waitingSecondary {
+  position: static;
+  flex: 1;
+  top: auto;
+  left: auto;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.waitingSecondary {
+  height: 50px;
+  border: 2px solid #8000ff;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #8000ff;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.waitingSecondary:hover {
+  background: rgba(128, 0, 255, 0.08);
+}
+
+.waitingSecondary:focus-visible {
+  outline: 2px solid #8000ff;
+  outline-offset: 2px;
+}
+
 @keyframes waitingCircleSpin {
   from {
     rotate: 0deg;
@@ -2232,8 +2308,18 @@
 
 :global(:root[data-theme="dark"]) .waitingHeader h2,
 :global(:root[data-theme="dark"]) .waitingLabel,
-:global(:root[data-theme="dark"]) .waitingError {
+:global(:root[data-theme="dark"]) .waitingError,
+:global(:root[data-theme="dark"]) .waitingHint {
   color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .waitingSecondary {
+  color: #b685ff;
+  border-color: #b685ff;
+}
+
+:global(:root[data-theme="dark"]) .waitingSecondary:hover {
+  background: rgba(182, 133, 255, 0.12);
 }
 
 :global(:root[data-theme="dark"]) .waitingInput {
@@ -2402,6 +2488,37 @@
 
   .waitingSubmit {
     top: 135px;
+  }
+
+  .waitingPanelTall {
+    height: 240px;
+  }
+
+  .waitingPanelTall .waitingError {
+    top: 150px;
+  }
+
+  .waitingPanelTall .waitingActions {
+    top: 180px;
+  }
+
+  .waitingHint {
+    left: 13px;
+    top: 46px;
+    width: calc(100% - 26px);
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .waitingActions {
+    left: 0;
+    padding: 0 13px;
+    gap: 8px;
+  }
+
+  .waitingSecondary {
+    height: 46px;
+    font-size: 14px;
   }
 }
 
