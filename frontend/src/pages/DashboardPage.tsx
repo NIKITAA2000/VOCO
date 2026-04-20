@@ -253,7 +253,7 @@ export function DashboardPage({ user, onLogout }: Props) {
     }
   };
 
-  const recentRooms = activeRooms.slice(0, 4);
+  const recentRooms = activeRooms.filter((room) => room?.isActive !== false).slice(0, 4);
 
   const handleProfile = () => {
     if (isGuestUser) {
