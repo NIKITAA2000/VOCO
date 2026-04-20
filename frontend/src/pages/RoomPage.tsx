@@ -25,6 +25,7 @@ import {
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
 import { api } from "../api";
+import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
 
 const STAGE_WIDTH = 1440;
@@ -43,7 +44,9 @@ interface ConferenceRoomContentProps {
   roomName: string;
   slug?: string;
   onExitIntent: () => void;
+  onEndRoomIntent?: () => void;
   isOwner?: boolean;
+  canEndRoom?: boolean;
 }
 
 function toStagePercent(value: number, max: number) {
@@ -845,7 +848,7 @@ function InviteIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }: ConferenceRoomContentProps) {
+export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomIntent, isOwner, canEndRoom }: ConferenceRoomContentProps) {
   const participants = useParticipants();
   const {
     localParticipant,
@@ -863,6 +866,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
+  const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const codeCopyResetRef = useRef<number | null>(null);
 
@@ -873,6 +877,68 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!exitMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest(`.${styles.exitMenuDropdown}`)) return;
+      if (target.closest(`.${styles.exitMenuTrigger}`)) return;
+      setExitMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [exitMenuOpen]);
+
+  const handleExitMenuLeave = useCallback(() => {
+    setExitMenuOpen(false);
+    onExitIntent();
+  }, [onExitIntent]);
+
+  const handleExitMenuEnd = useCallback(() => {
+    setExitMenuOpen(false);
+    if (onEndRoomIntent) {
+      void onEndRoomIntent();
+    } else {
+      onExitIntent();
+    }
+  }, [onEndRoomIntent, onExitIntent]);
+
+  const renderExitMenu = (position: CSSProperties) =>
+    exitMenuOpen && canEndRoom ? (
+      <div className={styles.exitMenuDropdown} style={position} role="menu">
+        <button type="button" role="menuitem" onClick={handleExitMenuLeave}>
+          Выйти
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.exitMenuDanger}
+          onClick={handleExitMenuEnd}
+        >
+          Выйти и завершить комнату
+        </button>
+      </div>
+    ) : null;
+
+  const renderExitMenuTrigger = (className: string, style?: CSSProperties) =>
+    canEndRoom ? (
+      <button
+        type="button"
+        className={`${styles.exitMenuTrigger} ${className}`}
+        style={style}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          setExitMenuOpen((current) => !current);
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        aria-haspopup="menu"
+        aria-expanded={exitMenuOpen}
+        aria-label="Меню выхода"
+      />
+    ) : null;
 
   const handleCopyRoomCode = useCallback(async () => {
     if (!slug || !isOwner || codeCopyStatus === "copying") return;
@@ -1144,6 +1210,8 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
               <ChevronDownIcon />
             </span>
           </DisconnectButton>
+          {renderExitMenuTrigger(styles.exitMenuTriggerTablet, tabletRect(693, 25, 50, 50))}
+          {renderExitMenu(tabletRect(543, 80, 200, 104))}
 
           <div
             className={styles.deviceSlot}
@@ -1292,13 +1360,32 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
             )}
           </div>
 
-          <DisconnectButton
-            className={styles.compactExitButton}
-            aria-label="Выйти"
-            onClick={onExitIntent}
-          >
-            <ExitArrowIcon />
-          </DisconnectButton>
+          {canEndRoom ? (
+            <div className={styles.compactExitWrap}>
+              <button
+                type="button"
+                className={styles.compactExitButton}
+                aria-label="Выйти"
+                aria-haspopup="menu"
+                aria-expanded={exitMenuOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExitMenuOpen((current) => !current);
+                }}
+              >
+                <ExitArrowIcon />
+              </button>
+              {renderExitMenu({ position: "absolute", right: 0, top: "calc(100% + 8px)" })}
+            </div>
+          ) : (
+            <DisconnectButton
+              className={styles.compactExitButton}
+              aria-label="Выйти"
+              onClick={onExitIntent}
+            >
+              <ExitArrowIcon />
+            </DisconnectButton>
+          )}
         </header>
 
         <main className={styles.compactContent}>
@@ -1619,6 +1706,8 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, isOwner }:
             <ChevronDownIcon />
           </span>
         </DisconnectButton>
+        {renderExitMenuTrigger(styles.exitMenuTriggerStage, stageRect(1365, 25, 50, 50))}
+        {renderExitMenu(stageRect(1215, 80, 200, 104))}
 
         <div className={styles.deviceSlot} style={stageRect(25, 949, 200, 50)} data-device-menu-root>
           <TrackToggle
@@ -1750,6 +1839,7 @@ export function RoomPage({ user }: Props) {
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
+    const [myRole, setMyRole] = useState<string | null>(null);
     // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
     const leaveRequestedRef = useRef(false);
     const [displayName, setDisplayName] = useState(() => {
@@ -1770,6 +1860,7 @@ export function RoomPage({ user }: Props) {
                 try {
                     const details = await api.getRoom(slug);
                     setIsOwner(details.room?.owner?.id === user?.id);
+                    setMyRole(details.room?.myRole ?? null);
                 } catch {
                     // ignore — не критично для входа
                 }
@@ -1803,6 +1894,50 @@ export function RoomPage({ user }: Props) {
     const handleConferenceLeaveIntent = useCallback(() => {
         leaveRequestedRef.current = true;
     }, []);
+
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportData, setReportData] = useState<RoomReport | null>(null);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+
+    const handleEndRoomIntent = useCallback(async () => {
+        if (!slug) return;
+        setReportLoading(true);
+        setReportError(null);
+        setReportModalOpen(true);
+        try {
+            await api.deleteRoom(slug);
+        } catch {
+            // ignore — даже если не получилось закрыть, показываем отчёт
+        }
+        try {
+            const data = await api.getRoomReport(slug);
+            setReportData(data.report as RoomReport);
+        } catch (err: any) {
+            setReportError(err?.message || "Не удалось загрузить отчёт");
+        } finally {
+            setReportLoading(false);
+        }
+    }, [slug]);
+
+    const [downloadingReport, setDownloadingReport] = useState(false);
+    const handleDownloadReport = useCallback(async () => {
+        if (!reportData || downloadingReport) return;
+        setDownloadingReport(true);
+        try {
+            await downloadRoomReportPdf(reportData);
+        } catch (err) {
+            console.error("Ошибка при формировании PDF-отчёта:", err);
+        } finally {
+            setDownloadingReport(false);
+        }
+    }, [reportData, downloadingReport]);
+
+    const handleReportModalExit = useCallback(() => {
+        setReportModalOpen(false);
+        leaveRequestedRef.current = true;
+        void leaveRoomAndNavigate();
+    }, [leaveRoomAndNavigate]);
 
     const handleConferenceDisconnected = useCallback(() => {
         if (!leaveRequestedRef.current) {
@@ -1926,9 +2061,51 @@ export function RoomPage({ user }: Props) {
                     roomName={roomName}
                     slug={slug}
                     onExitIntent={handleConferenceLeaveIntent}
+                    onEndRoomIntent={handleEndRoomIntent}
                     isOwner={isOwner}
+                    canEndRoom={isOwner || myRole === "MODERATOR"}
                 />
             </LiveKitRoom>
+
+            {reportModalOpen ? (
+                <div
+                    className={styles.reportModalOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="report-modal-title"
+                >
+                    <div className={styles.reportModal}>
+                        <h2 id="report-modal-title">Комната завершена</h2>
+                        {reportLoading ? (
+                            <p className={styles.reportModalText}>Готовим отчёт о конференции…</p>
+                        ) : reportError ? (
+                            <p className={styles.reportModalText}>Не удалось загрузить отчёт: {reportError}</p>
+                        ) : (
+                            <p className={styles.reportModalText}>
+                                Можно скачать PDF-отчёт о прошедшей конференции: участники, длительность, пик
+                                одновременных.
+                            </p>
+                        )}
+                        <div className={styles.reportModalActions}>
+                            <button
+                                type="button"
+                                className={styles.reportModalPrimary}
+                                onClick={handleDownloadReport}
+                                disabled={!reportData || reportLoading || downloadingReport}
+                            >
+                                {downloadingReport ? "Формируем PDF…" : "Скачать PDF"}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.reportModalGhost}
+                                onClick={handleReportModalExit}
+                            >
+                                Выйти
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

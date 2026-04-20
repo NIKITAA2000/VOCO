@@ -101,6 +101,10 @@ class ApiClient {
     return this.request(`/rooms/${slug}`, { method: "DELETE" });
   }
 
+  async getRoomReport(slug: string) {
+    return this.request(`/rooms/${slug}/report`);
+  }
+
   // Invites (owner)
   async createInvite(
     slug: string,

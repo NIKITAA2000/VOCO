@@ -70,7 +70,7 @@ router.get("/", async (req: Request, res: Response) => {
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
        LEFT JOIN participants p ON p.room_id = r.id
-       WHERE r.owner_id = $1 OR p.user_id = $1
+       WHERE r.is_active = true AND (r.owner_id = $1 OR p.user_id = $1)
        ORDER BY r.created_at DESC`,
       [req.user!.userId]
     );
@@ -126,6 +126,20 @@ router.get("/:slug", async (req: Request, res: Response) => {
       [row.id]
     );
 
+    let myRole: string | null = null;
+    if (row.ownerId === req.user!.userId) {
+      myRole = "OWNER";
+    } else {
+      const myRoleResult = await db.query(
+        `SELECT role FROM participants
+         WHERE room_id = $1 AND user_id = $2
+         ORDER BY joined_at DESC
+         LIMIT 1`,
+        [row.id, req.user!.userId]
+      );
+      myRole = myRoleResult.rows[0]?.role ?? null;
+    }
+
     res.json({
       room: {
         id: row.id,
@@ -137,6 +151,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
         createdAt: row.createdAt,
         closedAt: row.closedAt,
         owner: { id: row.owner_id, username: row.owner_username },
+        myRole,
         participants: participantsResult.rows.map((p) => ({
           id: p.id,
           role: p.role,
@@ -603,6 +618,155 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
   }
 });
 
+// GET /api/rooms/:slug/report — отчёт о конференции (только владелец/модератор)
+router.get("/:slug/report", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
+              r.max_users AS "maxUsers", r.owner_id AS "ownerId",
+              r.created_at AS "createdAt", r.closed_at AS "closedAt",
+              u.id AS "owner_id", u.username AS "owner_username"
+       FROM rooms r
+       JOIN users u ON r.owner_id = u.id
+       WHERE r.slug = $1`,
+      [req.params.slug]
+    );
+
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      const roleResult = await db.query(
+        `SELECT role FROM participants
+         WHERE room_id = $1 AND user_id = $2
+         ORDER BY joined_at DESC
+         LIMIT 1`,
+        [room.id, req.user!.userId]
+      );
+      const role = roleResult.rows[0]?.role;
+      if (role !== "MODERATOR") {
+        res.status(403).json({ error: "Нет доступа к отчёту" });
+        return;
+      }
+    }
+
+    const sessionsResult = await db.query(
+      `SELECT p.user_id AS "userId", p.role, p.joined_at AS "joinedAt", p.left_at AS "leftAt",
+              u.username, u.email
+       FROM participants p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.room_id = $1
+       ORDER BY p.joined_at ASC`,
+      [room.id]
+    );
+
+    type Session = {
+      userId: string;
+      role: string;
+      joinedAt: Date;
+      leftAt: Date | null;
+      username: string;
+      email: string;
+    };
+
+    const sessions: Session[] = sessionsResult.rows.map((row: any) => ({
+      userId: row.userId,
+      role: row.role,
+      joinedAt: new Date(row.joinedAt),
+      leftAt: row.leftAt ? new Date(row.leftAt) : null,
+      username: row.username,
+      email: row.email,
+    }));
+
+    // Aggregate by user
+    const byUser = new Map<string, {
+      userId: string;
+      username: string;
+      email: string;
+      roles: Set<string>;
+      sessions: { joinedAt: Date; leftAt: Date | null }[];
+      totalMs: number;
+    }>();
+
+    const closedAt = room.closedAt ? new Date(room.closedAt) : new Date();
+
+    for (const s of sessions) {
+      const end = s.leftAt ?? closedAt;
+      const durationMs = Math.max(0, end.getTime() - s.joinedAt.getTime());
+      const existing = byUser.get(s.userId);
+      if (existing) {
+        existing.roles.add(s.role);
+        existing.sessions.push({ joinedAt: s.joinedAt, leftAt: s.leftAt });
+        existing.totalMs += durationMs;
+      } else {
+        byUser.set(s.userId, {
+          userId: s.userId,
+          username: s.username,
+          email: s.email,
+          roles: new Set([s.role]),
+          sessions: [{ joinedAt: s.joinedAt, leftAt: s.leftAt }],
+          totalMs: durationMs,
+        });
+      }
+    }
+
+    // Peak concurrent participants via event timeline
+    const events: { time: number; delta: number }[] = [];
+    for (const s of sessions) {
+      const end = s.leftAt ?? closedAt;
+      events.push({ time: s.joinedAt.getTime(), delta: 1 });
+      events.push({ time: end.getTime(), delta: -1 });
+    }
+    events.sort((a, b) => a.time - b.time || b.delta - a.delta);
+    let peak = 0;
+    let current = 0;
+    for (const e of events) {
+      current += e.delta;
+      if (current > peak) peak = current;
+    }
+
+    const participants = Array.from(byUser.values()).map((u) => ({
+      userId: u.userId,
+      username: u.username,
+      email: u.email,
+      wasModerator: u.roles.has("MODERATOR") || u.roles.has("OWNER"),
+      roles: Array.from(u.roles),
+      sessions: u.sessions.map((s) => ({
+        joinedAt: s.joinedAt.toISOString(),
+        leftAt: s.leftAt ? s.leftAt.toISOString() : null,
+      })),
+      totalMs: u.totalMs,
+    }));
+
+    const createdAt = new Date(room.createdAt);
+    const durationMs = Math.max(0, closedAt.getTime() - createdAt.getTime());
+
+    res.json({
+      report: {
+        room: {
+          id: room.id,
+          name: room.name,
+          slug: room.slug,
+          isActive: room.isActive,
+          createdAt: room.createdAt,
+          closedAt: room.closedAt,
+          durationMs,
+          owner: { id: room.owner_id, username: room.owner_username },
+        },
+        peakConcurrent: peak,
+        participants,
+      },
+    });
+  } catch (error) {
+    console.error("Room report error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
 // DELETE /api/rooms/:slug
 router.delete("/:slug", async (req: Request, res: Response) => {
   try {
@@ -619,8 +783,18 @@ router.delete("/:slug", async (req: Request, res: Response) => {
     const room = roomResult.rows[0];
 
     if (room.ownerId !== req.user!.userId) {
-      res.status(403).json({ error: "Только владелец может закрыть комнату" });
-      return;
+      const roleResult = await db.query(
+        `SELECT role FROM participants
+         WHERE room_id = $1 AND user_id = $2
+         ORDER BY joined_at DESC
+         LIMIT 1`,
+        [room.id, req.user!.userId]
+      );
+      const role = roleResult.rows[0]?.role;
+      if (role !== "MODERATOR") {
+        res.status(403).json({ error: "Только владелец или модератор может закрыть комнату" });
+        return;
+      }
     }
 
     await db.query(
