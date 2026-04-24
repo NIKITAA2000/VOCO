@@ -146,7 +146,7 @@ describe("GET /api/rooms/:slug/invites", () => {
 // ==========================================
 // POST /api/invite/:code/join — вход с auth
 // ==========================================
-describe("POST /api/invite/:code/join", () => {
+describe("POST /api/invite/:code/join (авторизованный)", () => {
   it("авторизованный пользователь входит по ссылке", async () => {
     const res = await request(app)
       .post(`/api/invite/${inviteCode}/join`)
@@ -167,10 +167,13 @@ describe("POST /api/invite/:code/join", () => {
     expect(res.body.token).toBeDefined();
   });
 
-  it("без токена получает 401", async () => {
-    const res = await request(app).post(`/api/invite/${inviteCode}/join`);
+  it("гость без displayName получает 400", async () => {
+    const res = await request(app)
+      .post(`/api/invite/${inviteCode}/join`)
+      .send({});
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Ошибка валидации");
   });
 
   it("несуществующий код — 404", async () => {
@@ -183,12 +186,12 @@ describe("POST /api/invite/:code/join", () => {
 });
 
 // ==========================================
-// POST /api/invite/:code/join-guest — гостевой вход
+// POST /api/invite/:code/join — гостевой вход (без токена)
 // ==========================================
-describe("POST /api/invite/:code/join-guest", () => {
+describe("POST /api/invite/:code/join (гость)", () => {
   it("гость входит с displayName", async () => {
     const res = await request(app)
-      .post(`/api/invite/${inviteCode}/join-guest`)
+      .post(`/api/invite/${inviteCode}/join`)
       .send({ displayName: "Гость Иванов" });
 
     expect(res.status).toBe(200);
@@ -200,11 +203,11 @@ describe("POST /api/invite/:code/join-guest", () => {
 
   it("каждый гость получает уникальный identity", async () => {
     const r1 = await request(app)
-      .post(`/api/invite/${inviteCode}/join-guest`)
+      .post(`/api/invite/${inviteCode}/join`)
       .send({ displayName: "Гость 1" });
 
     const r2 = await request(app)
-      .post(`/api/invite/${inviteCode}/join-guest`)
+      .post(`/api/invite/${inviteCode}/join`)
       .send({ displayName: "Гость 2" });
 
     expect(r1.body.guestIdentity).not.toBe(r2.body.guestIdentity);
@@ -212,7 +215,7 @@ describe("POST /api/invite/:code/join-guest", () => {
 
   it("без displayName получает 400", async () => {
     const res = await request(app)
-      .post(`/api/invite/${inviteCode}/join-guest`)
+      .post(`/api/invite/${inviteCode}/join`)
       .send({});
 
     expect(res.status).toBe(400);
@@ -221,7 +224,7 @@ describe("POST /api/invite/:code/join-guest", () => {
 
   it("пустой displayName получает 400", async () => {
     const res = await request(app)
-      .post(`/api/invite/${inviteCode}/join-guest`)
+      .post(`/api/invite/${inviteCode}/join`)
       .send({ displayName: "" });
 
     expect(res.status).toBe(400);
@@ -229,7 +232,7 @@ describe("POST /api/invite/:code/join-guest", () => {
 
   it("несуществующий код — 404", async () => {
     const res = await request(app)
-      .post("/api/invite/nonexistent/join-guest")
+      .post("/api/invite/nonexistent/join")
       .send({ displayName: "Гость" });
 
     expect(res.status).toBe(404);
@@ -254,7 +257,7 @@ describe("Лимит использований (maxUses: 1)", () => {
 
   it("первый гость входит успешно", async () => {
     const res = await request(app)
-      .post(`/api/invite/${limitedCode}/join-guest`)
+      .post(`/api/invite/${limitedCode}/join`)
       .send({ displayName: "Первый гость" });
 
     expect(res.status).toBe(200);
@@ -262,7 +265,7 @@ describe("Лимит использований (maxUses: 1)", () => {
 
   it("второй гость получает 400 — лимит исчерпан", async () => {
     const res = await request(app)
-      .post(`/api/invite/${limitedCode}/join-guest`)
+      .post(`/api/invite/${limitedCode}/join`)
       .send({ displayName: "Второй гость" });
 
     expect(res.status).toBe(400);
@@ -309,7 +312,7 @@ describe("Истечение срока (expiresAt = now + 3.6s)", () => {
       await new Promise((r) => setTimeout(r, 5_000));
 
       const res = await request(app)
-        .post(`/api/invite/${expiredCode}/join-guest`)
+        .post(`/api/invite/${expiredCode}/join`)
         .send({ displayName: "Поздний гость" });
 
       expect(res.status).toBe(400);
@@ -373,7 +376,7 @@ describe("DELETE /api/rooms/:slug/invite/:code", () => {
 
   it("гостевой вход после деактивации — 400", async () => {
     const res = await request(app)
-      .post(`/api/invite/${deactivateCode}/join-guest`)
+      .post(`/api/invite/${deactivateCode}/join`)
       .send({ displayName: "Гость" });
 
     expect(res.status).toBe(400);
@@ -406,6 +409,11 @@ describe("Вход в закрытую комнату по приглашени�
   let closedRoomCode = "";
 
   beforeAll(async () => {
+    // Владелец выходит из основной комнаты перед созданием новой
+    await request(app)
+      .post(`/api/rooms/${roomSlug}/leave`)
+      .set("Authorization", `Bearer ${ownerToken}`);
+
     // Создаём отдельную комнату для закрытия
     const r1 = await request(app)
       .post("/api/rooms")
@@ -428,7 +436,7 @@ describe("Вход в закрытую комнату по приглашени�
 
   it("гостевой вход в закрытую комнату — 400", async () => {
     const res = await request(app)
-      .post(`/api/invite/${closedRoomCode}/join-guest`)
+      .post(`/api/invite/${closedRoomCode}/join`)
       .send({ displayName: "Гость" });
 
     expect(res.status).toBe(400);
@@ -471,7 +479,7 @@ describe("Гости запрещены (allowGuests: false)", () => {
 
   it("гостевой вход по ссылке без гостей — 403", async () => {
     const res = await request(app)
-      .post(`/api/invite/${noGuestsCode}/join-guest`)
+      .post(`/api/invite/${noGuestsCode}/join`)
       .send({ displayName: "Запрещённый гость" });
 
     expect(res.status).toBe(403);

@@ -5,6 +5,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { RoomPage } from "./pages/RoomPage";
+import { InviteLandingPage } from "./pages/InviteLandingPage";
 import "./index.css";
 
 type GlobalTheme = "light" | "dark";
@@ -110,6 +111,7 @@ function App() {
             )
           }
         />
+        <Route path="/invite/:code" element={<InviteLandingPage user={user} />} />
       </Routes>
     </BrowserRouter>
   );

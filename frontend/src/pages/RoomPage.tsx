@@ -11,7 +11,6 @@ import {
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ConnectionStateToast,
   DisconnectButton,
   LiveKitRoom,
   ParticipantTile,
@@ -19,12 +18,14 @@ import {
   TrackToggle,
   useChat,
   useLocalParticipant,
+  useMediaDeviceSelect,
   useParticipants,
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { Track } from "livekit-client";
 import { api } from "../api";
+import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
 
 const STAGE_WIDTH = 1440;
@@ -43,6 +44,9 @@ interface ConferenceRoomContentProps {
   roomName: string;
   slug?: string;
   onExitIntent: () => void;
+  onEndRoomIntent?: () => void;
+  isOwner?: boolean;
+  canEndRoom?: boolean;
 }
 
 function toStagePercent(value: number, max: number) {
@@ -417,14 +421,62 @@ function SendIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+type DeviceMenuKey = "mic" | "speaker" | "cam";
+type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
+
+function DeviceSelectDropdown({
+  kind,
+  className,
+  onSelect,
+}: {
+  kind: DeviceKind;
+  className: string;
+  onSelect: () => void;
+}) {
+  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({ kind });
+
+  return (
+    <ul className={className} role="menu" onMouseDown={(event) => event.stopPropagation()}>
+      {devices.length === 0 ? (
+        <li className={styles.deviceDropdownEmpty}>Устройства не найдены</li>
+      ) : (
+        devices.map((device, index) => {
+          const label = device.label || `Устройство ${index + 1}`;
+          const isActive = device.deviceId === activeDeviceId;
+          return (
+            <li key={device.deviceId || `device-${index}`}>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={isActive}
+                className={`${styles.deviceDropdownItem} ${
+                  isActive ? styles.deviceDropdownItemActive : ""
+                }`}
+                onClick={() => {
+                  void setActiveMediaDevice(device.deviceId);
+                  onSelect();
+                }}
+              >
+                <span className={styles.deviceDropdownItemLabel}>{label}</span>
+              </button>
+            </li>
+          );
+        })
+      )}
+    </ul>
+  );
+}
+
 function DeviceControlContent({
   label,
   active,
   icon,
+  hideMenu,
 }: {
   label: string;
   active: boolean;
   icon: ReactNode;
+  hideMenu?: boolean;
 }) {
   return (
     <>
@@ -436,9 +488,11 @@ function DeviceControlContent({
         {icon}
       </span>
       <span className={styles.deviceLabel}>{label}</span>
-      <span className={styles.deviceMenu} aria-hidden="true">
-        <ChevronDownIcon />
-      </span>
+      {hideMenu ? null : (
+        <span className={styles.deviceMenu} aria-hidden="true">
+          <ChevronDownIcon />
+        </span>
+      )}
     </>
   );
 }
@@ -446,9 +500,11 @@ function DeviceControlContent({
 function TabletDeviceControlContent({
   active,
   icon,
+  hideMenu,
 }: {
   active: boolean;
   icon: ReactNode;
+  hideMenu?: boolean;
 }) {
   return (
     <>
@@ -461,9 +517,11 @@ function TabletDeviceControlContent({
       <span className={styles.tabletDeviceIcon} aria-hidden="true">
         {icon}
       </span>
-      <span className={styles.tabletDeviceMenu} aria-hidden="true">
-        <ChevronDownIcon />
-      </span>
+      {hideMenu ? null : (
+        <span className={styles.tabletDeviceMenu} aria-hidden="true">
+          <ChevronDownIcon />
+        </span>
+      )}
     </>
   );
 }
@@ -502,7 +560,295 @@ function PlaceholderLogo() {
   );
 }
 
-function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomContentProps) {
+type ExpiryPreset = "none" | "1d" | "1w" | "1y" | "custom";
+
+function pad2(value: number) {
+  return value.toString().padStart(2, "0");
+}
+
+function formatDateTimeLocal(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(
+    date.getHours(),
+  )}:${pad2(date.getMinutes())}`;
+}
+
+function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => void }) {
+  const [invites, setInvites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("none");
+  const [customExpiresAt, setCustomExpiresAt] = useState(() => formatDateTimeLocal(new Date()));
+  const [maxUses, setMaxUses] = useState("");
+  const [allowGuests, setAllowGuests] = useState(true);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const nowLocal = formatDateTimeLocal(new Date());
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await api.listInvites(slug);
+      const activeOnly = (data.invites ?? []).filter((invite: any) => invite.isActive);
+      setInvites(activeOnly);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const resolveExpiresAt = (): Date | null => {
+    const now = new Date();
+    if (expiryPreset === "none") return null;
+    if (expiryPreset === "1d") {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      return d;
+    }
+    if (expiryPreset === "1w") {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 7);
+      return d;
+    }
+    if (expiryPreset === "1y") {
+      const d = new Date(now);
+      d.setFullYear(d.getFullYear() + 1);
+      return d;
+    }
+    if (!customExpiresAt) return null;
+    const parsed = new Date(customExpiresAt);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
+  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    const expiresDate = resolveExpiresAt();
+    if (expiryPreset === "custom") {
+      if (!expiresDate) {
+        setError("Укажите корректную дату истечения");
+        return;
+      }
+      if (expiresDate.getTime() <= Date.now()) {
+        setError("Дата истечения не может быть в прошлом");
+        return;
+      }
+      if (expiresDate.getFullYear() > 9999) {
+        setError("Год должен содержать не более 4 цифр");
+        return;
+      }
+    }
+
+    setCreating(true);
+    try {
+      const options: { expiresAt?: string; maxUses?: number; allowGuests?: boolean } = {
+        allowGuests,
+      };
+      if (expiresDate) {
+        options.expiresAt = expiresDate.toISOString();
+      }
+      if (maxUses) {
+        const parsedUses = parseInt(maxUses, 10);
+        if (Number.isFinite(parsedUses) && parsedUses >= 1) {
+          options.maxUses = parsedUses;
+        }
+      }
+      await api.createInvite(slug, options);
+      setExpiryPreset("none");
+      setCustomExpiresAt(formatDateTimeLocal(new Date()));
+      setMaxUses("");
+      setAllowGuests(true);
+      await reload();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeactivate = async (code: string) => {
+    setError("");
+    try {
+      await api.deactivateInvite(slug, code);
+      setInvites((current) => current.filter((invite: any) => invite.code !== code));
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const copyUrl = async (code: string) => {
+    const url = `${window.location.origin}/invite/${code}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(code);
+      setTimeout(() => setCopied((current) => (current === code ? null : current)), 1500);
+    } catch {
+      setError("Не удалось скопировать ссылку");
+    }
+  };
+
+  return (
+    <div
+      className={styles.inviteOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="invite-modal-title"
+      onClick={onClose}
+    >
+      <div className={styles.inviteModal} onClick={(event) => event.stopPropagation()}>
+        <header className={styles.inviteHeader}>
+          <h2 id="invite-modal-title">Ссылки-приглашения</h2>
+          <button
+            type="button"
+            className={styles.inviteClose}
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </header>
+
+        <form className={styles.inviteForm} onSubmit={handleCreate}>
+          <label className={styles.inviteField}>
+            <span>Максимум использований</span>
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              value={maxUses}
+              onChange={(event) => setMaxUses(event.target.value)}
+              placeholder="Без лимита"
+            />
+          </label>
+
+          <label className={styles.inviteField}>
+            <span>Истекает</span>
+            <div className={styles.inviteSelectWrapper}>
+              <select
+                className={styles.inviteSelect}
+                value={expiryPreset}
+                onChange={(event) => setExpiryPreset(event.target.value as ExpiryPreset)}
+              >
+                <option value="none">Без лимита</option>
+                <option value="1d">1 день</option>
+                <option value="1w">1 неделя</option>
+                <option value="1y">1 год</option>
+                <option value="custom">Своё время</option>
+              </select>
+              <span className={styles.inviteSelectChevron} aria-hidden="true">
+                <ChevronDownIcon />
+              </span>
+            </div>
+          </label>
+
+          {expiryPreset === "custom" ? (
+            <label className={styles.inviteField}>
+              <span>Дата истечения</span>
+              <input
+                type="datetime-local"
+                value={customExpiresAt}
+                min={nowLocal}
+                max="9999-12-31T23:59"
+                onChange={(event) => setCustomExpiresAt(event.target.value)}
+              />
+            </label>
+          ) : null}
+
+          <label className={styles.inviteCheckbox}>
+            <input
+              type="checkbox"
+              checked={allowGuests}
+              onChange={(event) => setAllowGuests(event.target.checked)}
+            />
+            <span>Разрешить вход гостям</span>
+          </label>
+
+          <button type="submit" className={styles.inviteCreate} disabled={creating}>
+            {creating ? "Создание..." : "Создать ссылку"}
+          </button>
+        </form>
+
+        {error ? <div className={styles.inviteError}>{error}</div> : null}
+
+        <div className={styles.inviteList}>
+          {loading ? (
+            <div className={styles.inviteEmpty}>Загрузка...</div>
+          ) : invites.length === 0 ? (
+            <div className={styles.inviteEmpty}>Ссылок ещё нет</div>
+          ) : (
+            invites.map((invite: any) => {
+              const url = `${window.location.origin}/invite/${invite.code}`;
+              const usesLabel = invite.maxUses
+                ? `${invite.usesCount}/${invite.maxUses}`
+                : `${invite.usesCount}/∞`;
+              return (
+                <div key={invite.id} className={styles.inviteItem}>
+                  <div className={styles.inviteItemUrl} title={url}>
+                    {url}
+                  </div>
+                  <div className={styles.inviteItemMeta}>
+                    <span>Использований: {usesLabel}</span>
+                    {invite.expiresAt ? (
+                      <span>До: {new Date(invite.expiresAt).toLocaleString("ru-RU")}</span>
+                    ) : (
+                      <span>Бессрочно</span>
+                    )}
+                    <span>{invite.allowGuests ? "Гости: да" : "Гости: нет"}</span>
+                  </div>
+                  <div className={styles.inviteItemActions}>
+                    <button type="button" onClick={() => copyUrl(invite.code)}>
+                      {copied === invite.code ? "Скопировано" : "Копировать"}
+                    </button>
+                    <button type="button" onClick={() => handleDeactivate(invite.code)}>
+                      Отключить
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InviteIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path
+        d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.41 1.41"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14 11a5 5 0 0 0-7.07 0l-2.83 2.83a5 5 0 0 0 7.07 7.07l1.41-1.41"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomIntent, isOwner, canEndRoom }: ConferenceRoomContentProps) {
   const participants = useParticipants();
   const {
     localParticipant,
@@ -518,6 +864,127 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
   const [message, setMessage] = useState("");
   const [outputEnabled, setOutputEnabled] = useState(true);
   const [isHandRaised, setIsHandRaised] = useState(false);
+  const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
+  const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
+  const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  const codeCopyResetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (codeCopyResetRef.current) {
+        window.clearTimeout(codeCopyResetRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!exitMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest(`.${styles.exitMenuDropdown}`)) return;
+      if (target.closest(`.${styles.exitMenuTrigger}`)) return;
+      setExitMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [exitMenuOpen]);
+
+  const handleExitMenuLeave = useCallback(() => {
+    setExitMenuOpen(false);
+    onExitIntent();
+  }, [onExitIntent]);
+
+  const handleExitMenuEnd = useCallback(() => {
+    setExitMenuOpen(false);
+    if (onEndRoomIntent) {
+      void onEndRoomIntent();
+    } else {
+      onExitIntent();
+    }
+  }, [onEndRoomIntent, onExitIntent]);
+
+  const renderExitMenu = (position: CSSProperties) =>
+    exitMenuOpen && canEndRoom ? (
+      <div className={styles.exitMenuDropdown} style={position} role="menu">
+        <button type="button" role="menuitem" onClick={handleExitMenuLeave}>
+          Выйти
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.exitMenuDanger}
+          onClick={handleExitMenuEnd}
+        >
+          Выйти и завершить комнату
+        </button>
+      </div>
+    ) : null;
+
+  const renderExitMenuTrigger = (className: string, style?: CSSProperties) =>
+    canEndRoom ? (
+      <button
+        type="button"
+        className={`${styles.exitMenuTrigger} ${className}`}
+        style={style}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          setExitMenuOpen((current) => !current);
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        aria-haspopup="menu"
+        aria-expanded={exitMenuOpen}
+        aria-label="Меню выхода"
+      />
+    ) : null;
+
+  const handleCopyRoomCode = useCallback(async () => {
+    if (!slug || !isOwner || codeCopyStatus === "copying") return;
+    setCodeCopyStatus("copying");
+    try {
+      const data = await api.createInvite(slug, { maxUses: 1 });
+      const url = `${window.location.origin}/invite/${data.invite.code}`;
+      await navigator.clipboard.writeText(url);
+      setCodeCopyStatus("copied");
+    } catch {
+      setCodeCopyStatus("error");
+    } finally {
+      if (codeCopyResetRef.current) {
+        window.clearTimeout(codeCopyResetRef.current);
+      }
+      codeCopyResetRef.current = window.setTimeout(() => {
+        setCodeCopyStatus("idle");
+        codeCopyResetRef.current = null;
+      }, 1800);
+    }
+  }, [slug, isOwner, codeCopyStatus]);
+
+  const closeDeviceMenu = useCallback(() => setOpenDeviceMenu(null), []);
+  const toggleDeviceMenu = useCallback(
+    (key: DeviceMenuKey) => setOpenDeviceMenu((current) => (current === key ? null : key)),
+    [],
+  );
+
+  useEffect(() => {
+    if (!openDeviceMenu) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest("[data-device-menu-root]")) {
+        setOpenDeviceMenu(null);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenDeviceMenu(null);
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [openDeviceMenu]);
   const localIdentity = localParticipant?.identity;
   const isTabletLayout = useTabletRoomLayout();
   const isCompactLayout = useCompactRoomLayout();
@@ -526,13 +993,13 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
     { source: Track.Source.Camera, withPlaceholder: true },
     { source: Track.Source.ScreenShare, withPlaceholder: false },
   ]) as any[])].sort((left, right) => {
-    const leftLocal = left?.participant?.identity === localIdentity ? -1 : 0;
-    const rightLocal = right?.participant?.identity === localIdentity ? -1 : 0;
-    if (leftLocal !== rightLocal) return leftLocal - rightLocal;
-
     const leftScreen = left?.publication?.source === Track.Source.ScreenShare ? -1 : 0;
     const rightScreen = right?.publication?.source === Track.Source.ScreenShare ? -1 : 0;
     if (leftScreen !== rightScreen) return leftScreen - rightScreen;
+
+    const leftLocal = left?.participant?.identity === localIdentity ? -1 : 0;
+    const rightLocal = right?.participant?.identity === localIdentity ? -1 : 0;
+    if (leftLocal !== rightLocal) return leftLocal - rightLocal;
 
     return (left?.participant?.name || left?.participant?.identity || "").localeCompare(
       right?.participant?.name || right?.participant?.identity || "",
@@ -546,7 +1013,10 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
     return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
   });
 
-  const visibleTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
+  const allTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
+  const hasScreenShare =
+    allTracks[0]?.publication?.source === Track.Source.ScreenShare;
+  const visibleTracks = hasScreenShare ? [allTracks[0]] : allTracks;
   const tileFrames = getStageTileFrames(visibleTracks.length);
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
 
@@ -576,7 +1046,34 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
     year: "numeric",
   }).format(new Date());
   const roomTitle = roomName || "Название конференции";
-  const roomCodeLabel = slug ? `Код комнаты: ${slug}` : "Код комнаты";
+  const roomCodeBase = slug ? `Код комнаты: ${slug}` : "Код комнаты";
+  const roomCodeLabel =
+    codeCopyStatus === "copied"
+      ? "Ссылка скопирована"
+      : codeCopyStatus === "copying"
+        ? "Создаём ссылку..."
+        : codeCopyStatus === "error"
+          ? "Не удалось скопировать"
+          : roomCodeBase;
+  const roomCodeTitle = isOwner && slug ? "Скопировать одноразовую ссылку" : undefined;
+
+  const renderOwnerCopyButton = (
+    className: string,
+    style?: CSSProperties,
+  ) => (
+    <button
+      type="button"
+      className={`${className} ${styles.roomCodeCopy}`}
+      style={style}
+      onClick={handleCopyRoomCode}
+      disabled={codeCopyStatus === "copying"}
+      title={roomCodeTitle}
+      data-copy-status={codeCopyStatus}
+    >
+      <span className={styles.roomCodeCopyLabel}>{roomCodeLabel}</span>
+      <span className={styles.roomCodeCopyHint}>Скопировать одноразовую ссылку</span>
+    </button>
+  );
 
   const focusChatInput = () => chatInputRef.current?.focus();
   const blurChatInput = () => chatInputRef.current?.blur();
@@ -652,7 +1149,9 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
   const sharedLiveKitUi = (
     <>
       <RoomAudioRenderer muted={!outputEnabled} />
-      <ConnectionStateToast />
+      {isOwner && slug && inviteManagerOpen ? (
+        <InviteManagerModal slug={slug} onClose={() => setInviteManagerOpen(false)} />
+      ) : null}
     </>
   );
 
@@ -689,9 +1188,13 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
           <h1 className={styles.stageConferenceName} style={tabletText(25, 20, 460)}>
             {roomTitle}
           </h1>
-          <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
-            {roomCodeLabel}
-          </div>
+          {isOwner && slug ? (
+            renderOwnerCopyButton(styles.stageRoomCode, tabletText(25, 65, 326))
+          ) : (
+            <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
+              {roomCodeLabel}
+            </div>
+          )}
 
           <DisconnectButton
             className={styles.tabletExitButton}
@@ -707,44 +1210,115 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
               <ChevronDownIcon />
             </span>
           </DisconnectButton>
+          {renderExitMenuTrigger(styles.exitMenuTriggerTablet, tabletRect(693, 25, 50, 50))}
+          {renderExitMenu(tabletRect(543, 80, 200, 104))}
+
+          <div
+            className={styles.deviceSlot}
+            style={tabletRect(25, 949, 90, 50)}
+            data-device-menu-root
+          >
+            <TrackToggle
+              className={`${styles.tabletDeviceButton} ${styles.deviceButtonFill}`}
+              source={Track.Source.Microphone}
+              showIcon={false}
+            >
+              <TabletDeviceControlContent active={isMicrophoneEnabled} icon={<MicIcon />} />
+            </TrackToggle>
+            <button
+              type="button"
+              className={styles.deviceMenuTrigger}
+              aria-label="Выбрать микрофон"
+              aria-expanded={openDeviceMenu === "mic"}
+              onClick={() => toggleDeviceMenu("mic")}
+            />
+            {openDeviceMenu === "mic" && (
+              <DeviceSelectDropdown
+                kind="audioinput"
+                className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                onSelect={closeDeviceMenu}
+              />
+            )}
+          </div>
+
+          <div
+            className={styles.deviceSlot}
+            style={tabletRect(130, 949, 90, 50)}
+            data-device-menu-root
+          >
+            <button
+              className={`${styles.tabletDeviceButton} ${styles.deviceButtonFill}`}
+              type="button"
+              onClick={() => setOutputEnabled((current) => !current)}
+              aria-label="Звук"
+              aria-pressed={outputEnabled}
+            >
+              <TabletDeviceControlContent active={outputEnabled} icon={<SpeakerIcon />} />
+            </button>
+            <button
+              type="button"
+              className={styles.deviceMenuTrigger}
+              aria-label="Выбрать устройство звука"
+              aria-expanded={openDeviceMenu === "speaker"}
+              onClick={() => toggleDeviceMenu("speaker")}
+            />
+            {openDeviceMenu === "speaker" && (
+              <DeviceSelectDropdown
+                kind="audiooutput"
+                className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                onSelect={closeDeviceMenu}
+              />
+            )}
+          </div>
+
+          <div
+            className={styles.deviceSlot}
+            style={tabletRect(235, 949, 90, 50)}
+            data-device-menu-root
+          >
+            <TrackToggle
+              className={`${styles.tabletDeviceButton} ${styles.deviceButtonFill}`}
+              source={Track.Source.Camera}
+              showIcon={false}
+            >
+              <TabletDeviceControlContent active={isCameraEnabled} icon={<CameraIcon />} />
+            </TrackToggle>
+            <button
+              type="button"
+              className={styles.deviceMenuTrigger}
+              aria-label="Выбрать камеру"
+              aria-expanded={openDeviceMenu === "cam"}
+              onClick={() => toggleDeviceMenu("cam")}
+            />
+            {openDeviceMenu === "cam" && (
+              <DeviceSelectDropdown
+                kind="videoinput"
+                className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                onSelect={closeDeviceMenu}
+              />
+            )}
+          </div>
 
           <TrackToggle
             className={styles.tabletDeviceButton}
-            style={tabletRect(25, 949, 100, 50)}
-            source={Track.Source.Microphone}
-            showIcon={false}
-          >
-            <TabletDeviceControlContent active={isMicrophoneEnabled} icon={<MicIcon />} />
-          </TrackToggle>
-
-          <button
-            className={styles.tabletDeviceButton}
-            style={tabletRect(140, 949, 100, 50)}
-            type="button"
-            onClick={() => setOutputEnabled((current) => !current)}
-            aria-label="Звук"
-            aria-pressed={outputEnabled}
-          >
-            <TabletDeviceControlContent active={outputEnabled} icon={<SpeakerIcon />} />
-          </button>
-
-          <TrackToggle
-            className={styles.tabletDeviceButton}
-            style={tabletRect(255, 949, 100, 50)}
-            source={Track.Source.Camera}
-            showIcon={false}
-          >
-            <TabletDeviceControlContent active={isCameraEnabled} icon={<CameraIcon />} />
-          </TrackToggle>
-
-          <TrackToggle
-            className={styles.tabletDeviceButton}
-            style={tabletRect(370, 949, 100, 50)}
+            style={tabletRect(340, 949, 90, 50)}
             source={Track.Source.ScreenShare}
             showIcon={false}
           >
             <TabletDeviceControlContent active={isScreenShareEnabled} icon={<ScreenIcon />} />
           </TrackToggle>
+
+          {isOwner && slug ? (
+            <button
+              type="button"
+              className={`${styles.tabletDeviceButton} ${styles.deviceActionHover}`}
+              style={tabletRect(445, 949, 90, 50)}
+              onClick={() => setInviteManagerOpen(true)}
+              aria-label="Пригласить"
+            >
+              <TabletDeviceControlContent active={true} icon={<InviteIcon />} hideMenu />
+            </button>
+          ) : null}
 
           <div className={styles.utilityGroup} style={tabletRect(543, 949, 200, 50)}>
             <button className={styles.utilityButton} type="button" aria-label="Участники" onClick={blurChatInput}>
@@ -779,16 +1353,39 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
         <header className={styles.compactHeader}>
           <div className={styles.compactHeaderText}>
             <h1 className={styles.compactTitle}>{roomTitle}</h1>
-            <div className={styles.compactRoomCode}>Код комнаты: {slug}</div>
+            {isOwner && slug ? (
+              renderOwnerCopyButton(styles.compactRoomCode)
+            ) : (
+              <div className={styles.compactRoomCode}>{roomCodeLabel}</div>
+            )}
           </div>
 
-          <DisconnectButton
-            className={styles.compactExitButton}
-            aria-label="Выйти"
-            onClick={onExitIntent}
-          >
-            <ExitArrowIcon />
-          </DisconnectButton>
+          {canEndRoom ? (
+            <div className={styles.compactExitWrap}>
+              <button
+                type="button"
+                className={styles.compactExitButton}
+                aria-label="Выйти"
+                aria-haspopup="menu"
+                aria-expanded={exitMenuOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExitMenuOpen((current) => !current);
+                }}
+              >
+                <ExitArrowIcon />
+              </button>
+              {renderExitMenu({ position: "absolute", right: 0, top: "calc(100% + 8px)" })}
+            </div>
+          ) : (
+            <DisconnectButton
+              className={styles.compactExitButton}
+              aria-label="Выйти"
+              onClick={onExitIntent}
+            >
+              <ExitArrowIcon />
+            </DisconnectButton>
+          )}
         </header>
 
         <main className={styles.compactContent}>
@@ -868,30 +1465,78 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
 
         <div className={styles.compactControls}>
           <div className={styles.compactPrimaryControls}>
-            <TrackToggle
-              className={styles.compactControlButton}
-              source={Track.Source.Microphone}
-              showIcon={false}
-            >
-              <DeviceControlContent label="Микрофон" active={isMicrophoneEnabled} icon={<MicIcon />} />
-            </TrackToggle>
+            <div className={styles.compactDeviceSlot} data-device-menu-root>
+              <TrackToggle
+                className={styles.compactControlButton}
+                source={Track.Source.Microphone}
+                showIcon={false}
+              >
+                <DeviceControlContent label="Микрофон" active={isMicrophoneEnabled} icon={<MicIcon />} />
+              </TrackToggle>
+              <button
+                type="button"
+                className={styles.deviceMenuTrigger}
+                aria-label="Выбрать микрофон"
+                aria-expanded={openDeviceMenu === "mic"}
+                onClick={() => toggleDeviceMenu("mic")}
+              />
+              {openDeviceMenu === "mic" && (
+                <DeviceSelectDropdown
+                  kind="audioinput"
+                  className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                  onSelect={closeDeviceMenu}
+                />
+              )}
+            </div>
 
-            <button
-              className={styles.compactControlButton}
-              type="button"
-              onClick={() => setOutputEnabled((current) => !current)}
-              aria-pressed={outputEnabled}
-            >
-              <DeviceControlContent label="Звук" active={outputEnabled} icon={<SpeakerIcon />} />
-            </button>
+            <div className={styles.compactDeviceSlot} data-device-menu-root>
+              <button
+                className={styles.compactControlButton}
+                type="button"
+                onClick={() => setOutputEnabled((current) => !current)}
+                aria-pressed={outputEnabled}
+              >
+                <DeviceControlContent label="Звук" active={outputEnabled} icon={<SpeakerIcon />} />
+              </button>
+              <button
+                type="button"
+                className={styles.deviceMenuTrigger}
+                aria-label="Выбрать устройство звука"
+                aria-expanded={openDeviceMenu === "speaker"}
+                onClick={() => toggleDeviceMenu("speaker")}
+              />
+              {openDeviceMenu === "speaker" && (
+                <DeviceSelectDropdown
+                  kind="audiooutput"
+                  className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                  onSelect={closeDeviceMenu}
+                />
+              )}
+            </div>
 
-            <TrackToggle
-              className={styles.compactControlButton}
-              source={Track.Source.Camera}
-              showIcon={false}
-            >
-              <DeviceControlContent label="Камера" active={isCameraEnabled} icon={<CameraIcon />} />
-            </TrackToggle>
+            <div className={styles.compactDeviceSlot} data-device-menu-root>
+              <TrackToggle
+                className={styles.compactControlButton}
+                source={Track.Source.Camera}
+                showIcon={false}
+              >
+                <DeviceControlContent label="Камера" active={isCameraEnabled} icon={<CameraIcon />} />
+              </TrackToggle>
+              <button
+                type="button"
+                className={styles.deviceMenuTrigger}
+                aria-label="Выбрать камеру"
+                aria-expanded={openDeviceMenu === "cam"}
+                onClick={() => toggleDeviceMenu("cam")}
+              />
+              {openDeviceMenu === "cam" && (
+                <DeviceSelectDropdown
+                  kind="videoinput"
+                  className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+                  onSelect={closeDeviceMenu}
+                />
+              )}
+            </div>
 
             <TrackToggle
               className={styles.compactControlButton}
@@ -904,6 +1549,16 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
                 icon={<ScreenIcon />}
               />
             </TrackToggle>
+
+            {isOwner && slug ? (
+              <button
+                type="button"
+                className={`${styles.compactControlButton} ${styles.deviceActionHover}`}
+                onClick={() => setInviteManagerOpen(true)}
+              >
+                <DeviceControlContent label="Пригласить" active={true} icon={<InviteIcon />} hideMenu />
+              </button>
+            ) : null}
           </div>
 
           <div className={styles.compactUtilityControls}>
@@ -1028,9 +1683,13 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
         <h1 className={styles.stageConferenceName} style={stageText(25, 20, 460)}>
           {roomTitle}
         </h1>
-        <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
-          {roomCodeLabel}
-        </div>
+        {isOwner && slug ? (
+          renderOwnerCopyButton(styles.stageRoomCode, stageText(25, 64, 326))
+        ) : (
+          <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
+            {roomCodeLabel}
+          </div>
+        )}
 
         <DisconnectButton
           className={styles.exitButton}
@@ -1047,34 +1706,81 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
             <ChevronDownIcon />
           </span>
         </DisconnectButton>
+        {renderExitMenuTrigger(styles.exitMenuTriggerStage, stageRect(1365, 25, 50, 50))}
+        {renderExitMenu(stageRect(1215, 80, 200, 104))}
 
-        <TrackToggle
-          className={styles.deviceButton}
-          style={stageRect(25, 949, 200, 50)}
-          source={Track.Source.Microphone}
-          showIcon={false}
-        >
-          <DeviceControlContent label="Микрофон" active={isMicrophoneEnabled} icon={<MicIcon />} />
-        </TrackToggle>
+        <div className={styles.deviceSlot} style={stageRect(25, 949, 200, 50)} data-device-menu-root>
+          <TrackToggle
+            className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
+            source={Track.Source.Microphone}
+            showIcon={false}
+          >
+            <DeviceControlContent label="Микрофон" active={isMicrophoneEnabled} icon={<MicIcon />} />
+          </TrackToggle>
+          <button
+            type="button"
+            className={styles.deviceMenuTrigger}
+            aria-label="Выбрать микрофон"
+            aria-expanded={openDeviceMenu === "mic"}
+            onClick={() => toggleDeviceMenu("mic")}
+          />
+          {openDeviceMenu === "mic" && (
+            <DeviceSelectDropdown
+              kind="audioinput"
+              className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+              onSelect={closeDeviceMenu}
+            />
+          )}
+        </div>
 
-        <button
-          className={styles.deviceButton}
-          style={stageRect(250, 949, 200, 50)}
-          type="button"
-          onClick={() => setOutputEnabled((current) => !current)}
-          aria-pressed={outputEnabled}
-        >
-          <DeviceControlContent label="Звук" active={outputEnabled} icon={<SpeakerIcon />} />
-        </button>
+        <div className={styles.deviceSlot} style={stageRect(250, 949, 200, 50)} data-device-menu-root>
+          <button
+            className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
+            type="button"
+            onClick={() => setOutputEnabled((current) => !current)}
+            aria-pressed={outputEnabled}
+          >
+            <DeviceControlContent label="Звук" active={outputEnabled} icon={<SpeakerIcon />} />
+          </button>
+          <button
+            type="button"
+            className={styles.deviceMenuTrigger}
+            aria-label="Выбрать устройство звука"
+            aria-expanded={openDeviceMenu === "speaker"}
+            onClick={() => toggleDeviceMenu("speaker")}
+          />
+          {openDeviceMenu === "speaker" && (
+            <DeviceSelectDropdown
+              kind="audiooutput"
+              className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+              onSelect={closeDeviceMenu}
+            />
+          )}
+        </div>
 
-        <TrackToggle
-          className={styles.deviceButton}
-          style={stageRect(475, 949, 200, 50)}
-          source={Track.Source.Camera}
-          showIcon={false}
-        >
-          <DeviceControlContent label="Камера" active={isCameraEnabled} icon={<CameraIcon />} />
-        </TrackToggle>
+        <div className={styles.deviceSlot} style={stageRect(475, 949, 200, 50)} data-device-menu-root>
+          <TrackToggle
+            className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
+            source={Track.Source.Camera}
+            showIcon={false}
+          >
+            <DeviceControlContent label="Камера" active={isCameraEnabled} icon={<CameraIcon />} />
+          </TrackToggle>
+          <button
+            type="button"
+            className={styles.deviceMenuTrigger}
+            aria-label="Выбрать камеру"
+            aria-expanded={openDeviceMenu === "cam"}
+            onClick={() => toggleDeviceMenu("cam")}
+          />
+          {openDeviceMenu === "cam" && (
+            <DeviceSelectDropdown
+              kind="videoinput"
+              className={`${styles.deviceDropdown} ${styles.deviceDropdownUp}`}
+              onSelect={closeDeviceMenu}
+            />
+          )}
+        </div>
 
         <TrackToggle
           className={styles.deviceButton}
@@ -1084,6 +1790,17 @@ function ConferenceRoomContent({ roomName, slug, onExitIntent }: ConferenceRoomC
         >
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
+
+        {isOwner && slug ? (
+          <button
+            type="button"
+            className={`${styles.deviceButton} ${styles.deviceActionHover}`}
+            style={stageRect(925, 949, 200, 50)}
+            onClick={() => setInviteManagerOpen(true)}
+          >
+            <DeviceControlContent label="Пригласить" active={true} icon={<InviteIcon />} hideMenu />
+          </button>
+        ) : null}
 
         <div className={styles.utilityGroup} style={stageRect(1222, 949, 200, 50)}>
           <button className={styles.utilityButton} type="button" aria-label="Участники" onClick={blurChatInput}>
@@ -1121,6 +1838,8 @@ export function RoomPage({ user }: Props) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
+    const [isOwner, setIsOwner] = useState(false);
+    const [myRole, setMyRole] = useState<string | null>(null);
     // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
     const leaveRequestedRef = useRef(false);
     const [displayName, setDisplayName] = useState(() => {
@@ -1138,6 +1857,13 @@ export function RoomPage({ user }: Props) {
                 setToken(data.token);
                 setLivekitUrl(data.livekitUrl);
                 setRoomName(data.room.name);
+                try {
+                    const details = await api.getRoom(slug);
+                    setIsOwner(details.room?.owner?.id === user?.id);
+                    setMyRole(details.room?.myRole ?? null);
+                } catch {
+                    // ignore — не критично для входа
+                }
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -1146,7 +1872,7 @@ export function RoomPage({ user }: Props) {
         };
 
         joinRoom();
-    }, [slug]);
+    }, [slug, user?.id]);
 
     const leaveRoomAndNavigate = useCallback(async () => {
         leaveRequestedRef.current = false;
@@ -1169,6 +1895,50 @@ export function RoomPage({ user }: Props) {
         leaveRequestedRef.current = true;
     }, []);
 
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportData, setReportData] = useState<RoomReport | null>(null);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+
+    const handleEndRoomIntent = useCallback(async () => {
+        if (!slug) return;
+        setReportLoading(true);
+        setReportError(null);
+        setReportModalOpen(true);
+        try {
+            await api.deleteRoom(slug);
+        } catch {
+            // ignore — даже если не получилось закрыть, показываем отчёт
+        }
+        try {
+            const data = await api.getRoomReport(slug);
+            setReportData(data.report as RoomReport);
+        } catch (err: any) {
+            setReportError(err?.message || "Не удалось загрузить отчёт");
+        } finally {
+            setReportLoading(false);
+        }
+    }, [slug]);
+
+    const [downloadingReport, setDownloadingReport] = useState(false);
+    const handleDownloadReport = useCallback(async () => {
+        if (!reportData || downloadingReport) return;
+        setDownloadingReport(true);
+        try {
+            await downloadRoomReportPdf(reportData);
+        } catch (err) {
+            console.error("Ошибка при формировании PDF-отчёта:", err);
+        } finally {
+            setDownloadingReport(false);
+        }
+    }, [reportData, downloadingReport]);
+
+    const handleReportModalExit = useCallback(() => {
+        setReportModalOpen(false);
+        leaveRequestedRef.current = true;
+        void leaveRoomAndNavigate();
+    }, [leaveRoomAndNavigate]);
+
     const handleConferenceDisconnected = useCallback(() => {
         if (!leaveRequestedRef.current) {
             return;
@@ -1177,8 +1947,10 @@ export function RoomPage({ user }: Props) {
         void leaveRoomAndNavigate();
     }, [leaveRoomAndNavigate]);
 
-    const handleEnterConference = useCallback(() => {
-        if (!token || !livekitUrl || error) return;
+    const [entering, setEntering] = useState(false);
+
+    const handleEnterConference = useCallback(async () => {
+        if (!slug || !token || !livekitUrl || error || entering) return;
 
         const normalizedName = displayName.trim() || user?.username || user?.email || "";
         if (normalizedName) {
@@ -1186,9 +1958,23 @@ export function RoomPage({ user }: Props) {
             setDisplayName(normalizedName);
         }
 
-        leaveRequestedRef.current = false;
-        setConferenceReady(true);
-    }, [displayName, error, livekitUrl, token, user]);
+        setEntering(true);
+        try {
+            const fallbackName = user?.username || user?.email || "";
+            if (normalizedName && normalizedName !== fallbackName) {
+                const data = await api.joinRoom(slug, normalizedName);
+                setToken(data.token);
+                setLivekitUrl(data.livekitUrl);
+                setRoomName(data.room.name);
+            }
+            leaveRequestedRef.current = false;
+            setConferenceReady(true);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setEntering(false);
+        }
+    }, [displayName, entering, error, livekitUrl, slug, token, user]);
 
     if (loading) {
         return (
@@ -1251,9 +2037,9 @@ export function RoomPage({ user }: Props) {
                             className={styles.waitingSubmit}
                             type="button"
                             onClick={handleEnterConference}
-                            disabled={!token || !livekitUrl || !!error}
+                            disabled={!token || !livekitUrl || !!error || entering}
                         >
-                            Войти
+                            {entering ? "Вход..." : "Войти"}
                         </button>
                     </section>
                 </div>
@@ -1275,8 +2061,51 @@ export function RoomPage({ user }: Props) {
                     roomName={roomName}
                     slug={slug}
                     onExitIntent={handleConferenceLeaveIntent}
+                    onEndRoomIntent={handleEndRoomIntent}
+                    isOwner={isOwner}
+                    canEndRoom={isOwner || myRole === "MODERATOR"}
                 />
             </LiveKitRoom>
+
+            {reportModalOpen ? (
+                <div
+                    className={styles.reportModalOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="report-modal-title"
+                >
+                    <div className={styles.reportModal}>
+                        <h2 id="report-modal-title">Комната завершена</h2>
+                        {reportLoading ? (
+                            <p className={styles.reportModalText}>Готовим отчёт о конференции…</p>
+                        ) : reportError ? (
+                            <p className={styles.reportModalText}>Не удалось загрузить отчёт: {reportError}</p>
+                        ) : (
+                            <p className={styles.reportModalText}>
+                                Можно скачать PDF-отчёт о прошедшей конференции: участники, длительность, пик
+                                одновременных.
+                            </p>
+                        )}
+                        <div className={styles.reportModalActions}>
+                            <button
+                                type="button"
+                                className={styles.reportModalPrimary}
+                                onClick={handleDownloadReport}
+                                disabled={!reportData || reportLoading || downloadingReport}
+                            >
+                                {downloadingReport ? "Формируем PDF…" : "Скачать PDF"}
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.reportModalGhost}
+                                onClick={handleReportModalExit}
+                            >
+                                Выйти
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
