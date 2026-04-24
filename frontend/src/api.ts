@@ -86,8 +86,11 @@ class ApiClient {
     return this.request(`/rooms/${slug}`);
   }
 
-  async joinRoom(slug: string) {
-    return this.request(`/rooms/${slug}/join`, { method: "POST" });
+  async joinRoom(slug: string, displayName?: string) {
+    return this.request(`/rooms/${slug}/join`, {
+      method: "POST",
+      body: JSON.stringify(displayName ? { displayName } : {}),
+    });
   }
 
   async leaveRoom(slug: string) {
@@ -96,6 +99,44 @@ class ApiClient {
 
   async deleteRoom(slug: string) {
     return this.request(`/rooms/${slug}`, { method: "DELETE" });
+  }
+
+  async getRoomReport(slug: string) {
+    return this.request(`/rooms/${slug}/report`);
+  }
+
+  // Invites (owner)
+  async createInvite(
+    slug: string,
+    options?: { expiresAt?: string; maxUses?: number; allowGuests?: boolean },
+  ) {
+    return this.request(`/rooms/${slug}/invite`, {
+      method: "POST",
+      body: JSON.stringify(options ?? {}),
+    });
+  }
+
+  async listInvites(slug: string) {
+    return this.request(`/rooms/${slug}/invites`);
+  }
+
+  async deactivateInvite(slug: string, code: string) {
+    return this.request(`/rooms/${slug}/invite/${code}`, { method: "DELETE" });
+  }
+
+  // Invites (join)
+  async joinByInvite(code: string, displayName?: string) {
+    return this.request(`/invite/${code}/join`, {
+      method: "POST",
+      body: JSON.stringify(displayName ? { displayName } : {}),
+    });
+  }
+
+  async joinByInviteAsGuest(code: string, displayName: string) {
+    return this.request(`/invite/${code}/join-guest`, {
+      method: "POST",
+      body: JSON.stringify({ displayName }),
+    });
   }
 }
 
