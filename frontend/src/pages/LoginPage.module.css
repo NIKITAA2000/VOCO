@@ -347,10 +347,10 @@
 
   .logo {
     position: absolute;
-    left: 30px;
-    top: 242.8px;
-    width: 330px;
-    height: 97.26px;
+    left: 47px;
+    top: 154.5px;
+    width: 295px;
+    height: 215px;
     margin: 0;
     aspect-ratio: auto;
   }
@@ -369,19 +369,7 @@
   }
 
   .tagline {
-    position: absolute;
-    left: 30px;
-    top: 354.01px;
-    width: 330px;
-    height: 31px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #000000;
-    text-align: center;
-    font-size: 22px;
-    line-height: 32px;
+    display: none;
   }
 
   .form {
@@ -410,50 +398,50 @@
 
   .label {
     position: absolute;
-    left: 43px;
+    left: 49.5px;
     margin: 0;
     padding: 0;
     display: flex;
     align-items: center;
     color: #000000;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .fieldEmail .label {
-    top: 392.01px;
-    width: 73px;
-    height: 16px;
+    top: 391.5px;
+    width: auto;
+    height: 23px;
   }
 
   .fieldPassword .label {
-    top: 448.89px;
-    width: 84px;
-    height: 15px;
+    top: 471.58px;
+    width: auto;
+    height: 23px;
   }
 
   .input {
     position: absolute;
     left: 30px;
     width: 330px;
-    height: 34.74px;
-    min-height: 34.74px;
-    padding: 0 13.5px;
+    height: 50px;
+    min-height: 50px;
+    padding: 0 20px;
     border-radius: 100px;
     background: #dddddd;
     color: #000000;
     display: flex;
     align-items: center;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .fieldEmail .input {
-    top: 407.16px;
+    top: 414.58px;
   }
 
   .fieldPassword .input {
-    top: 463.99px;
+    top: 494.57px;
   }
 
   .input::placeholder {
@@ -462,37 +450,37 @@
 
   .error {
     position: absolute;
-    left: 43px;
-    top: 505.73px;
-    width: 303px;
-    min-height: 16px;
+    left: 30px;
+    top: 547.57px;
+    width: 330px;
+    min-height: 23px;
     margin: 0;
-    padding: 0;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     color: #000000;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
   }
 
   .submit {
     position: absolute;
     left: 30px;
-    top: 521.66px;
+    top: 574.57px;
     box-sizing: border-box;
     width: 330px;
-    height: 34.74px;
-    min-height: 34.74px;
-    border-width: 3px;
+    height: 50px;
+    min-height: 50px;
+    border-width: 5px;
     border-radius: 100px;
     background: #dddddd;
     color: #000000;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .submitActive {
-    border: 3px solid transparent;
+    border: 5px solid transparent;
     background:
       linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
       linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
@@ -505,27 +493,28 @@
 
   .links {
     position: absolute;
-    left: 104px;
-    top: 570.2px;
-    width: 180px;
-    height: 31px;
+    left: 74px;
+    top: 644.5px;
+    width: 241px;
+    height: 45px;
+    max-width: 241px;
     margin: 0;
-    max-width: 180px;
     display: flex;
     align-items: center;
     justify-content: center;
     align-content: center;
     flex-wrap: wrap;
-    gap: 0;
+    gap: 0 0.25ch;
     color: #000000;
     text-align: center;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .linkButton {
     padding: 0;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .break {

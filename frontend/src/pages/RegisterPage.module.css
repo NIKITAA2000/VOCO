@@ -323,7 +323,7 @@
     min-height: 100svh;
     align-items: center;
     justify-content: center;
-    padding-inline: 10px;
+    padding: 0;
     background: #ffffff;
     overflow-x: auto;
     overflow-y: auto;
@@ -350,10 +350,10 @@
 
   .logo {
     position: absolute;
-    left: 30.37px;
-    top: 215.39px;
-    width: 329.63px;
-    height: 97.26px;
+    left: 48px;
+    top: 114.5px;
+    width: 295px;
+    height: 215px;
     margin: 0;
     aspect-ratio: auto;
   }
@@ -367,19 +367,7 @@
   }
 
   .tagline {
-    position: absolute;
-    left: 30px;
-    top: 325.44px;
-    width: 328.64px;
-    height: 31px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #000000;
-    text-align: center;
-    font-size: 22px;
-    line-height: 32px;
+    display: none;
   }
 
   .form {
@@ -412,61 +400,62 @@
 
   .label {
     position: absolute;
-    left: 43px;
+    left: 49.5px;
     margin: 0;
     padding: 0;
     display: flex;
     align-items: center;
     color: #000000;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .fieldEmail .label {
-    top: 363.44px;
-    width: 73px;
-    height: 15px;
+    top: 351.5px;
+    width: auto;
+    height: 23px;
   }
 
   .fieldUsername .label {
-    top: 420.65px;
-    width: 139px;
-    height: 15px;
+    top: 431.58px;
+    width: auto;
+    height: 23px;
   }
 
   .fieldPassword .label {
-    top: 477.45px;
-    width: 228px;
-    height: 15px;
+    left: 49px;
+    top: 511.5px;
+    width: auto;
+    height: 23px;
   }
 
   .input {
     position: absolute;
     left: 30px;
     width: 330px;
-    height: 34.74px;
-    min-height: 34.74px;
+    height: 50px;
+    min-height: 50px;
     margin-top: 0;
-    padding: 0 13px;
+    padding: 0 20px;
     border-radius: 100px;
     background: #dddddd;
     color: #000000;
     display: flex;
     align-items: center;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .fieldEmail .input {
-    top: 378.92px;
+    top: 374.5px;
   }
 
   .fieldUsername .input {
-    top: 435.72px;
+    top: 454.5px;
   }
 
   .fieldPassword .input {
-    top: 492.31px;
+    top: 534.5px;
   }
 
   .input::placeholder {
@@ -475,32 +464,32 @@
 
   .error {
     position: absolute;
-    left: 43px;
-    top: 534.05px;
-    width: 243px;
-    min-height: 15px;
+    left: 30px;
+    top: 587.5px;
+    width: 330px;
+    min-height: 23px;
     margin: 0;
-    padding: 0;
+    padding: 0 20px;
     display: flex;
     align-items: center;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
   }
 
   .submit {
     position: absolute;
     left: 30px;
-    top: 549px;
+    top: 614.56px;
     width: 330px;
-    height: 34.74px;
-    min-height: 34.74px;
-    font-size: 11px;
-    line-height: 16px;
-    border-width: 3px;
+    height: 50px;
+    min-height: 50px;
+    font-size: 16px;
+    line-height: 23px;
+    border-width: 5px;
   }
 
   .submitActive {
-    border: 3px solid transparent;
+    border: 5px solid transparent;
     background:
       linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
       linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
@@ -509,27 +498,28 @@
 
   .links {
     position: absolute;
-    left: 131px;
-    top: 597.61px;
-    width: 127px;
-    height: 31px;
+    left: 111px;
+    top: 684.5px;
+    width: 169px;
+    height: 45px;
+    max-width: 169px;
     margin: 0;
-    max-width: 127px;
     display: flex;
     align-items: center;
     justify-content: center;
     align-content: center;
     flex-wrap: wrap;
-    gap: 0;
+    gap: 0 0.25ch;
     color: #000000;
     text-align: center;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .linkButton {
     padding: 0;
-    line-height: 16px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .linkLogin,
@@ -587,7 +577,7 @@
   }
 
   :global(:root[data-theme="dark"]) .submitActive {
-    border: 3px solid transparent;
+    border: 5px solid transparent;
     background:
       linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
       linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
@@ -596,6 +586,18 @@
 
   :global(:root[data-theme="dark"]) .links {
     color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkButton {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkLogin {
+    color: #0077ff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkGuest {
+    color: #8000ff;
   }
 }
 

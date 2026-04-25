@@ -704,7 +704,21 @@ export function DashboardPage({ user, onLogout }: Props) {
           </div>
         </div>
       )}
-      <footer className="footer" aria-label="Подвал" />
+      <footer className="footer" aria-label="Подвал">
+        <div className="footer-content">
+          <img
+            className="footer-image footer-image--light"
+            src="/voco-footer-light.svg"
+            alt="VOCO. Видеоконференции без границ. Разработчики: Ворожцов М.С., Горшков Н.В., Мельникова Д.А., Толмачев М.Р. © 2026 VOCO | help@voco-meet-support.ru"
+          />
+          <img
+            className="footer-image footer-image--dark"
+            src="/voco-footer-dark.svg"
+            alt=""
+            aria-hidden="true"
+          />
+        </div>
+      </footer>
     </main>
   );
 }
