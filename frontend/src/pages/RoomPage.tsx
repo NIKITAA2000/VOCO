@@ -49,6 +49,18 @@ interface ConferenceRoomContentProps {
   canEndRoom?: boolean;
 }
 
+type RoomRole = "OWNER" | "MODERATOR" | "PARTICIPANT";
+
+interface RoomParticipantMeta {
+  id: string;
+  role: RoomRole;
+  user: {
+    id: string;
+    username: string;
+    avatarUrl?: string | null;
+  };
+}
+
 function toStagePercent(value: number, max: number) {
   return `${(value / max) * 100}%`;
 }
@@ -91,29 +103,29 @@ function getStageTileFrames(count: number) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
   if (normalizedCount === 1) {
-    return [{ id: "tile-1", accent: true, style: stageRect(250, 100, 940, 824) }];
+    return [{ id: "tile-1", accent: true, style: stageRect(470, 100, 586, 824) }];
   }
 
   if (normalizedCount === 2) {
     return [
-      { id: "tile-1", accent: true, style: stageRect(250, 100, 470, 824) },
-      { id: "tile-2", accent: false, style: stageRect(720, 100, 470, 824) },
+      { id: "tile-1", accent: true, style: stageRect(470, 100, 293, 824) },
+      { id: "tile-2", accent: false, style: stageRect(763, 100, 293, 824) },
     ];
   }
 
   if (normalizedCount === 3) {
     return [
-      { id: "tile-1", accent: true, style: stageRect(250, 100, 940, 412) },
-      { id: "tile-2", accent: false, style: stageRect(250, 512, 470, 412) },
-      { id: "tile-3", accent: false, style: stageRect(720, 512, 470, 412) },
+      { id: "tile-1", accent: true, style: stageRect(470, 100, 586, 412) },
+      { id: "tile-2", accent: false, style: stageRect(470, 512, 293, 412) },
+      { id: "tile-3", accent: false, style: stageRect(763, 512, 293, 412) },
     ];
   }
 
   return [
-    { id: "tile-1", accent: true, style: stageRect(250, 100, 470, 412) },
-    { id: "tile-2", accent: false, style: stageRect(720, 100, 470, 412) },
-    { id: "tile-3", accent: false, style: stageRect(250, 512, 470, 412) },
-    { id: "tile-4", accent: false, style: stageRect(720, 512, 470, 412) },
+    { id: "tile-1", accent: true, style: stageRect(470, 100, 293, 412) },
+    { id: "tile-2", accent: false, style: stageRect(763, 100, 293, 412) },
+    { id: "tile-3", accent: false, style: stageRect(470, 512, 293, 412) },
+    { id: "tile-4", accent: false, style: stageRect(763, 512, 293, 412) },
   ];
 }
 
@@ -173,6 +185,30 @@ function getTrackDisplayName(trackRef: any, localIdentity?: string) {
 
 function getTrackMicEnabled(trackRef: any) {
   return Boolean(trackRef?.participant?.isMicrophoneEnabled);
+}
+
+function getInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "УЧ";
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function formatDuration(totalSeconds: number) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function useCompactRoomLayout() {
@@ -235,9 +271,19 @@ function useTabletRoomLayout() {
   return isCompactLayout;
 }
 
-function ExitArrowIcon(props: SVGProps<SVGSVGElement>) {
+function iconClassName(...classNames: Array<string | undefined>) {
+  return classNames.filter(Boolean).join(" ");
+}
+
+function ExitArrowIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 27 14" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.exitArrowSvg, className)}
+      viewBox="0 0 27 14"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <line
         y1="-1"
         x2="10.2591"
@@ -259,9 +305,15 @@ function ExitArrowIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
+function ChevronDownIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 14 9" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.chevronDownSvg, className)}
+      viewBox="0 0 14 9"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <line
         y1="-1"
         x2="10.2591"
@@ -282,9 +334,15 @@ function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function MicIcon(props: SVGProps<SVGSVGElement>) {
+function MicIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 18 30" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.micSvg, className)}
+      viewBox="0 0 18 30"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <rect x="5" y="1" width="8" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
       <path d="M4 29H14" stroke="currentColor" strokeWidth="2" />
       <path d="M9 22V30" stroke="currentColor" strokeWidth="2" />
@@ -296,11 +354,17 @@ function MicIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
+function SpeakerIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   const maskId = useId();
 
   return (
-    <svg viewBox="0 0 22 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.speakerSvg, className)}
+      viewBox="0 0 22 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <mask id={maskId} fill="white">
         <path d="M10 20L0 10L10 0V20Z" />
       </mask>
@@ -322,11 +386,17 @@ function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function CameraIcon(props: SVGProps<SVGSVGElement>) {
+function CameraIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   const maskId = useId();
 
   return (
-    <svg viewBox="0 0 30 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.cameraSvg, className)}
+      viewBox="0 0 30 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <rect x="1" y="1" width="20" height="18" rx="9" stroke="currentColor" strokeWidth="2" />
       <mask id={maskId} fill="white">
         <path d="M30 20L20 10L30 0V20Z" />
@@ -340,9 +410,15 @@ function CameraIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function ScreenIcon(props: SVGProps<SVGSVGElement>) {
+function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 30 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.screenSvg, className)}
+      viewBox="0 0 30 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <rect x="1" y="1" width="28" height="14.3636" stroke="currentColor" strokeWidth="2" />
       <path d="M15 14.5449V18.1813" stroke="currentColor" strokeWidth="2" />
       <line x1="9" y1="19" x2="21.8571" y2="19" stroke="currentColor" strokeWidth="2" />
@@ -350,56 +426,102 @@ function ScreenIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function UserIcon(props: SVGProps<SVGSVGElement>) {
+function UserIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 28 30" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.userSvg, className)}
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <path
-        d="M14.3447 16.0039C16.0657 16.0463 17.7652 16.4059 19.3574 17.0654C21.056 17.769 22.5994 18.8006 23.8994 20.1006C25.1994 21.4006 26.231 22.944 26.9346 24.6426C27.6381 26.3411 28 28.1616 28 30H14V28H25.8291C25.6791 27.1131 25.4327 26.2432 25.0869 25.4082C24.4839 23.9523 23.5997 22.629 22.4854 21.5146C21.371 20.4003 20.0477 19.5161 18.5918 18.9131C17.136 18.3102 15.5757 18 14 18C12.4243 18 10.864 18.3102 9.4082 18.9131C7.9523 19.5161 6.62895 20.4003 5.51465 21.5146C4.40035 22.629 3.51614 23.9523 2.91309 25.4082C2.56727 26.2432 2.32085 27.1131 2.1709 28H14V30H0C-3.32827e-08 28.2763 0.317931 26.5683 0.9375 24.9619L1.06543 24.6426C1.7251 23.05 2.6731 21.5937 3.86035 20.3467L4.10059 20.1006C5.31946 18.8817 6.75212 17.899 8.32617 17.2012L8.64258 17.0654C10.3411 16.3619 12.1616 16 14 16L14.3447 16.0039Z"
+        d="M10.4922 10.0117C11.6373 10.0681 12.7657 10.3211 13.8271 10.7607C15.0404 11.2633 16.1427 12.0002 17.0713 12.9287C17.9998 13.8573 18.7367 14.9596 19.2393 16.1729C19.7418 17.3861 20 18.6868 20 20H10V18H17.7451C17.6519 17.6392 17.5339 17.2843 17.3906 16.9385C16.9886 15.9679 16.4 15.0856 15.6572 14.3428C14.9144 13.6 14.0321 13.0114 13.0615 12.6094C12.0909 12.2073 11.0506 12 10 12C8.94942 12 7.90914 12.2073 6.93848 12.6094C5.96787 13.0114 5.08559 13.6 4.34277 14.3428C3.60001 15.0856 3.01138 15.9679 2.60938 16.9385C2.4661 17.2843 2.34808 17.6392 2.25488 18H10V20H0C0 18.6868 0.258185 17.3861 0.760742 16.1729C1.2633 14.9596 2.00018 13.8573 2.92871 12.9287C3.85727 12.0002 4.95963 11.2633 6.17285 10.7607C7.38611 10.2582 8.68678 10 10 10L10.4922 10.0117Z"
         fill="currentColor"
       />
-      <circle cx="14" cy="9" r="8" stroke="currentColor" strokeWidth="2" />
+      <circle cx="10" cy="6" r="5" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
 
-function ChatIcon(props: SVGProps<SVGSVGElement>) {
+function ChatIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.chatSvg, className)}
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <path d="M10 1C14.9706 1 19 5.02944 19 10V19H10C5.02944 19 1 14.9706 1 10C1 5.02944 5.02944 1 10 1Z" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
 
-function RecordingIcon(props: SVGProps<SVGSVGElement>) {
+function RecordingIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.recordingSvg, className)}
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" />
       <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
 
-function RaisedHandIcon(props: SVGProps<SVGSVGElement>) {
+function RaisedHandIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 10 30" fill="none" aria-hidden="true" {...props}>
-      <rect x="1" y="1" width="8" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
-      <circle cx="5" cy="25" r="4" stroke="currentColor" strokeWidth="2" />
+    <svg
+      className={iconClassName(styles.roomIcon, styles.raisedHandSvg, className)}
+      viewBox="0 0 20 25"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M1 13C1 14.2222 1 14.1111 1 15" stroke="currentColor" strokeWidth="2" />
+      <path d="M5 5C5 11.1111 5 10.5556 5 15" stroke="currentColor" strokeWidth="2" />
+      <path d="M5 5C5 2.6 7 2 8 2" stroke="currentColor" strokeWidth="2" />
+      <path d="M10.997 3C10.999 10.3333 10.998 7.6667 11 13" stroke="currentColor" strokeWidth="2" />
+      <path d="M15 5C15 9.8889 15 9.4444 15 13" stroke="currentColor" strokeWidth="2" />
+      <path d="M19 10C19 13.0556 19 12.7778 19 15" stroke="currentColor" strokeWidth="2" />
+      <path d="M11 3C11 0.6 9 0 8 0" stroke="currentColor" strokeWidth="2" />
+      <path d="M15 5C15 2.6 13 2 12 2" stroke="currentColor" strokeWidth="2" />
+      <path d="M19 10C19 7.6 17 7 16 7" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 15C3 12.6 1 12 0 12" stroke="currentColor" strokeWidth="2" />
+      <path d="M2 15C2 19.4183 5.5817 23 10 23V25C4.4772 25 0 20.5228 0 15H2Z" fill="currentColor" />
+      <path d="M20 25H10V23H18V13H20V25Z" fill="currentColor" />
     </svg>
   );
 }
 
-function PlusIcon(props: SVGProps<SVGSVGElement>) {
+function PlusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 26 26" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.plusSvg, className)}
+      viewBox="0 0 26 26"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <path d="M0 13L26 13" stroke="currentColor" strokeWidth="2" />
       <path d="M13 0L13 26" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
 
-function SendIcon(props: SVGProps<SVGSVGElement>) {
+function SendIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 27 14" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.sendSvg, className)}
+      viewBox="0 0 27 14"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <line
         y1="-1"
         x2="10.2591"
@@ -423,6 +545,7 @@ function SendIcon(props: SVGProps<SVGSVGElement>) {
 
 type DeviceMenuKey = "mic" | "speaker" | "cam";
 type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
+type RoomPanelKey = "participants" | "chat";
 
 function DeviceSelectDropdown({
   kind,
@@ -829,9 +952,15 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
   );
 }
 
-function InviteIcon(props: SVGProps<SVGSVGElement>) {
+function InviteIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+    <svg
+      className={iconClassName(styles.roomIcon, styles.inviteSvg, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
       <path
         d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.41 1.41"
         stroke="currentColor"
@@ -845,6 +974,38 @@ function InviteIcon(props: SVGProps<SVGSVGElement>) {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+function MoreVerticalIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.moreVerticalSvg, className)}
+      viewBox="0 0 6 26"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="3" cy="3" r="2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="3" cy="13" r="2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="3" cy="23" r="2" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function ParticipantAvatar({
+  name,
+  className,
+  square,
+}: {
+  name: string;
+  className?: string;
+  square?: boolean;
+}) {
+  return (
+    <span className={`${styles.participantAvatar} ${square ? styles.participantAvatarSquare : ""} ${className ?? ""}`}>
+      {getInitials(name)}
+    </span>
   );
 }
 
@@ -867,6 +1028,16 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
+    participants: false,
+    chat: false,
+  });
+  const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
+  const [roomParticipants, setRoomParticipants] = useState<RoomParticipantMeta[]>([]);
+  const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
+  const [recordingNow, setRecordingNow] = useState(Date.now());
   const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const codeCopyResetRef = useRef<number | null>(null);
 
@@ -890,6 +1061,55 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     window.addEventListener("mousedown", handlePointerDown);
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [exitMenuOpen]);
+
+  const refreshRoomState = useCallback(async () => {
+    if (!slug) return;
+
+    try {
+      const data = await api.getRoom(slug);
+      setRoomParticipants(data.room?.participants ?? []);
+      const nextRole = (data.room?.myRole ?? null) as RoomRole | null;
+      setRoomRole(nextRole);
+    } catch {
+      // Room metadata is optional for the visual controls; LiveKit participants remain the source of truth.
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    void refreshRoomState();
+    const timer = window.setInterval(() => {
+      void refreshRoomState();
+    }, 10000);
+
+    return () => window.clearInterval(timer);
+  }, [refreshRoomState]);
+
+  useEffect(() => {
+    if (!openParticipantMenu) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-participant-menu-root]")) return;
+      setOpenParticipantMenu(null);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenParticipantMenu(null);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [openParticipantMenu]);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const timer = window.setInterval(() => setRecordingNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [isRecording]);
 
   const handleExitMenuLeave = useCallback(() => {
     setExitMenuOpen(false);
@@ -1012,6 +1232,16 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     if (right.identity === localIdentity) return 1;
     return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
   });
+  const participantMetaByUserId = new Map(
+    roomParticipants.map((participant) => [participant.user.id, participant] as const),
+  );
+  const localParticipantRole = participantMetaByUserId.get(localIdentity ?? "")?.role;
+  const canModerateParticipants = Boolean(
+    canEndRoom || localParticipantRole === "OWNER" || localParticipantRole === "MODERATOR" || roomRole === "OWNER" || roomRole === "MODERATOR",
+  );
+  const recordingSeconds =
+    isRecording && recordingStartedAt ? Math.floor((recordingNow - recordingStartedAt) / 1000) : 0;
+  const recordingLabel = isRecording ? `Идёт запись ${formatDuration(recordingSeconds)}` : "Запись";
 
   const allTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
   const hasScreenShare =
@@ -1019,6 +1249,8 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   const visibleTracks = hasScreenShare ? [allTracks[0]] : allTracks;
   const tileFrames = getStageTileFrames(visibleTracks.length);
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
+  const isParticipantsPanelOpen = visiblePanels.participants;
+  const isChatPanelOpen = visiblePanels.chat;
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({
@@ -1075,14 +1307,67 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     </button>
   );
 
-  const focusChatInput = () => chatInputRef.current?.focus();
-  const blurChatInput = () => chatInputRef.current?.blur();
+  const focusChatInput = useCallback(() => chatInputRef.current?.focus(), []);
+  const toggleRoomPanel = useCallback((panel: RoomPanelKey) => {
+    setVisiblePanels((current) => ({
+      ...current,
+      [panel]: !current[panel],
+    }));
+  }, []);
   const toggleRaisedHand = () => setIsHandRaised((current) => !current);
-  const scrollToParticipants = () =>
-    participantsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const scrollToChat = () => {
-    chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    focusChatInput();
+  const toggleRecording = () => {
+    setIsRecording((current) => {
+      const next = !current;
+      if (next) {
+        const now = Date.now();
+        setRecordingStartedAt(now);
+        setRecordingNow(now);
+      } else {
+        setRecordingStartedAt(null);
+      }
+      return next;
+    });
+  };
+  const scrollToParticipants = useCallback(() => toggleRoomPanel("participants"), [toggleRoomPanel]);
+  const scrollToChat = useCallback(() => {
+    toggleRoomPanel("chat");
+  }, [toggleRoomPanel]);
+
+  useEffect(() => {
+    if (!isParticipantsPanelOpen || !isCompactLayout) return;
+    const frame = window.requestAnimationFrame(() => {
+      participantsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isParticipantsPanelOpen, isCompactLayout]);
+
+  useEffect(() => {
+    if (!isChatPanelOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (isCompactLayout) {
+        chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      focusChatInput();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusChatInput, isChatPanelOpen, isCompactLayout]);
+
+  const getParticipantMeta = (participant: any) =>
+    participantMetaByUserId.get(participant?.identity) ??
+    ({
+      id: participant?.identity ?? "",
+      role: participant?.identity === localIdentity && isOwner ? "OWNER" : "PARTICIPANT",
+      user: {
+        id: participant?.identity ?? "",
+        username: participant?.name || participant?.identity || "Участник",
+      },
+    } satisfies RoomParticipantMeta);
+
+  const canManageTarget = (meta: RoomParticipantMeta, isLocal: boolean) => {
+    if (!canModerateParticipants || isLocal || !meta.user.id) return false;
+    if (meta.role === "OWNER") return false;
+    if (!(isOwner || roomRole === "OWNER") && meta.role === "MODERATOR") return false;
+    return true;
   };
 
   const renderTrackMedia = (trackRef: any) =>
@@ -1094,28 +1379,113 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       </div>
     );
 
-  const renderParticipantRows = (rowClass: string, textClass: string) =>
-    orderedParticipants.map((participant: any) => (
-      <div className={rowClass} key={participant.identity}>
-        <span
-          className={`${styles.participantDot} ${
-            participant.isMicrophoneEnabled ? styles.participantDotOn : styles.participantDotOff
-          }`}
-          aria-hidden="true"
-        />
-        <span className={textClass}>{getParticipantDisplayName(participant, localIdentity)}</span>
+  const renderParticipantMenu = (meta: RoomParticipantMeta, isLocal: boolean) => {
+    const isOpen = openParticipantMenu === meta.user.id;
+    const canManage = canManageTarget(meta, isLocal);
+    const canChangeRole = Boolean((isOwner || roomRole === "OWNER") && canManage && meta.role !== "OWNER");
+
+    if (!canManage && !canChangeRole) {
+      return null;
+    }
+
+    return (
+      <div className={styles.participantMenuRoot} data-participant-menu-root>
+        <button
+          type="button"
+          className={styles.participantMoreButton}
+          aria-label={`Действия для ${meta.user.username}`}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpenParticipantMenu((current) => (current === meta.user.id ? null : meta.user.id));
+          }}
+        >
+          <MoreVerticalIcon />
+        </button>
+
+        {isOpen ? (
+          <div className={styles.participantActionMenu} role="menu">
+            {canChangeRole ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setOpenParticipantMenu(null)}
+              >
+                {meta.role === "MODERATOR" ? "Снять права модера" : "Выдать права модера"}
+              </button>
+            ) : null}
+            {canManage ? (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setOpenParticipantMenu(null)}
+                >
+                  Замутить
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setOpenParticipantMenu(null)}
+                >
+                  Кикнуть
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.participantDangerAction}
+                  onClick={() => setOpenParticipantMenu(null)}
+                >
+                  Забанить
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-    ));
+    );
+  };
+
+  const renderParticipantRows = (rowClass: string, textClass: string) =>
+    orderedParticipants.map((participant: any) => {
+      const isLocal = participant.identity === localIdentity;
+      const meta = getParticipantMeta(participant);
+      const displayName = getParticipantDisplayName(participant, localIdentity);
+      const canManage = canManageTarget(meta, isLocal);
+
+      return (
+        <div
+          className={`${rowClass} ${isLocal ? styles.participantRowLocal : ""} ${
+            meta.role === "MODERATOR" && !isLocal ? styles.participantRowModerator : ""
+          } ${canManage ? styles.participantRowManaged : ""}`}
+          key={participant.identity}
+        >
+          <ParticipantAvatar name={displayName} square={isLocal || meta.role === "MODERATOR"} />
+          <span className={textClass}>{displayName}</span>
+          {renderParticipantMenu(meta, isLocal)}
+        </div>
+      );
+    });
 
   const renderStageParticipantRows = () =>
     orderedParticipants.map((participant: any) => {
       const isLocal = participant.identity === localIdentity;
+      const meta = getParticipantMeta(participant);
+      const displayName = getParticipantDisplayName(participant, localIdentity);
       const shouldShowRaisedHand = isLocal && isHandRaised;
+      const canManage = canManageTarget(meta, isLocal);
 
       return (
-        <div className={styles.stageParticipantRow} key={participant.identity}>
+        <div
+          className={`${styles.stageParticipantRow} ${isLocal ? styles.participantRowLocal : ""} ${
+            meta.role === "MODERATOR" && !isLocal ? styles.participantRowModerator : ""
+          } ${canManage ? styles.participantRowManaged : ""}`}
+          key={participant.identity}
+        >
+          <ParticipantAvatar name={displayName} square={isLocal || meta.role === "MODERATOR"} />
           <span className={styles.stageParticipantText}>
-            {getParticipantDisplayName(participant, localIdentity)}
+            {displayName}
           </span>
 
           {shouldShowRaisedHand ? (
@@ -1123,6 +1493,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
               <RaisedHandIcon />
             </span>
           ) : null}
+          {renderParticipantMenu(meta, isLocal)}
         </div>
       );
     });
@@ -1133,15 +1504,21 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     ) : (
       chatMessages.map((entry) => {
         const isLocal = entry.from?.identity === localIdentity;
+        const authorName = entry.from?.name || entry.from?.identity || "Система";
         return (
-          <article
-            className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
+          <div
+            className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
             key={`${entry.timestamp}-${entry.from?.identity ?? "system"}`}
           >
-            <div className={styles.chatAuthor}>{entry.from?.name || entry.from?.identity || "Система"}</div>
-            <div className={styles.chatBody}>{entry.message}</div>
-            <div className={styles.chatTime}>{formatMessageTime(entry.timestamp)}</div>
-          </article>
+            {!isLocal ? <ParticipantAvatar name={authorName} className={styles.chatAvatar} /> : null}
+            <article
+              className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
+            >
+              <div className={styles.chatAuthor}>{authorName}</div>
+              <div className={styles.chatBody}>{entry.message}</div>
+              <div className={styles.chatTime}>{formatMessageTime(entry.timestamp)}</div>
+            </article>
+          </div>
         );
       })
     );
@@ -1154,6 +1531,30 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       ) : null}
     </>
   );
+
+  const renderRecordingIndicator = (style?: CSSProperties) =>
+    isRecording ? (
+      <div className={styles.recordingIndicator} style={style}>
+        <span className={styles.recordingGlow} aria-hidden="true" />
+        <span className={styles.recordingIcon} aria-hidden="true">
+          <RecordingIcon />
+        </span>
+        <span className={styles.recordingLabel}>{recordingLabel}</span>
+      </div>
+    ) : null;
+
+  const renderHeaderInviteButton = (style?: CSSProperties, compact = false) =>
+    isOwner && slug ? (
+      <button
+        type="button"
+        className={compact ? styles.compactHeaderInviteButton : styles.headerInviteButton}
+        style={style}
+        onClick={() => setInviteManagerOpen(true)}
+        aria-label="Пригласить"
+      >
+        <InviteIcon />
+      </button>
+    ) : null;
 
   if (isTabletLayout) {
     return (
@@ -1185,16 +1586,78 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             );
           })}
 
-          <h1 className={styles.stageConferenceName} style={tabletText(25, 20, 460)}>
+          {isParticipantsPanelOpen ? (
+            <aside
+              className={`${styles.sidePanel} ${styles.participantsPanel} ${styles.tabletSidePanel}`}
+              style={tabletRect(0, 100, 384, 824)}
+            >
+              <div className={styles.sideHeaderFade} />
+              <div className={styles.sideTitle}>Участники</div>
+              <div className={styles.participantsScroll}>
+                {renderStageParticipantRows()}
+              </div>
+              <div className={styles.sideFooterFade} />
+              <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
+            </aside>
+          ) : null}
+
+          {isChatPanelOpen ? (
+            <aside
+              className={`${styles.sidePanel} ${styles.chatPanel} ${styles.tabletSidePanel}`}
+              style={tabletRect(384, 100, 384, 824)}
+            >
+              <div className={styles.sideHeaderFade} />
+              <div className={styles.chatTitle}>Чат</div>
+              <div className={styles.chatDate}>{currentDate}</div>
+
+              <div className={styles.chatScroll} ref={chatScrollRef}>
+                {renderChatMessages()}
+              </div>
+
+              <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
+                <button
+                  className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
+                  type="button"
+                  aria-label="Добавить вложение"
+                  onClick={focusChatInput}
+                >
+                  <PlusIcon />
+                </button>
+
+                <input
+                  ref={chatInputRef}
+                  className={styles.chatInput}
+                  type="text"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Сообщение..."
+                />
+
+                <button
+                  className={`${styles.chatIconButton} ${styles.chatSendButton}`}
+                  type="submit"
+                  aria-label="Отправить сообщение"
+                  disabled={isSending || !message.trim()}
+                >
+                  <SendIcon />
+                </button>
+              </form>
+            </aside>
+          ) : null}
+
+          {renderHeaderInviteButton(tabletRect(28, 25, 50, 50))}
+
+          <h1 className={styles.stageConferenceName} style={tabletText(88, 20, 460)}>
             {roomTitle}
           </h1>
           {isOwner && slug ? (
-            renderOwnerCopyButton(styles.stageRoomCode, tabletText(25, 65, 326))
+            renderOwnerCopyButton(styles.stageRoomCode, tabletText(88, 65, 326))
           ) : (
-            <div className={styles.stageRoomCode} style={tabletText(25, 65, 326)}>
+            <div className={styles.stageRoomCode} style={tabletText(88, 65, 326)}>
               {roomCodeLabel}
             </div>
           )}
+          {renderRecordingIndicator(tabletRect(284, 25, 200, 50))}
 
           <DisconnectButton
             className={styles.tabletExitButton}
@@ -1308,23 +1771,23 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             <TabletDeviceControlContent active={isScreenShareEnabled} icon={<ScreenIcon />} />
           </TrackToggle>
 
-          {isOwner && slug ? (
-            <button
-              type="button"
-              className={`${styles.tabletDeviceButton} ${styles.deviceActionHover}`}
-              style={tabletRect(445, 949, 90, 50)}
-              onClick={() => setInviteManagerOpen(true)}
-              aria-label="Пригласить"
-            >
-              <TabletDeviceControlContent active={true} icon={<InviteIcon />} hideMenu />
-            </button>
-          ) : null}
-
           <div className={styles.utilityGroup} style={tabletRect(543, 949, 200, 50)}>
-            <button className={styles.utilityButton} type="button" aria-label="Участники" onClick={blurChatInput}>
+            <button
+              className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
+              type="button"
+              aria-label="Участники"
+              aria-pressed={isParticipantsPanelOpen}
+              onClick={scrollToParticipants}
+            >
               <UserIcon />
             </button>
-            <button className={styles.utilityButton} type="button" aria-label="Чат" onClick={focusChatInput}>
+            <button
+              className={`${styles.utilityButton} ${isChatPanelOpen ? styles.utilityButtonActive : ""}`}
+              type="button"
+              aria-label="Чат"
+              aria-pressed={isChatPanelOpen}
+              onClick={scrollToChat}
+            >
               <ChatIcon />
             </button>
             <button
@@ -1336,7 +1799,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             >
               <RaisedHandIcon />
             </button>
-            <button className={styles.utilityButton} type="button" aria-label="Запись" onClick={blurChatInput}>
+            <button
+              className={`${styles.utilityButton} ${isRecording ? styles.utilityButtonActive : ""}`}
+              type="button"
+              aria-label={isRecording ? "Остановить запись" : "Начать запись"}
+              aria-pressed={isRecording}
+              onClick={toggleRecording}
+            >
               <RecordingIcon />
             </button>
           </div>
@@ -1351,6 +1820,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     return (
       <div className={styles.compactRoom}>
         <header className={styles.compactHeader}>
+          {renderHeaderInviteButton(undefined, true)}
           <div className={styles.compactHeaderText}>
             <h1 className={styles.compactTitle}>{roomTitle}</h1>
             {isOwner && slug ? (
@@ -1358,6 +1828,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             ) : (
               <div className={styles.compactRoomCode}>{roomCodeLabel}</div>
             )}
+            {isRecording ? <div className={styles.compactRecordingLabel}>{recordingLabel}</div> : null}
           </div>
 
           {canEndRoom ? (
@@ -1412,55 +1883,61 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             })}
           </section>
 
-          <div className={styles.compactPanels}>
-            <section className={styles.compactPanelCard} ref={participantsSectionRef}>
-              <div className={`${styles.compactPanelTitle} ${styles.compactParticipantsTitle}`}>Участники</div>
-              <div className={styles.compactParticipantsList}>
-                {renderParticipantRows(styles.compactParticipantRow, styles.compactParticipantText)}
-              </div>
-              <div className={styles.compactParticipantsFooter}>
-                Всего участников: {orderedParticipants.length}
-              </div>
-            </section>
+          {isParticipantsPanelOpen || isChatPanelOpen ? (
+            <div className={styles.compactPanels}>
+              {isParticipantsPanelOpen ? (
+                <section className={styles.compactPanelCard} ref={participantsSectionRef}>
+                  <div className={`${styles.compactPanelTitle} ${styles.compactParticipantsTitle}`}>Участники</div>
+                  <div className={styles.compactParticipantsList}>
+                    {renderParticipantRows(styles.compactParticipantRow, styles.compactParticipantText)}
+                  </div>
+                  <div className={styles.compactParticipantsFooter}>
+                    Всего участников: {orderedParticipants.length}
+                  </div>
+                </section>
+              ) : null}
 
-            <section className={styles.compactPanelCard} ref={chatSectionRef}>
-              <div className={`${styles.compactPanelTitle} ${styles.compactChatTitle}`}>Чат</div>
-              <div className={styles.compactChatDate}>{currentDate}</div>
+              {isChatPanelOpen ? (
+                <section className={styles.compactPanelCard} ref={chatSectionRef}>
+                  <div className={`${styles.compactPanelTitle} ${styles.compactChatTitle}`}>Чат</div>
+                  <div className={styles.compactChatDate}>{currentDate}</div>
 
-              <div className={styles.compactChatList} ref={chatScrollRef}>
-                {renderChatMessages(styles.compactChatEmpty)}
-              </div>
+                  <div className={styles.compactChatList} ref={chatScrollRef}>
+                    {renderChatMessages(styles.compactChatEmpty)}
+                  </div>
 
-              <form className={styles.compactChatComposer} onSubmit={handleChatSubmit}>
-                <button
-                  className={styles.chatIconButton}
-                  type="button"
-                  aria-label="Добавить вложение"
-                  onClick={focusChatInput}
-                >
-                  <PlusIcon />
-                </button>
+                  <form className={styles.compactChatComposer} onSubmit={handleChatSubmit}>
+                    <button
+                      className={styles.chatIconButton}
+                      type="button"
+                      aria-label="Добавить вложение"
+                      onClick={focusChatInput}
+                    >
+                      <PlusIcon />
+                    </button>
 
-                <input
-                  ref={chatInputRef}
-                  className={`${styles.chatInput} ${styles.compactChatInput}`}
-                  type="text"
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  placeholder="Сообщение..."
-                />
+                    <input
+                      ref={chatInputRef}
+                      className={`${styles.chatInput} ${styles.compactChatInput}`}
+                      type="text"
+                      value={message}
+                      onChange={(event) => setMessage(event.target.value)}
+                      placeholder="Сообщение..."
+                    />
 
-                <button
-                  className={styles.chatIconButton}
-                  type="submit"
-                  aria-label="Отправить сообщение"
-                  disabled={isSending || !message.trim()}
-                >
-                  <SendIcon />
-                </button>
-              </form>
-            </section>
-          </div>
+                    <button
+                      className={styles.chatIconButton}
+                      type="submit"
+                      aria-label="Отправить сообщение"
+                      disabled={isSending || !message.trim()}
+                    >
+                      <SendIcon />
+                    </button>
+                  </form>
+                </section>
+              ) : null}
+            </div>
+          ) : null}
         </main>
 
         <div className={styles.compactControls}>
@@ -1550,21 +2027,15 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
               />
             </TrackToggle>
 
-            {isOwner && slug ? (
-              <button
-                type="button"
-                className={`${styles.compactControlButton} ${styles.deviceActionHover}`}
-                onClick={() => setInviteManagerOpen(true)}
-              >
-                <DeviceControlContent label="Пригласить" active={true} icon={<InviteIcon />} hideMenu />
-              </button>
-            ) : null}
           </div>
 
           <div className={styles.compactUtilityControls}>
             <button
-              className={`${styles.compactUtilityButton} ${styles.compactUtilityParticipants}`}
+              className={`${styles.compactUtilityButton} ${styles.compactUtilityParticipants} ${
+                isParticipantsPanelOpen ? styles.utilityButtonActive : ""
+              }`}
               type="button"
+              aria-pressed={isParticipantsPanelOpen}
               onClick={scrollToParticipants}
             >
               <UserIcon />
@@ -1572,8 +2043,11 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             </button>
 
             <button
-              className={`${styles.compactUtilityButton} ${styles.compactUtilityChat}`}
+              className={`${styles.compactUtilityButton} ${styles.compactUtilityChat} ${
+                isChatPanelOpen ? styles.utilityButtonActive : ""
+              }`}
               type="button"
+              aria-pressed={isChatPanelOpen}
               onClick={scrollToChat}
             >
               <ChatIcon />
@@ -1581,7 +2055,9 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             </button>
 
             <button
-              className={`${styles.compactUtilityButton} ${styles.compactUtilityAudio}`}
+              className={`${styles.compactUtilityButton} ${styles.compactUtilityAudio} ${
+                isHandRaised ? styles.utilityButtonActive : ""
+              }`}
               type="button"
               aria-pressed={isHandRaised}
               onClick={toggleRaisedHand}
@@ -1591,12 +2067,15 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             </button>
 
             <button
-              className={`${styles.compactUtilityButton} ${styles.compactUtilitySettings}`}
+              className={`${styles.compactUtilityButton} ${styles.compactUtilitySettings} ${
+                isRecording ? styles.utilityButtonActive : ""
+              }`}
               type="button"
-              onClick={blurChatInput}
+              aria-pressed={isRecording}
+              onClick={toggleRecording}
             >
               <RecordingIcon />
-              <span>Запись</span>
+              <span>{isRecording ? formatDuration(recordingSeconds) : "Запись"}</span>
             </button>
           </div>
         </div>
@@ -1612,52 +2091,58 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
         <div className={styles.topBar} />
         <div className={styles.bottomBar} />
 
-        <aside className={`${styles.sidePanel} ${styles.participantsPanel}`} style={stageRect(0, 100, 250, 824)}>
-          <div className={styles.sideHeaderFade} />
-          <div className={styles.sideTitle}>Участники</div>
-          <div className={styles.participantsScroll}>{renderStageParticipantRows()}</div>
-          <div className={styles.sideFooterFade} />
-          <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
-        </aside>
+        {isParticipantsPanelOpen ? (
+          <aside className={`${styles.sidePanel} ${styles.participantsPanel}`} style={stageRect(0, 100, 470, 824)}>
+            <div className={styles.sideHeaderFade} />
+            <div className={styles.sideTitle}>Участники</div>
+            <div className={styles.participantsScroll}>
+              {renderStageParticipantRows()}
+            </div>
+            <div className={styles.sideFooterFade} />
+            <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
+          </aside>
+        ) : null}
 
-        <aside className={`${styles.sidePanel} ${styles.chatPanel}`} style={stageRect(1190, 100, 250, 824)}>
-          <div className={styles.sideHeaderFade} />
-          <div className={styles.chatTitle}>Чат</div>
-          <div className={styles.chatDate}>{currentDate}</div>
+        {isChatPanelOpen ? (
+          <aside className={`${styles.sidePanel} ${styles.chatPanel}`} style={stageRect(1056, 100, 384, 824)}>
+            <div className={styles.sideHeaderFade} />
+            <div className={styles.chatTitle}>Чат</div>
+            <div className={styles.chatDate}>{currentDate}</div>
 
-          <div className={styles.chatScroll} ref={chatScrollRef}>
-            {renderChatMessages()}
-          </div>
+            <div className={styles.chatScroll} ref={chatScrollRef}>
+              {renderChatMessages()}
+            </div>
 
-          <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
-            <button
-              className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
-              type="button"
-              aria-label="Добавить вложение"
-              onClick={focusChatInput}
-            >
-              <PlusIcon />
-            </button>
+            <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
+              <button
+                className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
+                type="button"
+                aria-label="Добавить вложение"
+                onClick={focusChatInput}
+              >
+                <PlusIcon />
+              </button>
 
-            <input
-              ref={chatInputRef}
-              className={styles.chatInput}
-              type="text"
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              placeholder="Сообщение..."
-            />
+              <input
+                ref={chatInputRef}
+                className={styles.chatInput}
+                type="text"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="Сообщение..."
+              />
 
-            <button
-              className={`${styles.chatIconButton} ${styles.chatSendButton}`}
-              type="submit"
-              aria-label="Отправить сообщение"
-              disabled={isSending || !message.trim()}
-            >
-              <SendIcon />
-            </button>
-          </form>
-        </aside>
+              <button
+                className={`${styles.chatIconButton} ${styles.chatSendButton}`}
+                type="submit"
+                aria-label="Отправить сообщение"
+                disabled={isSending || !message.trim()}
+              >
+                <SendIcon />
+              </button>
+            </form>
+          </aside>
+        ) : null}
 
         {tileFrames.map((frame, index) => {
           const trackRef = visibleTracks[index];
@@ -1680,16 +2165,19 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           );
         })}
 
-        <h1 className={styles.stageConferenceName} style={stageText(25, 20, 460)}>
+        {renderHeaderInviteButton(stageRect(28, 25, 50, 50))}
+
+        <h1 className={styles.stageConferenceName} style={stageText(88, 20, 460)}>
           {roomTitle}
         </h1>
         {isOwner && slug ? (
-          renderOwnerCopyButton(styles.stageRoomCode, stageText(25, 64, 326))
+          renderOwnerCopyButton(styles.stageRoomCode, stageText(88, 64, 326))
         ) : (
-          <div className={styles.stageRoomCode} style={stageText(25, 64, 326)}>
+          <div className={styles.stageRoomCode} style={stageText(88, 64, 326)}>
             {roomCodeLabel}
           </div>
         )}
+        {renderRecordingIndicator(stageRect(620, 26, 200, 50))}
 
         <DisconnectButton
           className={styles.exitButton}
@@ -1791,22 +2279,23 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
-        {isOwner && slug ? (
-          <button
-            type="button"
-            className={`${styles.deviceButton} ${styles.deviceActionHover}`}
-            style={stageRect(925, 949, 200, 50)}
-            onClick={() => setInviteManagerOpen(true)}
-          >
-            <DeviceControlContent label="Пригласить" active={true} icon={<InviteIcon />} hideMenu />
-          </button>
-        ) : null}
-
         <div className={styles.utilityGroup} style={stageRect(1222, 949, 200, 50)}>
-          <button className={styles.utilityButton} type="button" aria-label="Участники" onClick={blurChatInput}>
+          <button
+            className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
+            type="button"
+            aria-label="Участники"
+            aria-pressed={isParticipantsPanelOpen}
+            onClick={scrollToParticipants}
+          >
             <UserIcon />
           </button>
-          <button className={styles.utilityButton} type="button" aria-label="Чат" onClick={focusChatInput}>
+          <button
+            className={`${styles.utilityButton} ${isChatPanelOpen ? styles.utilityButtonActive : ""}`}
+            type="button"
+            aria-label="Чат"
+            aria-pressed={isChatPanelOpen}
+            onClick={scrollToChat}
+          >
             <ChatIcon />
           </button>
           <button
@@ -1818,7 +2307,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           >
             <RaisedHandIcon />
           </button>
-          <button className={styles.utilityButton} type="button" aria-label="Запись" onClick={blurChatInput}>
+          <button
+            className={`${styles.utilityButton} ${isRecording ? styles.utilityButtonActive : ""}`}
+            type="button"
+            aria-label={isRecording ? "Остановить запись" : "Начать запись"}
+            aria-pressed={isRecording}
+            onClick={toggleRecording}
+          >
             <RecordingIcon />
           </button>
         </div>
