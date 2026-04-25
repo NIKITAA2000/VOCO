@@ -1545,6 +1545,7 @@ button.stageRoomCode:disabled {
 .placeholderLogo {
   width: 100px;
   height: 100px;
+  color: #8000ff;
 }
 
 .tabletTileCard {
@@ -2396,15 +2397,6 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #444444;
 }
 
-:global(:root[data-theme="dark"]) .tabletStage .tileSignalOn {
-  color: #00ff00;
-}
-
-:global(:root[data-theme="dark"]) .tabletStage .tileSignalOff {
-  color: #ffffff;
-  --tile-signal-accent: #ff3333;
-}
-
 :global(:root[data-theme="dark"]) .tileSignalOn,
 :global(:root[data-theme="dark"]) .tileSignalOff {
   color: #ffffff;
@@ -2418,6 +2410,11 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .exitButton,
 :global(:root[data-theme="dark"]) .deviceButton {
   background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .deviceIcon,
+:global(:root[data-theme="dark"]) .tabletDeviceIcon {
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .compactChatComposer {
@@ -2548,9 +2545,15 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .stage :global(.lk-participant-placeholder) {
-  background:
-    radial-gradient(circle at 50% 10%, rgba(128, 0, 255, 0.28), transparent 35%),
-    linear-gradient(180deg, #3a0d67 0%, #280050 100%);
+  background: #280050;
+}
+
+:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-placeholder) {
+  background: #280050;
+}
+
+:global(:root[data-theme="dark"]) .placeholderLogo {
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .loading {
@@ -2787,6 +2790,95 @@ button.stageRoomCode .roomCodeCopyHint {
     height: 100vh;
     aspect-ratio: auto;
   }
+
+  :global(:root[data-theme="dark"]) .tabletViewport {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .topBar,
+  :global(:root[data-theme="dark"]) .tabletStage .bottomBar {
+    background: #222222;
+    box-shadow: none;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .stageConferenceName {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .stageRoomCode {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tileCard,
+  :global(:root[data-theme="dark"]) .tabletStage .tileMedia,
+  :global(:root[data-theme="dark"]) .tabletStage .placeholderTile {
+    background: #280050;
+    box-shadow: none;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tileCardAccent::before {
+    inset: 0;
+    width: auto;
+    height: auto;
+    padding: 5px;
+    border-radius: inherit;
+    background: linear-gradient(180deg, #00ff00 0%, rgba(40, 0, 80, 0) 100%);
+    box-shadow: none;
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tileFooter {
+    background: linear-gradient(360deg, #8000ff 0%, rgba(40, 0, 80, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tileFooterName {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tabletExitButton,
+  :global(:root[data-theme="dark"]) .tabletStage .tabletDeviceButton,
+  :global(:root[data-theme="dark"]) .tabletStage .utilityGroup {
+    background: #444444;
+    box-shadow: none;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tabletExitMenu,
+  :global(:root[data-theme="dark"]) .tabletStage .tabletDeviceMenu {
+    background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tabletDeviceStatusOn {
+    background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .tabletDeviceStatusOff {
+    background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(1) {
+    background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(2) {
+    background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(3) {
+    background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(4) {
+    background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+  }
+
 }
 
 @media (max-width: 420px) {
