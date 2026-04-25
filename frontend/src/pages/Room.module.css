@@ -17,19 +17,23 @@
   display: grid;
   place-items: center;
   background: #fff;
+  overflow: hidden;
 }
 
 .tabletViewport {
   width: 100vw;
   height: 100vh;
   position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
 .stage {
   position: relative;
-  width: 100%;
-  max-width: 2200px;
-  height: 100%;
+  width: min(100vw, calc(100vh * 1.40625), 2200px);
+  height: min(100vh, calc(100vw * 0.7111111111), 1564.4444px);
+  aspect-ratio: 1440 / 1024;
   overflow: hidden;
   background: #fff;
   color: #000;
@@ -38,8 +42,9 @@
 
 .tabletStage {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: min(100vw, calc(100vh * 0.75));
+  height: min(100vh, calc(100vw * 1.3333333333));
+  aspect-ratio: 768 / 1024;
   overflow: hidden;
   background: #fff;
   color: #000;
@@ -56,6 +61,66 @@
 .compactRoom input,
 .compactRoom textarea {
   font-family: inherit;
+}
+
+.roomIcon {
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.exitArrowSvg,
+.sendSvg {
+  width: 27px;
+  height: 14px;
+}
+
+.chevronDownSvg {
+  width: 14px;
+  height: 9px;
+}
+
+.micSvg {
+  width: 18px;
+  height: 30px;
+}
+
+.speakerSvg {
+  width: 22px;
+  height: 20px;
+}
+
+.cameraSvg,
+.screenSvg {
+  width: 30px;
+  height: 20px;
+}
+
+.userSvg,
+.chatSvg,
+.recordingSvg {
+  width: 20px;
+  height: 20px;
+}
+
+.raisedHandSvg {
+  width: 20px;
+  height: 25px;
+}
+
+.plusSvg {
+  width: 26px;
+  height: 26px;
+}
+
+.inviteSvg {
+  width: 24px;
+  height: 24px;
+}
+
+.moreVerticalSvg {
+  width: 6px;
+  height: 26px;
 }
 
 .topBar,
@@ -83,6 +148,13 @@
   position: absolute;
   background: #fff;
   overflow: hidden;
+  z-index: 2;
+}
+
+.tabletSidePanel {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 20px 60px rgba(0, 0, 0, 0.12);
 }
 
 .participantsPanel {
@@ -171,18 +243,26 @@
   top: 60px;
   bottom: 60px;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0 16px;
 }
 
 .stageParticipantRow {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  min-height: 33px;
+  min-height: 50px;
+  padding-right: 0;
+  border-radius: 100px;
+  color: #000;
 }
 
 .stageParticipantText {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -191,16 +271,17 @@
 }
 
 .stageParticipantStatus {
-  width: 10px;
-  height: 30px;
+  width: 50px;
+  height: 50px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 255, 221, 0) 100%);
 }
 
 .stageParticipantStatus svg {
-  width: 10px;
-  height: 30px;
+  display: block;
 }
 
 .stageParticipantStatusOn {
@@ -212,11 +293,12 @@
 }
 
 .participantRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 23px;
-  margin-bottom: 10px;
+  min-height: 50px;
+  border-radius: 100px;
 }
 
 .participantDot {
@@ -236,11 +318,158 @@
 
 .participantText {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 16px;
   line-height: 23px;
+}
+
+.participantAvatar {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8000ff;
+  color: #eedcff;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 23px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.participantAvatarSquare {
+  border-radius: 10px;
+}
+
+.participantRowManaged {
+  background: #ddffdd;
+}
+
+.participantRowLocal,
+.participantRowModerator {
+  background: #eedcff;
+  border-radius: 10px;
+}
+
+.participantRowBlocked {
+  background: #ffdddd;
+  border-radius: 100px;
+}
+
+.participantMenuRoot {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+}
+
+.participantMoreButton {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.participantMoreButton svg {
+  display: block;
+}
+
+.participantActionMenu {
+  position: absolute;
+  left: calc(100% + 20px);
+  top: 0;
+  z-index: 40;
+  width: 173px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffdddd 0%, #ffffff 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.16);
+}
+
+.participantActionMenu button {
+  appearance: none;
+  width: 100%;
+  min-height: 23px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.participantActionMenu button:hover,
+.participantActionMenu button:focus-visible {
+  outline: none;
+  background: rgba(128, 0, 255, 0.1);
+}
+
+.participantActionMenu button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.participantDangerAction:hover,
+.participantDangerAction:focus-visible {
+  color: #b00020;
+}
+
+.unblockButton {
+  flex: 0 0 auto;
+  margin-right: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-size: 16px;
+  line-height: 23px;
+  cursor: pointer;
+}
+
+.unblockButton:hover,
+.unblockButton:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.participantsError {
+  position: absolute;
+  left: 25px;
+  right: 25px;
+  bottom: 39px;
+  z-index: 2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #b00020;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.compactPanelCard .participantsError {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  white-space: normal;
 }
 
 .sideFooterText {
@@ -283,21 +512,40 @@
 
 .chatBubble {
   width: auto;
-  max-width: min(230px, 100%);
+  max-width: min(304px, 100%);
   min-width: 0;
   padding: 10px;
   border-radius: 10px 10px 0 10px;
   box-sizing: border-box;
 }
 
-.chatBubbleRemote {
+.chatMessageRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.chatMessageRemote {
   align-self: flex-start;
+}
+
+.chatMessageOwn {
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.chatAvatar {
+  width: 50px;
+  height: 50px;
+  font-size: 16px;
+}
+
+.chatBubbleRemote {
   background: linear-gradient(0deg, #ddd 0%, rgba(255, 255, 255, 0) 100%);
   color: #000;
 }
 
 .chatBubbleOwn {
-  align-self: flex-end;
   background: #0077ff;
   color: #fff;
 }
@@ -366,8 +614,7 @@
 }
 
 .chatIconButton svg {
-  width: 26px;
-  height: 26px;
+  display: block;
 }
 
 .chatIconButton:disabled {
@@ -567,6 +814,99 @@ button.stageRoomCode:disabled {
   color: #ff8a95;
 }
 
+.recordingIndicator {
+  position: absolute;
+  padding: 0;
+  border-radius: 100px;
+  background: #ffdddd;
+  color: #000;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 10px 24px rgba(255, 51, 51, 0.12);
+}
+
+.recordingGlow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50px;
+  height: 50px;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.recordingIcon {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+}
+
+.recordingIcon svg {
+  display: block;
+}
+
+.recordingLabel {
+  position: absolute;
+  left: 50px;
+  right: 10px;
+  top: 13px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.compactRecordingLabel {
+  color: #ff3333;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.headerInviteButton {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ddd;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.headerInviteButton svg,
+.compactHeaderInviteButton svg {
+  display: block;
+}
+
+.headerInviteButton:hover,
+.headerInviteButton:focus-visible,
+.compactHeaderInviteButton:hover,
+.compactHeaderInviteButton:focus-visible {
+  outline: none;
+  background: #cfcfcf;
+}
+
+.compactHeaderInviteButton {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ddd;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
 .exitButton {
   position: absolute;
   padding: 0;
@@ -593,6 +933,8 @@ button.stageRoomCode:disabled {
   top: 12px;
   width: 26px;
   height: 26px;
+  display: grid;
+  place-items: center;
 }
 
 .exitLabel {
@@ -617,8 +959,7 @@ button.stageRoomCode:disabled {
 }
 
 .exitMenu svg {
-  width: 20px;
-  height: 20px;
+  display: block;
 }
 
 .tabletExitButton {
@@ -641,11 +982,12 @@ button.stageRoomCode:disabled {
   top: 12px;
   width: 26px;
   height: 26px;
+  display: grid;
+  place-items: center;
 }
 
 .tabletExitIcon svg {
-  width: 26px;
-  height: 26px;
+  display: block;
 }
 
 .tabletExitMenu {
@@ -660,8 +1002,7 @@ button.stageRoomCode:disabled {
 }
 
 .tabletExitMenu svg {
-  width: 14px;
-  height: 9px;
+  display: block;
 }
 
 .exitMenuTrigger {
@@ -1007,8 +1348,7 @@ button.stageRoomCode:disabled {
 }
 
 .compactInviteTrigger svg {
-  width: 20px;
-  height: 20px;
+  display: block;
 }
 
 .inviteOverlay {
@@ -1143,8 +1483,7 @@ button.stageRoomCode:disabled {
 }
 
 .inviteSelectChevron svg {
-  width: 12px;
-  height: 8px;
+  display: block;
 }
 
 .inviteCheckbox {
@@ -1376,9 +1715,9 @@ button.stageRoomCode:disabled {
 
 .deviceIcon {
   position: absolute;
-  left: 16px;
+  left: 10px;
   top: 10px;
-  width: 18px;
+  width: 30px;
   height: 30px;
   display: grid;
   place-items: center;
@@ -1386,8 +1725,7 @@ button.stageRoomCode:disabled {
 }
 
 .deviceIcon svg {
-  width: 18px;
-  height: 30px;
+  display: block;
 }
 
 .deviceLabel {
@@ -1419,8 +1757,7 @@ button.stageRoomCode:disabled {
 }
 
 .deviceMenu svg {
-  width: 14px;
-  height: 9px;
+  display: block;
 }
 
 .tabletDeviceButton {
@@ -1466,8 +1803,7 @@ button.stageRoomCode:disabled {
 }
 
 .tabletDeviceIcon svg {
-  max-width: 30px;
-  max-height: 30px;
+  display: block;
 }
 
 .tabletDeviceMenu {
@@ -1482,8 +1818,7 @@ button.stageRoomCode:disabled {
 }
 
 .tabletDeviceMenu svg {
-  width: 14px;
-  height: 9px;
+  display: block;
 }
 
 .utilityGroup {
@@ -1502,31 +1837,35 @@ button.stageRoomCode:disabled {
   padding: 0;
   border: 0;
   border-radius: 50%;
+  background: transparent;
   color: #000;
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
-.utilityButton:nth-child(1) {
+.utilityButton:nth-child(1)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.utilityButton:nth-child(2) {
+.utilityButton:nth-child(2)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.utilityButton:nth-child(3) {
+.utilityButton:nth-child(3)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.utilityButton:nth-child(4) {
+.utilityButton:nth-child(4)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
 }
 
+.utilityButtonActive {
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.22);
+}
+
 .utilityButton svg {
-  width: 24px;
-  height: 24px;
+  display: block;
 }
 
 .livekitTile {
@@ -1641,8 +1980,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .compactExitButton svg {
-  width: 24px;
-  height: 24px;
+  display: block;
 }
 
 .compactContent {
@@ -1668,11 +2006,12 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .compactPanels {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 16px;
 }
 
 .compactPanelCard {
+  position: relative;
   min-width: 0;
   min-height: 0;
   padding: 20px;
@@ -1711,14 +2050,17 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .compactParticipantRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 23px;
+  min-height: 50px;
+  border-radius: 100px;
 }
 
 .compactParticipantText {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1827,24 +2169,39 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .compactUtilityButton svg {
-  width: 22px;
-  height: 22px;
+  display: block;
   flex: 0 0 auto;
 }
 
 .compactUtilityParticipants {
-  background: linear-gradient(90deg, rgba(128, 0, 255, 0.14) 0%, #fff 100%);
+  background: #f3f3f3;
 }
 
 .compactUtilityChat {
-  background: linear-gradient(90deg, rgba(0, 119, 255, 0.14) 0%, #fff 100%);
+  background: #f3f3f3;
 }
 
 .compactUtilityAudio {
-  background: linear-gradient(90deg, rgba(0, 255, 0, 0.12) 0%, #fff 100%);
+  background: #f3f3f3;
 }
 
 .compactUtilitySettings {
+  background: #f3f3f3;
+}
+
+.compactUtilityParticipants.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(128, 0, 255, 0.14) 0%, #fff 100%);
+}
+
+.compactUtilityChat.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(0, 119, 255, 0.14) 0%, #fff 100%);
+}
+
+.compactUtilityAudio.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(0, 255, 0, 0.12) 0%, #fff 100%);
+}
+
+.compactUtilitySettings.utilityButtonActive {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0%, #fff 100%);
 }
 
@@ -2340,6 +2697,7 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .sideTitle,
 :global(:root[data-theme="dark"]) .chatTitle,
+:global(:root[data-theme="dark"]) .stageParticipantText,
 :global(:root[data-theme="dark"]) .participantText,
 :global(:root[data-theme="dark"]) .sideFooterText,
 :global(:root[data-theme="dark"]) .stageConferenceName,
@@ -2376,6 +2734,35 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #0077ff;
 }
 
+:global(:root[data-theme="dark"]) .participantRowManaged {
+  background: rgba(0, 255, 0, 0.16);
+}
+
+:global(:root[data-theme="dark"]) .participantRowLocal,
+:global(:root[data-theme="dark"]) .participantRowModerator {
+  background: rgba(128, 0, 255, 0.24);
+}
+
+:global(:root[data-theme="dark"]) .participantRowBlocked {
+  background: rgba(255, 51, 51, 0.22);
+}
+
+:global(:root[data-theme="dark"]) .participantMoreButton,
+:global(:root[data-theme="dark"]) .participantActionMenu button,
+:global(:root[data-theme="dark"]) .unblockButton,
+:global(:root[data-theme="dark"]) .recordingIndicator {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .participantActionMenu {
+  background: linear-gradient(180deg, rgba(255, 51, 51, 0.24) 0%, #222222 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+:global(:root[data-theme="dark"]) .recordingIndicator {
+  background: #442222;
+}
+
 :global(:root[data-theme="dark"]) .chatBubbleOwn .chatTime {
   color: #dddddd;
 }
@@ -2383,6 +2770,8 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .chatIconButton,
 :global(:root[data-theme="dark"]) .tabletExitButton,
 :global(:root[data-theme="dark"]) .compactExitButton,
+:global(:root[data-theme="dark"]) .headerInviteButton,
+:global(:root[data-theme="dark"]) .compactHeaderInviteButton,
 :global(:root[data-theme="dark"]) .tabletDeviceButton,
 :global(:root[data-theme="dark"]) .compactControlButton,
 :global(:root[data-theme="dark"]) .compactUtilityButton,
@@ -2405,6 +2794,8 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .tabletExitButton,
 :global(:root[data-theme="dark"]) .compactExitButton,
+:global(:root[data-theme="dark"]) .headerInviteButton,
+:global(:root[data-theme="dark"]) .compactHeaderInviteButton,
 :global(:root[data-theme="dark"]) .tabletDeviceButton,
 :global(:root[data-theme="dark"]) .compactControlButton,
 :global(:root[data-theme="dark"]) .exitButton,
@@ -2422,22 +2813,39 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityButton {
+  background: #222222;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityParticipants {
-  background: linear-gradient(90deg, rgba(128, 0, 255, 0.2) 0%, #222222 100%);
+  background: #222222;
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityChat {
-  background: linear-gradient(90deg, rgba(0, 119, 255, 0.2) 0%, #222222 100%);
+  background: #222222;
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityAudio {
-  background: linear-gradient(90deg, rgba(0, 255, 0, 0.16) 0%, #222222 100%);
+  background: #222222;
 }
 
 :global(:root[data-theme="dark"]) .compactUtilitySettings {
+  background: #222222;
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityParticipants.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(128, 0, 255, 0.2) 0%, #222222 100%);
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityChat.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(0, 119, 255, 0.2) 0%, #222222 100%);
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityAudio.utilityButtonActive {
+  background: linear-gradient(90deg, rgba(0, 255, 0, 0.16) 0%, #222222 100%);
+}
+
+:global(:root[data-theme="dark"]) .compactUtilitySettings.utilityButtonActive {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, #222222 100%);
 }
 
@@ -2494,19 +2902,19 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .utilityButton:nth-child(1) {
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .utilityButton:nth-child(2) {
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(2)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .utilityButton:nth-child(3) {
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(3)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .utilityButton:nth-child(4) {
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(4)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
@@ -2680,8 +3088,7 @@ button.stageRoomCode .roomCodeCopyHint {
   }
 
   .compactChatComposer .chatIconButton svg {
-    width: 22px;
-    height: 22px;
+    display: block;
   }
 
   .compactUtilityControls {
@@ -2863,19 +3270,19 @@ button.stageRoomCode .roomCodeCopyHint {
     background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   }
 
-  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(1) {
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(1)[aria-pressed="true"] {
     background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
   }
 
-  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(2) {
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(2)[aria-pressed="true"] {
     background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
   }
 
-  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(3) {
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(3)[aria-pressed="true"] {
     background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
   }
 
-  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(4) {
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(4)[aria-pressed="true"] {
     background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   }
 
