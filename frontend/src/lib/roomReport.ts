@@ -63,10 +63,16 @@ function buildReportNodeHtml(report: RoomReport): string {
       const firstJoin = p.sessions[0]?.joinedAt ?? null;
       const lastLeave =
         [...p.sessions].reverse().find((s) => s.leftAt)?.leftAt ?? null;
+      const isOwner = p.userId === room.owner.id || p.roles.includes("OWNER");
+      const roleLabel = isOwner
+        ? "Владелец"
+        : p.roles.includes("MODERATOR")
+        ? "Модератор"
+        : "Участник";
       return `
       <tr>
         <td>${escapeHtml(p.username)}</td>
-        <td>${p.wasModerator ? "Модератор" : "Участник"}</td>
+        <td>${roleLabel}</td>
         <td style="text-align:center">${p.sessions.length}</td>
         <td>${formatDateTime(firstJoin)}</td>
         <td>${formatDateTime(lastLeave)}</td>

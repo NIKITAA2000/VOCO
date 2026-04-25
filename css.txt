@@ -1,0 +1,2148 @@
+/* voco_main_white_mobile */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+align-items: center;
+padding: 0px 30px;
+gap: 100px;
+
+position: relative;
+width: 390px;
+height: 1238px;
+
+background: #FFFFFF;
+border-radius: 0px;
+
+
+/* Frame 53 */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 5px;
+
+margin: 0 auto;
+width: 295px;
+height: 924px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* voco */
+
+width: 295px;
+height: 215px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* o */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 155px;
+top: 259.5px;
+
+transform: rotate(90deg);
+
+
+/* Ellipse 3 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 155px;
+top: 259.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* Rectangle 5 */
+
+position: absolute;
+width: 25px;
+height: 50px;
+left: 180px;
+top: 309.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* c */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 40px;
+top: 259.5px;
+
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 40px;
+top: 259.5px;
+
+background: #000000;
+
+
+/* o */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 155px;
+top: 144.5px;
+
+transform: rotate(90deg);
+
+
+/* Ellipse 1 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 155px;
+top: 144.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* Rectangle 4 */
+
+position: absolute;
+width: 25px;
+height: 50px;
+left: 180px;
+top: 194.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* v */
+
+position: absolute;
+width: 140px;
+height: 100px;
+left: 0px;
+top: 144.5px;
+
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 40px;
+top: 144.5px;
+
+background: #000000;
+
+
+/* Rectangle 10 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 40px;
+top: 144.5px;
+
+background: #000000;
+
+
+/* Rectangle 11 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 50px;
+top: 169.5px;
+
+background: #000000;
+
+
+/* Rectangle 12 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 60px;
+top: 194.5px;
+
+background: #000000;
+
+
+/* Rectangle 13 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 70px;
+top: 219.5px;
+
+background: #000000;
+
+
+/* Rectangle 14 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 20px;
+top: 144.5px;
+
+background: #0077FF;
+
+
+/* Rectangle 15 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 30px;
+top: 169.5px;
+
+background: #0077FF;
+
+
+/* Rectangle 16 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 50px;
+top: 219.5px;
+
+background: #0077FF;
+
+
+/* Rectangle 17 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 40px;
+top: 194.5px;
+
+background: #0077FF;
+
+
+/* Rectangle 18 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 10px;
+top: 144.5px;
+
+background: #00FF00;
+
+
+/* Rectangle 19 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 20px;
+top: 169.5px;
+
+background: #00FF00;
+
+
+/* Rectangle 20 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 30px;
+top: 194.5px;
+
+background: #00FF00;
+
+
+/* Rectangle 21 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 40px;
+top: 219.5px;
+
+background: #00FF00;
+
+
+/* Rectangle 30 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 40px;
+top: 169.5px;
+
+background: #8000FF;
+
+
+/* Rectangle 31 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 60px;
+top: 219.5px;
+
+background: #8000FF;
+
+
+/* Rectangle 31 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 50px;
+top: 194.5px;
+
+background: #8000FF;
+
+
+/* Rectangle 30 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 30px;
+top: 144.5px;
+
+background: #8000FF;
+
+
+/* Rectangle 714 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 0px;
+top: 144.5px;
+
+
+
+/* правая бровь */
+
+position: absolute;
+width: 100px;
+height: 25px;
+left: 270px;
+top: 259.5px;
+
+transform: rotate(90deg);
+
+
+/* Rectangle 8 */
+
+position: absolute;
+width: 100px;
+height: 25px;
+left: 270px;
+top: 259.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* Rectangle 16 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 269.5px;
+
+background: #0077FF;
+transform: rotate(90deg);
+
+
+/* Rectangle 21 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 259.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 33 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 279.5px;
+
+background: #8000FF;
+transform: rotate(90deg);
+
+
+/* левая бровь */
+
+position: absolute;
+width: 100px;
+height: 25px;
+left: 270px;
+top: 144.5px;
+
+transform: rotate(90deg);
+
+
+/* Rectangle 6 */
+
+position: absolute;
+width: 100px;
+height: 25px;
+left: 270px;
+top: 144.5px;
+
+background: #000000;
+transform: rotate(90deg);
+
+
+/* Rectangle 21 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 144.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 16 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 154.5px;
+
+background: #0077FF;
+transform: rotate(90deg);
+
+
+/* Rectangle 32 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 270px;
+top: 164.5px;
+
+background: #8000FF;
+transform: rotate(90deg);
+
+
+/* Group 52 */
+
+width: 216px;
+height: 415px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #DDDDDD;
+
+
+/* Exclude */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #444444;
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #FFFFFF;
+transform: rotate(180deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 129.5px;
+top: 727.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(180deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Rectangle 720 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #444444;
+
+
+/* Ellipse 29 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 579.5px;
+
+background: #D9D9D9;
+
+
+/* Rectangle 715 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 154.5px;
+top: 654.5px;
+
+background: #DDDDDD;
+
+
+/* Rectangle 719 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 39.5px;
+top: 654.5px;
+
+background: #EEDCFF;
+
+
+/* Rectangle 718 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 114.5px;
+top: 654.5px;
+
+background: #EEDCFF;
+
+
+/* Rectangle 717 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 229.5px;
+top: 464.5px;
+
+background: #DEEEFF;
+
+
+/* Rectangle 716 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 154.5px;
+top: 464.5px;
+
+background: #DEEEFF;
+
+
+/* Rectangle 717 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 114.5px;
+top: 464.5px;
+
+background: #DDFFDD;
+
+
+/* Rectangle 716 */
+
+position: absolute;
+width: 25px;
+height: 25px;
+left: 39.5px;
+top: 464.5px;
+
+background: #DDFFDD;
+
+
+/* значок */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 464.5px;
+
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 89.5px;
+top: 414.5px;
+
+background: #00FF00;
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -58.5px;
+top: 389.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(-90deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 514.5px;
+
+background: #00FF00;
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 514.5px;
+
+background: #00FF00;
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 89.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 114.5px;
+top: 366.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 514.5px;
+
+background: #00FF00;
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -10.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 137.5px;
+top: 539.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(90deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -10.5px;
+top: 414.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -35.5px;
+top: 562.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(180deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* значок */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 464.5px;
+
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 464.5px;
+
+background: #0077FF;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 204.5px;
+top: 414.5px;
+
+background: #00FF00;
+transform: matrix(0, -1, -1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 229.5px;
+top: 562.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 464.5px;
+
+background: #0077FF;
+transform: rotate(180deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 104.5px;
+top: 414.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 79.5px;
+top: 562.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(180deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 514.5px;
+
+background: #0077FF;
+transform: rotate(180deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 104.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 79.5px;
+top: 612.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(180deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 514.5px;
+
+background: #0077FF;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 204.5px;
+top: 464.5px;
+
+background: #00FF00;
+transform: matrix(0, -1, -1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 229.5px;
+top: 612.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 514.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* значок */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 579.5px;
+
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 629.5px;
+
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -10.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(0, 1, 1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: -35.5px;
+top: 481.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 39.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 629.5px;
+
+background: #8000FF;
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 629.5px;
+
+background: #00FF00;
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 89.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 114.5px;
+top: 481.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 629.5px;
+
+background: #00FF00;
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 579.5px;
+
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: matrix(0, 1, 1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 14.5px;
+top: 431.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 89.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 579.5px;
+
+background: #8000FF;
+transform: rotate(90deg);
+
+
+/* значок */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 579.5px;
+
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 629.5px;
+
+background: #000000;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 104.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(0, 1, 1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 79.5px;
+top: 481.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #000000;
+transform: rotate(180deg);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: rotate(-90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 129.5px;
+top: 727.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: rotate(180deg);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 629.5px;
+
+background: #00FF00;
+transform: rotate(180deg);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 579.5px;
+
+background: #000000;
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 579.5px;
+
+background: #00FF00;
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 179.5px;
+top: 431.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 154.5px;
+top: 579.5px;
+
+background: #00FF00;
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 579.5px;
+
+background: #000000;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 204.5px;
+top: 529.5px;
+
+background: #00FF00;
+transform: matrix(0, -1, -1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 229.5px;
+top: 677.5px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 204.5px;
+top: 579.5px;
+
+background: #00FF00;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Rectangle 37 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 364.5px;
+
+background: linear-gradient(90deg, #DDFFDD 0%, rgba(255, 255, 255, 0) 100%);
+transform: rotate(-90deg);
+
+
+/* Rectangle 37 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 364.5px;
+
+background: linear-gradient(90deg, #DEEEFF 0%, rgba(255, 255, 255, 0) 100%);
+transform: rotate(-90deg);
+
+
+/* Rectangle 37 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 39.5px;
+top: 679.5px;
+
+background: linear-gradient(90deg, #EEDCFF 0%, rgba(255, 255, 255, 0) 100%);
+transform: rotate(90deg);
+
+
+/* Rectangle 44 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 154.5px;
+top: 679.5px;
+
+background: linear-gradient(90deg, #DDDDDD 0%, rgba(255, 255, 255, 0) 100%);
+transform: matrix(0, 1, 1, 0, 0, 0);
+
+
+/* Создать конференцию */
+
+position: absolute;
+width: 100px;
+height: 55px;
+left: 39.5px;
+top: 409.5px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #000000;
+
+
+
+/* Настройки */
+
+position: absolute;
+width: 100px;
+height: 55px;
+left: 154.5px;
+top: 679.5px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #000000;
+
+
+
+/* Подключиться */
+
+position: absolute;
+width: 102px;
+height: 55px;
+left: 153.5px;
+top: 409.5px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #000000;
+
+
+
+/* Профиль */
+
+position: absolute;
+width: 100px;
+height: 55px;
+left: 39.5px;
+top: 679.5px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #000000;
+
+
+
+/* Frame 66 */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: flex-end;
+align-items: center;
+padding: 30px;
+gap: 10px;
+
+margin: 0 auto;
+width: 390px;
+height: 314px;
+
+background: #DDDDDD;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Group 65 */
+
+width: 330px;
+height: 254px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* voco_logo_mini */
+
+position: absolute;
+width: 187px;
+height: 150px;
+left: 30px;
+top: 30px;
+
+
+
+/* white */
+
+position: absolute;
+width: 187px;
+height: 150px;
+left: 30px;
+top: 30px;
+
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 125px;
+height: 150px;
+left: 92px;
+top: 30px;
+
+background: #000000;
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 68px;
+top: 30px;
+
+background: #000000;
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 92px;
+top: 30px;
+
+background: #000000;
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 80px;
+top: 55px;
+
+background: #FFFFFF;
+
+
+/* Rectangle 18 */
+
+position: absolute;
+width: 20px;
+height: 50px;
+left: 30px;
+top: 55px;
+
+background: #000000;
+
+
+/* Rectangle 19 */
+
+position: absolute;
+width: 20px;
+height: 50px;
+left: 40px;
+top: 80px;
+
+background: #000000;
+
+
+/* Rectangle 20 */
+
+position: absolute;
+width: 20px;
+height: 50px;
+left: 50px;
+top: 105px;
+
+background: #000000;
+
+
+/* Rectangle 21 */
+
+position: absolute;
+width: 20px;
+height: 50px;
+left: 60px;
+top: 130px;
+
+background: #000000;
+
+
+/* Rectangle 22 */
+
+position: absolute;
+width: 62px;
+height: 25px;
+left: 80px;
+top: 155px;
+
+background: #000000;
+
+
+/* Rectangle 23 */
+
+position: absolute;
+width: 75px;
+height: 25px;
+left: 30px;
+top: 30px;
+
+background: #000000;
+
+
+/* Rectangle 10 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 80px;
+top: 55px;
+
+background: #FFFFFF;
+
+
+/* Rectangle 11 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 90px;
+top: 80px;
+
+background: #FFFFFF;
+
+
+/* Rectangle 12 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 100px;
+top: 105px;
+
+background: #FFFFFF;
+
+
+/* Rectangle 13 */
+
+position: absolute;
+width: 20px;
+height: 25px;
+left: 110px;
+top: 130px;
+
+background: #FFFFFF;
+
+
+/* Rectangle 14 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 60px;
+top: 55px;
+
+background: #0077FF;
+
+
+/* Rectangle 15 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 70px;
+top: 80px;
+
+background: #0077FF;
+
+
+/* Rectangle 16 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 90px;
+top: 130px;
+
+background: #0077FF;
+
+
+/* Rectangle 17 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 80px;
+top: 105px;
+
+background: #0077FF;
+
+
+/* Rectangle 18 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 50px;
+top: 55px;
+
+background: #00FF00;
+
+
+/* Rectangle 19 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 60px;
+top: 80px;
+
+background: #00FF00;
+
+
+/* Rectangle 20 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 70px;
+top: 105px;
+
+background: #00FF00;
+
+
+/* Rectangle 21 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 80px;
+top: 130px;
+
+background: #00FF00;
+
+
+/* Rectangle 30 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 80px;
+top: 80px;
+
+background: #8000FF;
+
+
+/* Rectangle 31 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 100px;
+top: 130px;
+
+background: #8000FF;
+
+
+/* Rectangle 31 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 90px;
+top: 105px;
+
+background: #8000FF;
+
+
+/* Rectangle 30 */
+
+position: absolute;
+width: 10px;
+height: 25px;
+left: 70px;
+top: 55px;
+
+background: #8000FF;
+
+
+/* Разработчики: Ворожцов М.С., Горшков Н.В., Мельникова Д.А., Толмачев М.Р. */
+
+position: absolute;
+width: 330px;
+height: 85px;
+left: 30px;
+top: 145px;
+
+font-family: 'Jost';
+font-style: italic;
+font-weight: 400;
+font-size: 32px;
+line-height: 46px;
+display: flex;
+align-items: center;
+text-align: right;
+
+color: #000000;
+
+
+
+/* VOCO Видеоконференции без границ */
+
+position: absolute;
+width: 143px;
+height: 85px;
+left: 217px;
+top: 30px;
+
+font-family: 'Jost';
+font-style: italic;
+font-weight: 400;
+font-size: 32px;
+line-height: 46px;
+display: flex;
+align-items: center;
+text-align: right;
+
+color: #000000;
+
+
+
+/* © 2026 VOCO | help@voco-meet-support.ru */
+
+position: absolute;
+width: 330px;
+height: 23px;
+left: 30px;
+top: 261px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #000000;
+

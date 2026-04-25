@@ -49,11 +49,14 @@ export function RegisterPage({ onRegister }: Props) {
       <section className={styles.frame} aria-label="Регистрация">
         <div className={styles.logo}>
           <div className={`${styles.logoImage} ${styles.logoImageDark}`}>
-            <img className={styles.logoGraphic} src="/voco-auth-logo-white.svg" alt="VOCO" />
+            <picture>
+              <source media="(max-width: 767px)" srcSet="/voco-auth-logo-white-mobile.svg" />
+              <img className={styles.logoGraphic} src="/voco-auth-logo-white.svg" alt="VOCO" />
+            </picture>
           </div>
           <div className={`${styles.logoImage} ${styles.logoImageLight}`}>
             <picture>
-              <source media="(min-width: 768px)" srcSet="/voco-auth-logo-black.svg" />
+              <source media="(max-width: 767px)" srcSet="/voco-auth-logo-black-mobile.svg" />
               <img className={styles.logoGraphic} src="/voco-auth-logo-black.svg" alt="VOCO" />
             </picture>
           </div>
