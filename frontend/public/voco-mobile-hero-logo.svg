@@ -1,0 +1,32 @@
+<svg width="295" height="215" viewBox="0 0 295 215" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M205 215C177.386 215 155 192.614 155 165C155 137.386 177.386 115 205 115C232.614 115 255 137.386 255 165C255 192.614 232.614 215 205 215ZM205 140C191.193 140 180 151.193 180 165C180 178.807 191.193 190 205 190C218.807 190 230 178.807 230 165C230 151.193 218.807 140 205 140Z" fill="black"/>
+<rect x="230" y="165" width="25" height="50" transform="rotate(90 230 165)" fill="black"/>
+<path d="M125.355 200.355C118.363 207.348 109.454 212.11 99.7545 214.039C90.0555 215.969 80.0021 214.978 70.8658 211.194C61.7295 207.41 53.9206 201.001 48.4265 192.779C42.9324 184.556 40 174.889 40 165C40 155.111 42.9324 145.444 48.4265 137.221C53.9206 128.999 61.7295 122.59 70.8658 118.806C80.0021 115.022 90.0555 114.031 99.7545 115.961C109.454 117.89 118.363 122.652 125.355 129.645L107.678 147.322C104.181 143.826 99.7268 141.445 94.8773 140.48C90.0277 139.516 85.0011 140.011 80.4329 141.903C75.8648 143.795 71.9603 147 69.2133 151.111C66.4662 155.222 65 160.055 65 165C65 169.945 66.4662 174.778 69.2133 178.889C71.9603 183 75.8648 186.205 80.4329 188.097C85.0011 189.989 90.0277 190.484 94.8773 189.52C99.7268 188.555 104.181 186.174 107.678 182.678L125.355 200.355Z" fill="black"/>
+<path d="M205 100C177.386 100 155 77.6142 155 50C155 22.3858 177.386 0 205 0C232.614 0 255 22.3858 255 50C255 77.6142 232.614 100 205 100ZM205 25C191.193 25 180 36.1929 180 50C180 63.8071 191.193 75 205 75C218.807 75 230 63.8071 230 50C230 36.1929 218.807 25 205 25Z" fill="black"/>
+<rect x="230" y="50" width="25" height="50" transform="rotate(90 230 50)" fill="black"/>
+<path d="M40 0L90 100L140 0H115L90 50L65 0H40Z" fill="black"/>
+<rect x="40" width="20" height="25" fill="black"/>
+<rect x="50" y="25" width="20" height="25" fill="black"/>
+<rect x="60" y="50" width="20" height="25" fill="black"/>
+<rect x="70" y="75" width="20" height="25" fill="black"/>
+<rect x="20" width="10" height="25" fill="#0077FF"/>
+<rect x="30" y="25" width="10" height="25" fill="#0077FF"/>
+<rect x="50" y="75" width="10" height="25" fill="#0077FF"/>
+<rect x="40" y="50" width="10" height="25" fill="#0077FF"/>
+<rect x="10" width="10" height="25" fill="#00FF00"/>
+<rect x="20" y="25" width="10" height="25" fill="#00FF00"/>
+<rect x="30" y="50" width="10" height="25" fill="#00FF00"/>
+<rect x="40" y="75" width="10" height="25" fill="#00FF00"/>
+<rect x="40" y="25" width="10" height="25" fill="#8000FF"/>
+<rect x="60" y="75" width="10" height="25" fill="#8000FF"/>
+<rect x="50" y="50" width="10" height="25" fill="#8000FF"/>
+<rect x="30" width="10" height="25" fill="#8000FF"/>
+<rect x="295" y="115" width="100" height="25" transform="rotate(90 295 115)" fill="black"/>
+<rect x="295" y="125" width="10" height="25" transform="rotate(90 295 125)" fill="#0077FF"/>
+<rect x="295" y="115" width="10" height="25" transform="rotate(90 295 115)" fill="#00FF00"/>
+<rect x="295" y="135" width="10" height="25" transform="rotate(90 295 135)" fill="#8000FF"/>
+<rect x="295" width="100" height="25" transform="rotate(90 295 0)" fill="black"/>
+<rect x="295" width="10" height="25" transform="rotate(90 295 0)" fill="#00FF00"/>
+<rect x="295" y="10" width="10" height="25" transform="rotate(90 295 10)" fill="#0077FF"/>
+<rect x="295" y="20" width="10" height="25" transform="rotate(90 295 20)" fill="#8000FF"/>
+</svg>
