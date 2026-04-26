@@ -15,7 +15,8 @@
   width: 100vw;
   height: 100vh;
   display: grid;
-  place-items: center;
+  align-items: end;
+  justify-items: center;
   background: #fff;
   overflow: hidden;
 }
@@ -25,15 +26,34 @@
   height: 100vh;
   position: relative;
   display: grid;
-  place-items: center;
+  align-items: end;
+  justify-items: center;
   overflow: hidden;
 }
 
 .stage {
-  position: relative;
-  width: min(100vw, calc(100vh * 1.40625), 2200px);
-  height: min(100vh, calc(100vw * 0.7111111111), 1564.4444px);
-  aspect-ratio: 1440 / 1024;
+  --stage-safe-top: 100px;
+  --stage-safe-bottom: 100px;
+  --stage-content-top-ratio: 0.09765625;
+  --stage-content-height-ratio: 0.8046875;
+  --stage-content-height: max(1px, calc(100vh - var(--stage-safe-top) - var(--stage-safe-bottom)));
+  --stage-height: min(
+    calc(var(--stage-content-height) / var(--stage-content-height-ratio)),
+    calc(100vw * 0.7111111111),
+    1564.4444px
+  );
+  --stage-width: calc(var(--stage-height) * 1.40625);
+  --stage-content-screen-height: calc(var(--stage-height) * var(--stage-content-height-ratio));
+
+  position: fixed;
+  left: calc((100vw - var(--stage-width)) / 2);
+  top: calc(
+    var(--stage-safe-top) +
+    ((var(--stage-content-height) - var(--stage-content-screen-height)) / 2) -
+    (var(--stage-height) * var(--stage-content-top-ratio))
+  );
+  width: var(--stage-width);
+  height: var(--stage-height);
   overflow: hidden;
   background: #fff;
   color: #000;
@@ -133,15 +153,88 @@
 }
 
 .topBar {
+  position: fixed;
+  left: 0;
   top: 0;
+  width: 100vw;
   height: 100px;
   border-radius: 0 0 25px 25px;
+  z-index: 1;
 }
 
 .bottomBar {
+  position: fixed;
+  left: 0;
   bottom: 0;
+  width: 100vw;
   height: 100px;
   border-radius: 25px 25px 0 0;
+  z-index: 1;
+}
+
+.viewIndicator {
+  width: 100px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 25px;
+  background: #dddddd;
+}
+
+.viewIndicatorDot {
+  appearance: none;
+  width: 10px;
+  height: 11px;
+  flex: 0 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 25px;
+  background: #999999;
+  cursor: pointer;
+}
+
+.viewIndicatorDot:focus,
+.viewIndicatorDot:focus-visible {
+  outline: none;
+}
+
+.viewIndicatorDot:disabled {
+  cursor: default;
+}
+
+.viewIndicatorDot[data-distance="0"] {
+  background: #0077ff;
+}
+
+.viewIndicatorDot[data-distance="1"] {
+  background: #000000;
+}
+
+.viewIndicatorDot[data-distance="2"] {
+  background: #444444;
+}
+
+.viewIndicatorDot[data-distance="3"] {
+  background: #999999;
+}
+
+.desktopToolbarIndicator,
+.tabletToolbarHandle {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.tabletToolbarHandleThumb {
+  width: 10px;
+  height: 11px;
+  border-radius: 25px;
+  background: #0077ff;
 }
 
 .sidePanel {
@@ -165,6 +258,25 @@
 .chatPanel {
   border-radius: 25px;
   box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.06);
+}
+
+.desktopParticipantsPanel,
+.desktopChatPanel {
+  position: fixed;
+  top: 100px;
+  bottom: 100px;
+  height: auto;
+  z-index: 2;
+}
+
+.desktopParticipantsPanel {
+  left: 0;
+  width: 470px;
+}
+
+.desktopChatPanel {
+  right: 0;
+  width: 384px;
 }
 
 .participantsPanel::after,
@@ -609,7 +721,7 @@
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.chatSendButton {
+.chatSendButton:not(:disabled) {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
@@ -618,8 +730,12 @@
 }
 
 .chatIconButton:disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.chatIconButton:focus,
+.chatIconButton:focus-visible {
+  outline: none;
 }
 
 .chatInput {
@@ -638,36 +754,105 @@
 
 .chatInput:focus,
 .chatInput:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
   outline: none;
+}
+
+.tabletParticipantsPanel,
+.tabletChatPanel {
+  box-shadow: none;
+}
+
+.tabletParticipantsPanel::after,
+.tabletChatPanel::before {
+  display: none;
+}
+
+.tabletChatScroll {
+  top: 88px;
+  bottom: 60px;
+  padding: 0;
+}
+
+.tabletChatDate {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: auto;
+  color: #999999;
+  text-align: center;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.tabletChatPanel .chatMessageRow {
+  flex: 0 0 auto;
+}
+
+.tabletChatPanel .chatBubble {
+  max-width: 304px;
+}
+
+.tabletChatPanel .chatBubbleRemote {
+  padding: 0 10px;
+}
+
+.tabletChatPanel .chatBubbleOwn {
+  padding: 10px 10px 0;
+  color: #000000;
+}
+
+.tabletChatPanel .chatAuthor {
+  margin-bottom: 0;
+  text-align: right;
+}
+
+.tabletChatPanel .chatBubbleOwn .chatAuthor {
+  display: none;
+}
+
+.tabletChatPanel .chatTime {
+  margin-top: 0;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.tabletChatPanel .chatBubbleRemote .chatTime {
+  text-align: left;
+}
+
+.tabletChatPanel .chatBubbleOwn .chatTime {
+  color: #dddddd;
 }
 
 .tileCard {
   position: absolute;
+  container-type: inline-size;
+  min-width: 0;
+  min-height: 0;
   border-radius: 25px;
   overflow: hidden;
-  background: #eedcff;
+  background: #eedcff !important;
 }
 
 .tileCardAccent::before {
-  content: "";
+  content: none !important;
+  display: none !important;
   position: absolute;
   inset: 0;
   padding: 5px;
   border-radius: inherit;
-  background: linear-gradient(180deg, #00ff00 0%, rgba(238, 220, 255, 0) 100%);
+  background: none !important;
   pointer-events: none;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  -webkit-mask: none !important;
+  mask: none !important;
 }
 
 .tileMedia {
   position: absolute;
   inset: 0 0 50px;
   overflow: hidden;
-  background: #eedcff;
+  background: #eedcff !important;
 }
 
 .tileFooter {
@@ -677,26 +862,24 @@
   bottom: 0;
   height: 50px;
   padding: 0 25px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(
-    360deg,
-    rgba(40, 0, 80, 0.78) 0%,
-    rgba(40, 0, 80, 0.35) 60%,
-    rgba(40, 0, 80, 0) 100%
-  );
+  gap: 10px;
+  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
 }
 
 .tileFooterName {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 16px;
   line-height: 23px;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: #000;
+  text-shadow: none;
 }
 
 .tileSignal {
@@ -704,6 +887,7 @@
   place-items: center;
   width: 16px;
   height: 20px;
+  flex: 0 0 16px;
 }
 
 .tileSignal svg {
@@ -718,6 +902,79 @@
 .tileSignalOff {
   color: #000;
   --tile-signal-accent: #ff3333;
+}
+
+@container (max-width: 180px) {
+  .tileMedia {
+    inset: 0 0 44px;
+  }
+
+  .tileFooter {
+    height: 44px;
+    padding-inline: 12px;
+    gap: 8px;
+  }
+
+  .tileFooterName {
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+
+@container (max-width: 130px) {
+  .tileMedia {
+    inset: 0 0 38px;
+  }
+
+  .tileFooter {
+    height: 38px;
+    padding-inline: 8px;
+    gap: 6px;
+  }
+
+  .tileFooterName {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .tileSignal {
+    width: 14px;
+    height: 18px;
+    flex-basis: 14px;
+  }
+
+  .tileSignal svg {
+    width: 14px;
+    height: 18px;
+  }
+}
+
+@container (max-width: 96px) {
+  .tileFooter {
+    height: 34px;
+    padding-inline: 6px;
+    gap: 4px;
+  }
+
+  .tileMedia {
+    inset: 0 0 34px;
+  }
+
+  .tileFooterName {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .tileSignal {
+    width: 12px;
+    height: 16px;
+    flex-basis: 12px;
+  }
+
+  .tileSignal svg {
+    width: 12px;
+    height: 16px;
+  }
 }
 
 .stageConferenceName {
@@ -749,6 +1006,22 @@
   font-size: 11px;
   line-height: 16px;
   color: #000;
+}
+
+.stageRoomCode.roomCodeCopy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  line-height: 16px;
+  overflow: hidden;
+}
+
+.stageRoomCode .roomCodeCopyLabel {
+  line-height: 16px;
+}
+
+.stageRoomCode .roomCodeCopyHint {
+  display: none;
 }
 
 button.stageRoomCode {
@@ -971,9 +1244,6 @@ button.stageRoomCode:disabled {
   color: #000;
   cursor: pointer;
   overflow: hidden;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 10px 24px rgba(0, 0, 0, 0.06);
 }
 
 .tabletExitIcon {
@@ -1233,8 +1503,7 @@ button.stageRoomCode:disabled {
 }
 
 .deviceMenuTrigger:focus-visible {
-  outline: 2px solid #0077ff;
-  outline-offset: -2px;
+  outline: none;
   border-radius: 50%;
 }
 
@@ -1724,6 +1993,111 @@ button.stageRoomCode:disabled {
   color: #000;
 }
 
+.desktopConferenceName,
+.tabletConferenceName,
+.desktopRoomCode,
+.tabletRoomCode,
+.desktopHeaderInviteButton,
+.tabletHeaderInviteButton,
+.desktopRecordingIndicator,
+.tabletRecordingIndicator,
+.desktopHeaderExitButton,
+.tabletHeaderExitButton,
+.desktopHeaderExitMenuTrigger,
+.tabletHeaderExitMenuTrigger,
+.desktopHeaderExitDropdown,
+.tabletHeaderExitDropdown {
+  position: fixed;
+}
+
+.desktopConferenceName,
+.tabletConferenceName {
+  left: 88px;
+  top: 20px;
+  width: 460px;
+  z-index: 4;
+}
+
+.desktopRoomCode,
+.tabletRoomCode {
+  left: 88px;
+  width: 326px;
+  height: 15px;
+  z-index: 4;
+}
+
+.desktopRoomCode {
+  top: 65px;
+}
+
+.tabletRoomCode {
+  top: 65px;
+}
+
+.desktopHeaderInviteButton,
+.tabletHeaderInviteButton {
+  left: 28px;
+  top: 25px;
+  width: 50px;
+  height: 50px;
+  z-index: 4;
+}
+
+.desktopRecordingIndicator,
+.tabletRecordingIndicator {
+  top: 25px;
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  box-shadow: none;
+  z-index: 4;
+}
+
+.desktopRecordingIndicator {
+  left: calc(50% - 25px);
+}
+
+.tabletRecordingIndicator {
+  left: calc(50% - 25px);
+}
+
+.desktopRecordingIndicator .recordingLabel,
+.tabletRecordingIndicator .recordingLabel {
+  display: none;
+}
+
+.desktopHeaderExitButton,
+.tabletHeaderExitButton {
+  top: 25px;
+  right: 25px;
+  height: 50px;
+  z-index: 4;
+}
+
+.desktopHeaderExitButton {
+  width: 200px;
+}
+
+.tabletHeaderExitButton {
+  width: 100px;
+}
+
+.desktopHeaderExitMenuTrigger,
+.tabletHeaderExitMenuTrigger {
+  top: 25px;
+  right: 25px;
+  width: 50px;
+  height: 50px;
+  z-index: 5;
+}
+
+.desktopHeaderExitDropdown,
+.tabletHeaderExitDropdown {
+  top: 80px;
+  right: 25px;
+  width: 200px;
+}
+
 .deviceIcon svg {
   display: block;
 }
@@ -1769,9 +2143,48 @@ button.stageRoomCode:disabled {
   color: #000;
   cursor: pointer;
   overflow: hidden;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 10px 24px rgba(0, 0, 0, 0.06);
+}
+
+.tabletStage .deviceSlot,
+.tabletStage > .tabletDeviceButton,
+.tabletStage > .utilityGroup {
+  z-index: 4;
+}
+
+.tabletBottomDeviceSlot,
+.tabletScreenShareButton,
+.tabletUtilityGroup {
+  position: fixed;
+  top: auto;
+  bottom: 25px;
+  height: 50px;
+  z-index: 4;
+}
+
+.tabletBottomDeviceSlot,
+.tabletScreenShareButton {
+  width: 100px;
+}
+
+.tabletMicrophoneSlot {
+  left: 25px;
+}
+
+.tabletSpeakerSlot {
+  left: 140px;
+}
+
+.tabletCameraSlot {
+  left: 255px;
+}
+
+.tabletScreenShareButton {
+  left: 370px;
+}
+
+.tabletUtilityGroup {
+  left: 543px;
+  width: 200px;
 }
 
 .tabletDeviceStatus {
@@ -1861,11 +2274,47 @@ button.stageRoomCode:disabled {
 }
 
 .utilityButtonActive {
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .utilityButton svg {
   display: block;
+}
+
+.desktopDeviceSlot,
+.desktopScreenShareButton,
+.desktopUtilityGroup {
+  position: fixed;
+  top: auto;
+  bottom: 25px;
+  height: 50px;
+  z-index: 4;
+}
+
+.desktopDeviceSlot {
+  width: 200px;
+}
+
+.desktopMicrophoneSlot {
+  left: 25px;
+}
+
+.desktopSpeakerSlot {
+  left: 250px;
+}
+
+.desktopCameraSlot {
+  left: 475px;
+}
+
+.desktopScreenShareButton {
+  left: 700px;
+  width: 200px;
+}
+
+.desktopUtilityGroup {
+  right: 18px;
+  width: 200px;
 }
 
 .livekitTile {
@@ -1882,13 +2331,438 @@ button.stageRoomCode:disabled {
 }
 
 .placeholderLogo {
-  width: 100px;
-  height: 100px;
+  width: clamp(44px, 22cqw, 100px);
+  height: clamp(44px, 22cqw, 100px);
   color: #8000ff;
 }
 
 .tabletTileCard {
   border-radius: 25px;
+}
+
+.tabletStage .tileFooter {
+  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
+}
+
+.tabletStage .tileFooterName {
+  color: #000000;
+  text-shadow: none;
+}
+
+.tabletStage .roomCodeCopyHint {
+  display: none;
+}
+
+.mobileViewport {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.mobileStage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  overflow: hidden;
+  background: #ffffff;
+  color: #000000;
+  font-family: "Jost", sans-serif;
+}
+
+.mobileTopBar,
+.mobileBottomBar {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  height: 100px;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.mobileTopBar {
+  position: fixed;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  border-radius: 0 0 25px 25px;
+}
+
+.mobileBottomBar {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-radius: 25px 25px 0 0;
+}
+
+.mobileToolbarHandle {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 81px;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 15px;
+  border-radius: 25px;
+  background: #dddddd;
+  z-index: 3;
+}
+
+.mobileToolbarHandleThumbBlue,
+.mobileToolbarHandleThumbBlack {
+  position: absolute;
+  top: 2px;
+  width: 10px;
+  height: 11px;
+  border-radius: 25px;
+}
+
+.mobileToolbarHandleThumbBlue {
+  left: 39px;
+  background: #0077ff;
+}
+
+.mobileToolbarHandleThumbBlack {
+  left: 51px;
+  background: #000000;
+}
+
+.mobileConferenceName {
+  position: fixed;
+  left: calc(50% - 125px);
+  top: 30px;
+  width: 227px;
+  height: 31px;
+  font-size: 22px;
+  line-height: 32px;
+  z-index: 3;
+}
+
+.mobileRoomCode {
+  position: fixed;
+  left: calc(50% - 125px);
+  top: 59px;
+  width: 111px;
+  height: 15px;
+  font-size: 11px;
+  line-height: 16px;
+  z-index: 3;
+}
+
+.mobileHeaderInviteButton {
+  position: fixed;
+  left: calc(50% - 185px);
+  top: 27px;
+  width: 50px;
+  height: 50px;
+  z-index: 4;
+}
+
+.mobileStage .roomCodeCopyHint {
+  display: none;
+}
+
+.mobileStage .headerInviteButton {
+  z-index: 4;
+}
+
+.mobileExitButton {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #dddddd;
+  color: #000000;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 3;
+}
+
+.mobileHeaderExitButton {
+  position: fixed;
+  left: calc(50% + 127px);
+  top: 27px;
+  width: 50px;
+  height: 50px;
+  z-index: 4;
+}
+
+.mobileHeaderExitDropdown {
+  position: fixed;
+  left: calc(50% - 45px);
+  top: 80px;
+  width: 220px;
+}
+
+.mobileExitGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileExitIcon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.mobileTileCard {
+  border-radius: 25px;
+}
+
+.mobileStage .tileFooter {
+  height: 50px;
+  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
+}
+
+.mobileStage .tileFooterName {
+  color: #000000;
+  text-shadow: none;
+}
+
+.mobileParticipantsPanel {
+  border-radius: 25px;
+  box-shadow: none;
+  z-index: 2;
+}
+
+.mobileParticipantsPanel::after {
+  display: none;
+}
+
+.mobileParticipantsPanel .participantsScroll {
+  left: 25px;
+  right: 25px;
+}
+
+.mobileParticipantsPanel .participantActionMenu {
+  left: auto;
+  right: 0;
+  top: calc(100% + 4px);
+}
+
+.mobileChatPanel {
+  border-radius: 25px;
+  box-shadow: none;
+  z-index: 2;
+}
+
+.mobileChatPanel::before {
+  display: none;
+}
+
+.mobileChatScroll {
+  left: 10px;
+  right: 10px;
+  top: 76px;
+  bottom: 60px;
+  padding: 0;
+}
+
+.mobileChatDate {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: auto;
+  color: #999999;
+  text-align: center;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.mobileChatPanel .chatMessageRow {
+  flex: 0 0 auto;
+}
+
+.mobileChatPanel .chatBubble {
+  max-width: 310px;
+}
+
+.mobileChatPanel .chatBubbleRemote {
+  padding: 0 10px;
+}
+
+.mobileChatPanel .chatBubbleOwn {
+  padding: 10px 10px 0;
+  color: #000000;
+}
+
+.mobileChatPanel .chatAuthor {
+  margin-bottom: 0;
+  text-align: right;
+}
+
+.mobileChatPanel .chatBubbleOwn .chatAuthor {
+  display: none;
+}
+
+.mobileChatPanel .chatTime {
+  margin-top: 0;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.mobileChatPanel .chatBubbleRemote .chatTime {
+  text-align: left;
+}
+
+.mobileChatPanel .chatBubbleOwn .chatTime {
+  color: #dddddd;
+}
+
+.mobileChatComposer {
+  height: 50px;
+  z-index: 2;
+}
+
+.mobileToolbar {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: 350px;
+  height: 50px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  border-radius: 100px;
+  background: #dddddd;
+  overflow: visible;
+  z-index: 3;
+}
+
+.mobileToolbarButton {
+  position: relative;
+  flex: 0 0 50px;
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  height: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #000000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.mobileToolbarButton svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.mobileToolbarButton .micSvg {
+  width: 18px;
+  height: 30px;
+}
+
+.mobileToolbarButton .speakerSvg {
+  width: 22px;
+  height: 20px;
+}
+
+.mobileToolbarButton .cameraSvg,
+.mobileToolbarButton .screenSvg {
+  width: 30px;
+  height: 20px;
+}
+
+.mobileToolbarButton .userSvg,
+.mobileToolbarButton .chatSvg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobileToolbarButton .moreVerticalSvg {
+  width: 6px;
+  height: 26px;
+}
+
+.mobileToolbarStatus {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.mobileToolbarStatusOn {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarStatusOff {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarIcon {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.mobileToolbarParticipantsActive {
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarChatActive {
+  background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarMoreActive {
+  background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileMoreMenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: 178px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+}
+
+.mobileMoreMenu button {
+  appearance: none;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #000000;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobileMoreMenu button:hover,
+.mobileMoreMenu button:focus-visible {
+  outline: none;
+  background: rgba(128, 0, 255, 0.1);
 }
 
 .compactRoom {
@@ -2208,7 +3082,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(.lk-participant-tile) {
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: #eedcff !important;
 }
 
 :global(.lk-participant-media),
@@ -2227,9 +3101,7 @@ button.stageRoomCode .roomCodeCopyHint {
   position: relative;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(128, 0, 255, 0.28), transparent 35%),
-    linear-gradient(180deg, #f5edff 0%, #eedcff 100%);
+  background: #eedcff !important;
 }
 
 :global(.lk-participant-placeholder > svg) {
@@ -2257,17 +3129,27 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .exitButton:focus-visible,
 .tabletExitButton:focus-visible,
+.mobileExitButton:focus-visible,
 .compactExitButton:focus-visible,
-.deviceButton:focus-visible,
-.tabletDeviceButton:focus-visible,
-.compactControlButton:focus-visible,
-.utilityButton:focus-visible,
-.compactUtilityButton:focus-visible,
-.chatIconButton:focus-visible,
 .waitingClose:focus-visible,
 .waitingSubmit:focus-visible {
   outline: 2px solid #0077ff;
   outline-offset: 2px;
+}
+
+.deviceButton:focus,
+.deviceButton:focus-visible,
+.tabletDeviceButton:focus,
+.tabletDeviceButton:focus-visible,
+.mobileToolbarButton:focus,
+.mobileToolbarButton:focus-visible,
+.compactControlButton:focus,
+.compactControlButton:focus-visible,
+.utilityButton:focus,
+.utilityButton:focus-visible,
+.compactUtilityButton:focus,
+.compactUtilityButton:focus-visible {
+  outline: none;
 }
 
 .loading {
@@ -2649,6 +3531,10 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .stageViewport,
 :global(:root[data-theme="dark"]) .stage,
 :global(:root[data-theme="dark"]) .tabletStage,
+:global(:root[data-theme="dark"]) .mobileViewport,
+:global(:root[data-theme="dark"]) .mobileStage,
+:global(:root[data-theme="dark"]) .mobileParticipantsPanel,
+:global(:root[data-theme="dark"]) .mobileChatPanel,
 :global(:root[data-theme="dark"]) .loading,
 :global(:root[data-theme="dark"]) .waitingScreen,
 :global(:root[data-theme="dark"]) .waitingStage {
@@ -2682,6 +3568,8 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .topBar,
 :global(:root[data-theme="dark"]) .bottomBar,
+:global(:root[data-theme="dark"]) .mobileTopBar,
+:global(:root[data-theme="dark"]) .mobileBottomBar,
 :global(:root[data-theme="dark"]) .sidePanel {
   background: #222222;
 }
@@ -2702,6 +3590,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .sideFooterText,
 :global(:root[data-theme="dark"]) .stageConferenceName,
 :global(:root[data-theme="dark"]) .stageRoomCode,
+:global(:root[data-theme="dark"]) .mobileStage .tileFooterName,
 :global(:root[data-theme="dark"]) .compactTitle,
 :global(:root[data-theme="dark"]) .compactParticipantText,
 :global(:root[data-theme="dark"]) .compactParticipantsFooter,
@@ -2767,12 +3656,38 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #dddddd;
 }
 
+:global(:root[data-theme="dark"]) .tabletChatDate {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .mobileChatDate {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .mobileChatPanel .chatBubbleOwn {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn .chatTime {
+  color: #dddddd;
+}
+
+:global(:root[data-theme="dark"]) .mobileChatPanel .chatBubbleOwn .chatTime {
+  color: #dddddd;
+}
+
 :global(:root[data-theme="dark"]) .chatIconButton,
 :global(:root[data-theme="dark"]) .tabletExitButton,
+:global(:root[data-theme="dark"]) .mobileExitButton,
 :global(:root[data-theme="dark"]) .compactExitButton,
 :global(:root[data-theme="dark"]) .headerInviteButton,
 :global(:root[data-theme="dark"]) .compactHeaderInviteButton,
 :global(:root[data-theme="dark"]) .tabletDeviceButton,
+:global(:root[data-theme="dark"]) .mobileToolbarButton,
 :global(:root[data-theme="dark"]) .compactControlButton,
 :global(:root[data-theme="dark"]) .compactUtilityButton,
 :global(:root[data-theme="dark"]) .exitButton,
@@ -2782,8 +3697,41 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .stage .utilityGroup,
-:global(:root[data-theme="dark"]) .tabletStage .utilityGroup {
+:global(:root[data-theme="dark"]) .tabletStage .utilityGroup,
+:global(:root[data-theme="dark"]) .mobileToolbar {
   background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarHandle {
+  background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicator {
+  background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="0"] {
+  background: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="1"] {
+  background: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="2"] {
+  background: #dddddd;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="3"] {
+  background: #999999;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarHandleThumbBlack {
+  background: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .mobileExitGlow {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .tileSignalOn,
@@ -2792,7 +3740,17 @@ button.stageRoomCode .roomCodeCopyHint {
   --tile-signal-accent: #ffffff;
 }
 
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalOn {
+  color: #00ff00;
+}
+
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalOff {
+  color: #ffffff;
+  --tile-signal-accent: #0077ff;
+}
+
 :global(:root[data-theme="dark"]) .tabletExitButton,
+:global(:root[data-theme="dark"]) .mobileExitButton,
 :global(:root[data-theme="dark"]) .compactExitButton,
 :global(:root[data-theme="dark"]) .headerInviteButton,
 :global(:root[data-theme="dark"]) .compactHeaderInviteButton,
@@ -2857,7 +3815,15 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
 }
 
+:global(:root[data-theme="dark"]) .mobileToolbarStatusOn {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .tabletDeviceStatusOff {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarStatusOff {
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
@@ -2902,6 +3868,31 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
+:global(:root[data-theme="dark"]) .mobileToolbarParticipantsActive {
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarChatActive {
+  background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarMoreActive {
+  background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled) {
+  background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .mobileMoreMenu {
+  background: #1e1e1e;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+:global(:root[data-theme="dark"]) .mobileMoreMenu button {
+  color: #ffffff;
+}
+
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"] {
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
@@ -2925,23 +3916,25 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .tileCard,
 :global(:root[data-theme="dark"]) .tileMedia,
 :global(:root[data-theme="dark"]) .placeholderTile {
-  background: #280050;
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .tileCardAccent {
   border: 0;
-  background: #280050;
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .tileCardAccent::before {
+  content: none !important;
+  display: none !important;
   inset: 0 auto auto 0;
   width: 100%;
   height: 5px;
   padding: 0;
   border-radius: 25px 25px 0 0;
-  background: #00ff00;
-  -webkit-mask: none;
-  mask: none;
+  background: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
 }
 
 :global(:root[data-theme="dark"]) .tileFooter {
@@ -2952,16 +3945,17 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .stage :global(.lk-participant-placeholder) {
-  background: #280050;
-}
-
-:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-placeholder) {
-  background: #280050;
+:global(:root[data-theme="dark"]) .stage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .stage :global(.lk-participant-placeholder),
+:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-placeholder),
+:global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-placeholder) {
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .placeholderLogo {
-  color: #ffffff;
+  color: #8000ff;
 }
 
 :global(:root[data-theme="dark"]) .loading {
@@ -3198,6 +4192,12 @@ button.stageRoomCode .roomCodeCopyHint {
     aspect-ratio: auto;
   }
 
+  .tabletStage {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+  }
+
   :global(:root[data-theme="dark"]) .tabletViewport {
     background: #222222;
   }
@@ -3223,23 +4223,22 @@ button.stageRoomCode .roomCodeCopyHint {
   :global(:root[data-theme="dark"]) .tabletStage .tileCard,
   :global(:root[data-theme="dark"]) .tabletStage .tileMedia,
   :global(:root[data-theme="dark"]) .tabletStage .placeholderTile {
-    background: #280050;
+    background: #280050 !important;
     box-shadow: none;
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileCardAccent::before {
+    content: none !important;
+    display: none !important;
     inset: 0;
     width: auto;
     height: auto;
     padding: 5px;
     border-radius: inherit;
-    background: linear-gradient(180deg, #00ff00 0%, rgba(40, 0, 80, 0) 100%);
+    background: none !important;
     box-shadow: none;
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    -webkit-mask: none !important;
+    mask: none !important;
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileFooter {
