@@ -1514,7 +1514,16 @@
   border: 5px solid #0077ff;
   background: transparent;
   padding: 17px 0 13px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.join-active-rooms::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .join-rooms-hint {
@@ -1737,6 +1746,29 @@
   color: #000000;
 }
 
+.theme-light .join-bg-icons--page {
+  display: block;
+  position: absolute;
+  width: 1440px;
+  height: 1270px;
+  left: 0;
+  top: 0;
+}
+
+@media (min-width: 1221px) {
+  .theme-light .join-bg-icons--top,
+  .theme-light .join-bg-icons--center,
+  .theme-light .join-bg-icons--bottom {
+    display: none;
+  }
+
+  .theme-light .join-header h2,
+  .theme-light .join-label,
+  .theme-light .join-active-label {
+    color: transparent;
+  }
+}
+
 .theme-light .join-input {
   background: #dddddd;
   color: #000000;
@@ -1758,7 +1790,9 @@
 }
 
 .theme-light .join-submit {
-  background: #dddddd;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
   color: #000000;
 }
 
@@ -1777,6 +1811,17 @@
   border-color: #0077ff;
 }
 
+@media (min-width: 1221px) {
+  .theme-light .join-active-rooms {
+    background: #ffffff;
+    left: 274.5px;
+  }
+
+  .theme-light .join-active-label {
+    color: transparent;
+  }
+}
+
 .theme-light .join-rooms-hint {
   color: #000000;
 }
@@ -1786,6 +1831,19 @@
     linear-gradient(90deg, #ddffdd 0%, #deeeff 50%, #eedcff 100%) padding-box,
     linear-gradient(90deg, #00ff00 0%, #0077ff 50%, #8000ff 100%) border-box;
   color: #000000;
+}
+
+.theme-light .join-room-link.is-closed {
+  background: url("/join-room-closed-light.svg") no-repeat center / 100% 100%;
+  border: 0;
+  color: #000000;
+  cursor: not-allowed;
+  padding: 0 20px;
+}
+
+.theme-light .join-room-link.is-closed:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .theme-dark .join-overlay {
@@ -1829,7 +1887,9 @@
 }
 
 .theme-dark .join-submit {
-  background: #444444;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
   color: #ffffff;
 }
 
@@ -1848,6 +1908,19 @@
     linear-gradient(90deg, #005000 0%, #002550 50%, #280050 100%) padding-box,
     linear-gradient(90deg, #00ff00 0%, #0077ff 50%, #8000ff 100%) border-box;
   color: #ffffff;
+}
+
+.theme-dark .join-room-link.is-closed {
+  background: url("/join-room-closed-dark.svg") no-repeat center / 100% 100%;
+  border: 0;
+  color: #ffffff;
+  cursor: not-allowed;
+  padding: 0 20px;
+}
+
+.theme-dark .join-room-link.is-closed:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .theme-dark .join-room-link:hover {
