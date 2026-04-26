@@ -2057,17 +2057,17 @@
   margin: 0;
   position: absolute;
   z-index: 1;
-  left: 679px;
-  top: 432px;
-  width: 183px;
+  left: 603px;
+  top: 410px;
+  width: 260px;
   font-size: 32px;
   line-height: 46px;
   font-style: italic;
   font-weight: 400;
   color: #000000;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .profile-active-label {
@@ -2251,7 +2251,9 @@
   height: 50px;
   border-radius: 100px;
   border: 5px solid transparent;
-  background: #dddddd;
+  background:
+    linear-gradient(90deg, #8000ff 0%, #eedcff 50%, #8000ff 100%) padding-box,
+    linear-gradient(90deg, #eedcff 0%, #8000ff 50%, #eedcff 100%) border-box;
   color: #000000;
   font-family: 'Jost', sans-serif;
   font-size: 16px;
@@ -2269,7 +2271,6 @@
 .profile-save:disabled {
   cursor: not-allowed;
   opacity: 1;
-  background: #dddddd;
 }
 
 .profile-logout {
@@ -2620,8 +2621,9 @@
   }
 
   .profile-name {
-    left: 342.5px;
-    top: 432px;
+    left: 266.5px;
+    top: 410px;
+    width: 260px;
   }
 
   .profile-edit-title {
@@ -2746,7 +2748,9 @@
 }
 
 .theme-dark .profile-save {
-  background: #444444;
+  background:
+    linear-gradient(90deg, #8000ff 0%, #280050 50%, #8000ff 100%) padding-box,
+    linear-gradient(90deg, #280050 0%, #8000ff 50%, #280050 100%) border-box;
   color: #ffffff;
 }
 
@@ -2757,7 +2761,6 @@
 }
 
 .theme-dark .profile-save:disabled {
-  background: #444444;
   color: #ffffff;
 }
 
@@ -3907,9 +3910,9 @@
   }
 
   .profile-name {
-    left: 166px;
-    top: 300px;
-    width: 127px;
+    left: 120px;
+    top: 285px;
+    width: 180px;
     font-size: 22px;
     line-height: 32px;
   }

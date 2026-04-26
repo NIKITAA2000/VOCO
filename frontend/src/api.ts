@@ -70,6 +70,16 @@ class ApiClient {
     return this.request("/auth/me");
   }
 
+  async updateProfile(payload: { username?: string; email?: string; password?: string }) {
+    const data = await this.request("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    if (data?.token) this.setToken(data.token);
+    if (data?.user) localStorage.setItem("voco_user", JSON.stringify(data.user));
+    return data;
+  }
+
   // Rooms
   async createRoom(
     name: string,

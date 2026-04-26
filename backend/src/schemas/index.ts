@@ -50,6 +50,25 @@ export const joinGuestSchema = z.object({
     .max(50, "Имя — максимум 50 символов"),
 });
 
+export const updateProfileSchema = z
+  .object({
+    username: z
+      .string()
+      .min(3, "Имя пользователя — минимум 3 символа")
+      .max(30, "Имя пользователя — максимум 30 символов")
+      .regex(
+        /^[a-zA-Zа-яА-ЯёЁ0-9_ ]+$/,
+        "Только буквы, цифры, пробел и подчёркивание"
+      )
+      .optional(),
+    email: z.string().email("Некорректный email").optional(),
+    password: z.string().min(6, "Пароль — минимум 6 символов").optional(),
+  })
+  .refine(
+    (data) => data.username !== undefined || data.email !== undefined || data.password !== undefined,
+    { message: "Нужно указать хотя бы одно поле" }
+  );
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

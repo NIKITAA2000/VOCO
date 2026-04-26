@@ -95,7 +95,7 @@ function App() {
           path="/dashboard"
           element={
             isAuth ? (
-              <DashboardPage user={user} onLogout={handleLogout} />
+              <DashboardPage user={user} onLogout={handleLogout} onUserUpdate={setUser} />
             ) : (
               <Navigate to="/login" />
             )

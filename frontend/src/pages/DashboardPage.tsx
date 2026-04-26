@@ -7,6 +7,7 @@ import "./Dashboard.css";
 interface Props {
   user: any;
   onLogout: () => void;
+  onUserUpdate?: (user: any) => void;
 }
 
 type ThemeMode = "light" | "dark" | "system";
@@ -66,7 +67,7 @@ const SETTINGS_PATHS = [
   "M957 497C953.717 497 950.466 496.353 947.433 495.097C944.4 493.84 941.644 491.999 939.322 489.678C937.001 487.356 935.16 484.6 933.903 481.567C932.647 478.534 932 475.283 932 472H907C907 478.566 908.293 485.068 910.806 491.134C913.318 497.2 917.002 502.713 921.645 507.355C926.287 511.998 931.8 515.682 937.866 518.194C943.932 520.707 950.434 522 957 522V497Z",
 ];
 
-export function DashboardPage({ user, onLogout }: Props) {
+export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -85,6 +86,7 @@ export function DashboardPage({ user, onLogout }: Props) {
   const [profilePasswordInput, setProfilePasswordInput] = useState("");
   const [profileInitialUsername, setProfileInitialUsername] = useState("");
   const [profileInitialEmail, setProfileInitialEmail] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(false);
   const getInitialThemeMode = (): ThemeMode => {
@@ -301,27 +303,54 @@ export function DashboardPage({ user, onLogout }: Props) {
     setSettingsOpen(true);
   };
 
-  const handleProfileSave = () => {
-    const current = localStorage.getItem("voco_user");
-    const parsed = current ? JSON.parse(current) : {};
-    const updatedUser = {
-      ...parsed,
-      ...user,
-      username: profileUsernameInput.trim() || parsed?.username || user?.username || "",
-      email: profileEmailInput.trim() || parsed?.email || user?.email || "",
-    };
-    localStorage.setItem("voco_user", JSON.stringify(updatedUser));
-    setProfilePasswordInput("");
-    setProfileOpen(false);
+  const handleProfileSave = async () => {
+    const trimmedUsername = profileUsernameInput.trim();
+    const trimmedEmail = profileEmailInput.trim();
+    const trimmedPassword = profilePasswordInput.trim();
+
+    const payload: { username?: string; email?: string; password?: string } = {};
+    if (trimmedUsername && trimmedUsername !== profileInitialUsername.trim()) {
+      payload.username = trimmedUsername;
+    }
+    if (trimmedEmail && trimmedEmail !== profileInitialEmail.trim()) {
+      payload.email = trimmedEmail;
+    }
+    if (trimmedPassword) {
+      payload.password = trimmedPassword;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setProfileOpen(false);
+      return;
+    }
+
+    setError("");
+    setProfileSaving(true);
+    try {
+      const data: any = await api.updateProfile(payload);
+      if (data?.user) {
+        onUserUpdate?.(data.user);
+      }
+      setProfilePasswordInput("");
+      setProfileOpen(false);
+    } catch (err: any) {
+      setError(err?.message || "Не удалось сохранить профиль");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const profileName = profileUsernameInput.trim() || user?.username || "Иван Иванов";
-  const profileInitials = profileName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part: string) => part[0]?.toUpperCase() || "")
-    .join("") || "ИИ";
+  const profileNameParts = profileName.split(/\s+/).filter(Boolean);
+  const profileInitials = (() => {
+    if (profileNameParts.length >= 2) {
+      return (profileNameParts[0][0] + profileNameParts[1][0]).toUpperCase();
+    }
+    if (profileNameParts.length === 1) {
+      return profileNameParts[0].slice(0, 2).toUpperCase();
+    }
+    return "ИИ";
+  })();
   const profileHasChanges =
     profileUsernameInput.trim() !== profileInitialUsername.trim() ||
     profileEmailInput.trim() !== profileInitialEmail.trim() ||
@@ -623,7 +652,7 @@ export function DashboardPage({ user, onLogout }: Props) {
                     handleJoinSubmit();
                   }
                 }}
-                placeholder="ABC123"
+                placeholder="Ab12CdEf34"
                 maxLength={120}
                 autoFocus
               />
@@ -717,7 +746,17 @@ export function DashboardPage({ user, onLogout }: Props) {
               <div className="profile-avatar" aria-hidden="true">
                 {profileInitials}
               </div>
-              <p className="profile-name">{profileName}</p>
+              <p className="profile-name">
+                {profileNameParts.length >= 2 ? (
+                  <>
+                    {profileNameParts[0]}
+                    <br />
+                    {profileNameParts.slice(1).join(" ")}
+                  </>
+                ) : (
+                  profileName
+                )}
+              </p>
 
               <p className="profile-edit-title">Редактирование профиля</p>
 
@@ -729,7 +768,7 @@ export function DashboardPage({ user, onLogout }: Props) {
                 className="profile-input profile-input-username"
                 value={profileUsernameInput}
                 onChange={(e) => setProfileUsernameInput(e.target.value)}
-                placeholder="yourusername"
+                placeholder="Иван Иванов"
                 maxLength={120}
               />
 
@@ -742,7 +781,7 @@ export function DashboardPage({ user, onLogout }: Props) {
                 className="profile-input profile-input-email"
                 value={profileEmailInput}
                 onChange={(e) => setProfileEmailInput(e.target.value)}
-                placeholder="your@email.com"
+                placeholder="ivanivanov@email.com"
                 maxLength={180}
               />
 
@@ -755,7 +794,7 @@ export function DashboardPage({ user, onLogout }: Props) {
                 className="profile-input profile-input-password"
                 value={profilePasswordInput}
                 onChange={(e) => setProfilePasswordInput(e.target.value)}
-                placeholder="yourpassword"
+                placeholder="qwerty1234"
                 maxLength={120}
               />
 
@@ -763,9 +802,9 @@ export function DashboardPage({ user, onLogout }: Props) {
                 className="profile-save"
                 type="button"
                 onClick={handleProfileSave}
-                disabled={!profileHasChanges}
+                disabled={!profileHasChanges || profileSaving}
               >
-                Сохранить
+                {profileSaving ? "Сохраняем..." : "Сохранить"}
               </button>
 
               <button className="profile-logout" type="button" onClick={onLogout}>

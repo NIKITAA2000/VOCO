@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../lib/db.js";
 import { generateToken } from "../middleware/auth.js";
-import { registerSchema, loginSchema } from "../schemas/index.js";
+import { registerSchema, loginSchema, updateProfileSchema } from "../schemas/index.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
@@ -133,6 +133,85 @@ router.get("/me", authenticate, async (req: Request, res: Response) => {
     res.json({ user: result.rows[0] });
   } catch (error) {
     console.error("Get me error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PATCH /api/auth/me
+router.patch("/me", authenticate, async (req: Request, res: Response) => {
+  try {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Ошибка валидации",
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const { username, email, password } = parsed.data;
+    const userId = req.user!.userId;
+
+    if (username !== undefined || email !== undefined) {
+      const conflict = await db.query(
+        `SELECT id, email, username FROM users
+         WHERE id <> $1 AND (
+           ($2::text IS NOT NULL AND email = $2) OR
+           ($3::text IS NOT NULL AND username = $3)
+         )`,
+        [userId, email ?? null, username ?? null]
+      );
+      if (conflict.rows.length > 0) {
+        const field = conflict.rows[0].email === email ? "email" : "username";
+        res.status(409).json({
+          error: `Пользователь с таким ${field} уже существует`,
+        });
+        return;
+      }
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    if (username !== undefined) {
+      updates.push(`username = $${idx++}`);
+      values.push(username);
+    }
+    if (email !== undefined) {
+      updates.push(`email = $${idx++}`);
+      values.push(email);
+    }
+    if (password !== undefined) {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      updates.push(`password = $${idx++}`);
+      values.push(hashedPassword);
+    }
+
+    values.push(userId);
+
+    const result = await db.query(
+      `UPDATE users SET ${updates.join(", ")}
+       WHERE id = $${idx}
+       RETURNING id, email, username, avatar_url AS "avatarUrl", created_at AS "createdAt"`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Пользователь не найден" });
+      return;
+    }
+
+    const user = result.rows[0];
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+    });
+
+    res.json({ user, token });
+  } catch (error) {
+    console.error("Update profile error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
 });
