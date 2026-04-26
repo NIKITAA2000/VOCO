@@ -124,6 +124,10 @@ export function DashboardPage({ user, onLogout }: Props) {
     resolvedTheme === "dark" ? "/join-icons-mobile-dark.svg" : "/join-icons-mobile-light.svg";
   const joinTabletIconSrc =
     resolvedTheme === "dark" ? "/join-icons-tablet-dark.svg" : "/join-icons-tablet-light.svg";
+  const joinPageIconSrc =
+    !isMobileViewport && !isTabletViewport && resolvedTheme === "light"
+      ? "/join-page-light.svg"
+      : "";
   const profileTopIconSrc = isMobileViewport
     ? resolvedTheme === "dark"
       ? "/profile-icons-mobile-dark.svg"
@@ -272,7 +276,7 @@ export function DashboardPage({ user, onLogout }: Props) {
     }
   };
 
-  const recentRooms = activeRooms.filter((room) => room?.isActive !== false).slice(0, 4);
+  const recentRooms = activeRooms;
 
   const handleProfile = () => {
     if (isGuestUser) {
@@ -588,6 +592,9 @@ export function DashboardPage({ user, onLogout }: Props) {
                 <img className="join-bg-icons join-bg-icons--top" src={joinTopIconSrc} alt="" />
                 <img className="join-bg-icons join-bg-icons--center" src="/join-icons.svg" alt="" />
                 <img className="join-bg-icons join-bg-icons--bottom" src={joinBottomIconSrc} alt="" />
+                {joinPageIconSrc && (
+                  <img className="join-bg-icons join-bg-icons--page" src={joinPageIconSrc} alt="" />
+                )}
               </div>
             <section className="join-panel">
               <div className="join-header">
@@ -644,24 +651,35 @@ export function DashboardPage({ user, onLogout }: Props) {
                         <span className="join-room-empty">Нет недавних комнат</span>
                       </li>
                     ) : (
-                      recentRooms.map((room) => (
-                        <li key={room.id} className="join-room-item">
-                          <button
-                            type="button"
-                            className="join-room-link"
-                            onClick={() => {
-                              navigate(`/room/${room.slug}`);
-                              setJoinOpen(false);
-                            }}
+                      recentRooms.map((room) => {
+                        const isClosed = room?.isActive === false;
+                        return (
+                          <li
+                            key={room.id}
+                            className={`join-room-item${isClosed ? " join-room-item--closed" : ""}`}
                           >
-                            <span className="join-room-name">{room.name}</span>
-                            <span className="join-room-code">{room.slug}</span>
-                            <span className="join-room-count">
-                              {room?._count?.participants ?? 0}
-                            </span>
-                          </button>
-                        </li>
-                      ))
+                            <button
+                              type="button"
+                              className={`join-room-link${isClosed ? " is-closed" : ""}`}
+                              onClick={() => {
+                                if (isClosed) return;
+                                navigate(`/room/${room.slug}`);
+                                setJoinOpen(false);
+                              }}
+                              disabled={isClosed}
+                              aria-disabled={isClosed}
+                            >
+                              <span className="join-room-name">{room.name}</span>
+                              {!isClosed && <span className="join-room-code">{room.slug}</span>}
+                              {!isClosed && (
+                                <span className="join-room-count">
+                                  {room?._count?.participants ?? 0}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })
                     )}
                   </ul>
                 )}

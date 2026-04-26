@@ -70,8 +70,8 @@ router.get("/", async (req: Request, res: Response) => {
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
        LEFT JOIN participants p ON p.room_id = r.id
-       WHERE r.is_active = true AND (r.owner_id = $1 OR p.user_id = $1)
-       ORDER BY r.created_at DESC`,
+       WHERE r.owner_id = $1 OR p.user_id = $1
+       ORDER BY r.is_active DESC, r.created_at DESC`,
       [req.user!.userId]
     );
 
