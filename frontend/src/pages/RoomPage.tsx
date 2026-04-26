@@ -31,11 +31,9 @@ import styles from "./Room.module.css";
 const STAGE_WIDTH = 1440;
 const STAGE_HEIGHT = 1024;
 const TABLET_WIDTH = 768;
-const TABLET_HEIGHT = 1024;
 const MOBILE_WIDTH = 390;
-const MOBILE_HEIGHT = 844;
-const MOBILE_CONTENT_TOP = 100;
-const MOBILE_CONTENT_HEIGHT = 644;
+const ROOM_BAR_HEIGHT = 100;
+const ROOM_TILE_PAGE_SIZE = 4;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
 const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px)";
@@ -78,22 +76,28 @@ function stageRect(left: number, top: number, width: number, height: number): CS
   };
 }
 
-function tabletRect(left: number, top: number, width: number, height: number): CSSProperties {
+function contentRect(left: number, width: number, totalWidth: number, row: number, rows: number, rowSpan = 1): CSSProperties {
+  const rowHeightVh = 100 / rows;
+  const rowHeightPx = (ROOM_BAR_HEIGHT * 2) / rows;
+  const heightVh = rowHeightVh * rowSpan;
+  const heightPx = rowHeightPx * rowSpan;
+  const offsetVh = rowHeightVh * row;
+  const offsetPx = rowHeightPx * row;
+
   return {
-    left: toStagePercent(left, TABLET_WIDTH),
-    top: toStagePercent(top, TABLET_HEIGHT),
-    width: toStagePercent(width, TABLET_WIDTH),
-    height: toStagePercent(height, TABLET_HEIGHT),
+    left: toStagePercent(left, totalWidth),
+    top: row === 0 ? `${ROOM_BAR_HEIGHT}px` : `calc(${ROOM_BAR_HEIGHT}px + ${offsetVh}vh - ${offsetPx}px)`,
+    width: toStagePercent(width, totalWidth),
+    height: rowSpan === rows ? `calc(100vh - ${ROOM_BAR_HEIGHT * 2}px)` : `calc(${heightVh}vh - ${heightPx}px)`,
   };
 }
 
-function mobileRect(left: number, top: number, width: number, height: number): CSSProperties {
-  return {
-    left: toStagePercent(left, MOBILE_WIDTH),
-    top: toStagePercent(top, MOBILE_HEIGHT),
-    width: toStagePercent(width, MOBILE_WIDTH),
-    height: toStagePercent(height, MOBILE_HEIGHT),
-  };
+function tabletContentRect(left: number, width: number, row: number, rows: number, rowSpan = 1): CSSProperties {
+  return contentRect(left, width, TABLET_WIDTH, row, rows, rowSpan);
+}
+
+function mobileContentRect(row: number, rows: number, rowSpan = 1): CSSProperties {
+  return contentRect(0, MOBILE_WIDTH, MOBILE_WIDTH, row, rows, rowSpan);
 }
 
 function getStageTileFrames(count: number) {
@@ -130,40 +134,39 @@ function getTabletTileFrames(count: number) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
   if (normalizedCount === 1) {
-    return [{ id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 768, 824) }];
+    return [{ id: "tablet-tile-1", accent: true, style: tabletContentRect(0, 768, 0, 1) }];
   }
 
   if (normalizedCount === 2) {
     return [
-      { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 384, 824) },
-      { id: "tablet-tile-2", accent: false, style: tabletRect(384, 100, 384, 824) },
+      { id: "tablet-tile-1", accent: true, style: tabletContentRect(0, 384, 0, 1) },
+      { id: "tablet-tile-2", accent: false, style: tabletContentRect(384, 384, 0, 1) },
     ];
   }
 
   if (normalizedCount === 3) {
     return [
-      { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 768, 412) },
-      { id: "tablet-tile-2", accent: false, style: tabletRect(0, 512, 384, 412) },
-      { id: "tablet-tile-3", accent: false, style: tabletRect(384, 512, 384, 412) },
+      { id: "tablet-tile-1", accent: true, style: tabletContentRect(0, 768, 0, 2) },
+      { id: "tablet-tile-2", accent: false, style: tabletContentRect(0, 384, 1, 2) },
+      { id: "tablet-tile-3", accent: false, style: tabletContentRect(384, 384, 1, 2) },
     ];
   }
 
   return [
-    { id: "tablet-tile-1", accent: true, style: tabletRect(0, 100, 384, 412) },
-    { id: "tablet-tile-2", accent: false, style: tabletRect(384, 100, 384, 412) },
-    { id: "tablet-tile-3", accent: false, style: tabletRect(0, 512, 384, 412) },
-    { id: "tablet-tile-4", accent: false, style: tabletRect(384, 512, 384, 412) },
+    { id: "tablet-tile-1", accent: true, style: tabletContentRect(0, 384, 0, 2) },
+    { id: "tablet-tile-2", accent: false, style: tabletContentRect(384, 384, 0, 2) },
+    { id: "tablet-tile-3", accent: false, style: tabletContentRect(0, 384, 1, 2) },
+    { id: "tablet-tile-4", accent: false, style: tabletContentRect(384, 384, 1, 2) },
   ];
 }
 
 function getMobileTileFrames(count: number) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
-  const tileHeight = MOBILE_CONTENT_HEIGHT / normalizedCount;
 
   return Array.from({ length: normalizedCount }, (_, index) => ({
     id: `mobile-tile-${index + 1}`,
     accent: index === 0,
-    style: mobileRect(0, MOBILE_CONTENT_TOP + tileHeight * index, MOBILE_WIDTH, tileHeight),
+    style: mobileContentRect(index, normalizedCount),
   }));
 }
 
@@ -702,6 +705,56 @@ function TileSignal({ active }: { active: boolean }) {
   );
 }
 
+function getIndicatorPages(pageCount: number, currentPage: number) {
+  const maxVisiblePages = 7;
+  const safePageCount = Math.max(1, pageCount);
+
+  if (safePageCount <= maxVisiblePages) {
+    return Array.from({ length: safePageCount }, (_, index) => index);
+  }
+
+  const start = Math.min(Math.max(currentPage - 3, 0), safePageCount - maxVisiblePages);
+  return Array.from({ length: maxVisiblePages }, (_, index) => start + index);
+}
+
+function ViewIndicator({
+  pageCount,
+  currentPage,
+  className,
+  onPageChange,
+}: {
+  pageCount: number;
+  currentPage: number;
+  className?: string;
+  onPageChange: (page: number) => void;
+}) {
+  const safePageCount = Math.max(1, pageCount);
+  const safeCurrentPage = Math.min(Math.max(currentPage, 0), safePageCount - 1);
+  const pages = getIndicatorPages(safePageCount, safeCurrentPage);
+
+  return (
+    <div className={`${styles.viewIndicator} ${className ?? ""}`} aria-label="Текущий экран">
+      {pages.map((page) => {
+        const distance = Math.min(Math.abs(page - safeCurrentPage), 3);
+        const isCurrent = page === safeCurrentPage;
+
+        return (
+          <button
+            key={page}
+            type="button"
+            className={styles.viewIndicatorDot}
+            data-distance={distance}
+            aria-label={`Экран ${page + 1} из ${safePageCount}`}
+            aria-current={isCurrent ? "true" : undefined}
+            onClick={() => onPageChange(page)}
+            disabled={isCurrent || safePageCount === 1}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function PlaceholderLogo() {
   return (
     <svg className={styles.placeholderLogo} viewBox="0 0 100 100" fill="none" aria-hidden="true">
@@ -1070,6 +1123,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingNow, setRecordingNow] = useState(Date.now());
   const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  const [tilePage, setTilePage] = useState(0);
   const codeCopyResetRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -1294,16 +1348,24 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     isRecording && recordingStartedAt ? Math.floor((recordingNow - recordingStartedAt) / 1000) : 0;
   const recordingLabel = isRecording ? `Идёт запись ${formatDuration(recordingSeconds)}` : "Запись";
 
-  const allTracks = (tracks.length > 0 ? tracks : [null]).slice(0, 4);
+  const allTracks = tracks.length > 0 ? tracks : [null];
   const hasScreenShare =
     allTracks[0]?.publication?.source === Track.Source.ScreenShare;
-  const visibleTracks = hasScreenShare ? [allTracks[0]] : allTracks;
+  const tilePageCount = hasScreenShare ? 1 : Math.max(1, Math.ceil(allTracks.length / ROOM_TILE_PAGE_SIZE));
+  const currentTilePage = hasScreenShare ? 0 : Math.min(tilePage, tilePageCount - 1);
+  const visibleTracks = hasScreenShare
+    ? [allTracks[0]]
+    : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
   const tileFrames = getStageTileFrames(visibleTracks.length);
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
   const mobileTileFrames = getMobileTileFrames(mobileVisibleTracks.length);
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
+
+  useEffect(() => {
+    setTilePage((current) => Math.min(current, tilePageCount - 1));
+  }, [tilePageCount]);
 
   useEffect(() => {
     chatScrollRef.current?.scrollTo({
@@ -1572,7 +1634,12 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
 
   const renderRecordingIndicator = (style?: CSSProperties, className?: string) =>
     isRecording ? (
-      <div className={`${styles.recordingIndicator} ${className ?? ""}`} style={style}>
+      <div
+        className={`${styles.recordingIndicator} ${className ?? ""}`}
+        style={style}
+        aria-label={recordingLabel}
+        title={recordingLabel}
+      >
         <span className={styles.recordingGlow} aria-hidden="true" />
         <span className={styles.recordingIcon} aria-hidden="true">
           <RecordingIcon />
@@ -1598,15 +1665,22 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       </button>
     ) : null;
 
+  const renderViewIndicator = (className: string) => (
+    <ViewIndicator
+      pageCount={tilePageCount}
+      currentPage={currentTilePage}
+      className={className}
+      onPageChange={setTilePage}
+    />
+  );
+
   if (isTabletLayout) {
     return (
       <div className={styles.tabletViewport}>
         <div className={styles.tabletStage}>
           <div className={styles.topBar} />
           <div className={styles.bottomBar} />
-          <div className={styles.tabletToolbarHandle} aria-hidden="true">
-            <span className={styles.tabletToolbarHandleThumb} />
-          </div>
+          {renderViewIndicator(styles.tabletToolbarHandle)}
 
           {tabletTileFrames.map((frame, index) => {
             const trackRef = visibleTracks[index];
@@ -1634,7 +1708,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           {isParticipantsPanelOpen ? (
             <aside
               className={`${styles.sidePanel} ${styles.participantsPanel} ${styles.tabletSidePanel} ${styles.tabletParticipantsPanel}`}
-              style={tabletRect(0, 100, 384, 824)}
+              style={tabletContentRect(0, 384, 0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
@@ -1649,7 +1723,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           {isChatPanelOpen ? (
             <aside
               className={`${styles.sidePanel} ${styles.chatPanel} ${styles.tabletSidePanel} ${styles.tabletChatPanel}`}
-              style={tabletRect(384, 100, 384, 824)}
+              style={tabletContentRect(384, 384, 0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.chatTitle}>Чат</div>
@@ -1721,8 +1795,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           {renderExitMenu(undefined, styles.tabletHeaderExitDropdown)}
 
           <div
-            className={styles.deviceSlot}
-            style={tabletRect(25, 949, 100, 50)}
+            className={`${styles.deviceSlot} ${styles.tabletBottomDeviceSlot} ${styles.tabletMicrophoneSlot}`}
             data-device-menu-root
           >
             <TrackToggle
@@ -1749,8 +1822,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           </div>
 
           <div
-            className={styles.deviceSlot}
-            style={tabletRect(140, 949, 100, 50)}
+            className={`${styles.deviceSlot} ${styles.tabletBottomDeviceSlot} ${styles.tabletSpeakerSlot}`}
             data-device-menu-root
           >
             <button
@@ -1779,8 +1851,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           </div>
 
           <div
-            className={styles.deviceSlot}
-            style={tabletRect(255, 949, 100, 50)}
+            className={`${styles.deviceSlot} ${styles.tabletBottomDeviceSlot} ${styles.tabletCameraSlot}`}
             data-device-menu-root
           >
             <TrackToggle
@@ -1807,15 +1878,14 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           </div>
 
           <TrackToggle
-            className={styles.tabletDeviceButton}
-            style={tabletRect(370, 949, 100, 50)}
+            className={`${styles.tabletDeviceButton} ${styles.tabletScreenShareButton}`}
             source={Track.Source.ScreenShare}
             showIcon={false}
           >
             <TabletDeviceControlContent active={isScreenShareEnabled} icon={<ScreenIcon />} />
           </TrackToggle>
 
-          <div className={styles.utilityGroup} style={tabletRect(543, 949, 200, 50)}>
+          <div className={`${styles.utilityGroup} ${styles.tabletUtilityGroup}`}>
             <button
               className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
               type="button"
@@ -1875,10 +1945,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
         <div className={styles.mobileStage}>
           <div className={styles.mobileTopBar} />
           <div className={styles.mobileBottomBar} />
-          <div className={styles.mobileToolbarHandle} aria-hidden="true">
-            <span className={styles.mobileToolbarHandleThumbBlue} />
-            <span className={styles.mobileToolbarHandleThumbBlack} />
-          </div>
+          {renderViewIndicator(styles.mobileToolbarHandle)}
 
           {mobileTileFrames.map((frame, index) => {
             const trackRef = mobileVisibleTracks[index];
@@ -1906,7 +1973,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           {isParticipantsPanelOpen ? (
             <aside
               className={`${styles.sidePanel} ${styles.participantsPanel} ${styles.mobileParticipantsPanel}`}
-              style={mobileRect(0, 100, 390, 644)}
+              style={mobileContentRect(0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
@@ -1921,7 +1988,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           {isChatPanelOpen ? (
             <aside
               className={`${styles.sidePanel} ${styles.chatPanel} ${styles.mobileChatPanel}`}
-              style={mobileRect(0, 100, 390, 644)}
+              style={mobileContentRect(0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.chatTitle}>Чат</div>
@@ -2116,9 +2183,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       <div className={styles.stage}>
         <div className={styles.topBar} />
         <div className={styles.bottomBar} />
+        {renderViewIndicator(styles.desktopToolbarIndicator)}
 
         {isParticipantsPanelOpen ? (
-          <aside className={`${styles.sidePanel} ${styles.participantsPanel}`} style={stageRect(0, 100, 470, 824)}>
+          <aside className={`${styles.sidePanel} ${styles.participantsPanel} ${styles.desktopParticipantsPanel}`}>
             <div className={styles.sideHeaderFade} />
             <div className={styles.sideTitle}>Участники</div>
             <div className={styles.participantsScroll}>
@@ -2130,7 +2198,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
         ) : null}
 
         {isChatPanelOpen ? (
-          <aside className={`${styles.sidePanel} ${styles.chatPanel}`} style={stageRect(1056, 100, 384, 824)}>
+          <aside className={`${styles.sidePanel} ${styles.chatPanel} ${styles.desktopChatPanel}`}>
             <div className={styles.sideHeaderFade} />
             <div className={styles.chatTitle}>Чат</div>
             <div className={styles.chatDate}>{currentDate}</div>
@@ -2222,7 +2290,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
         {renderExitMenuTrigger(`${styles.exitMenuTriggerStage} ${styles.desktopHeaderExitMenuTrigger}`)}
         {renderExitMenu(undefined, styles.desktopHeaderExitDropdown)}
 
-        <div className={styles.deviceSlot} style={stageRect(25, 949, 200, 50)} data-device-menu-root>
+        <div
+          className={`${styles.deviceSlot} ${styles.desktopDeviceSlot} ${styles.desktopMicrophoneSlot}`}
+          data-device-menu-root
+        >
           <TrackToggle
             className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
             source={Track.Source.Microphone}
@@ -2246,7 +2317,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           )}
         </div>
 
-        <div className={styles.deviceSlot} style={stageRect(250, 949, 200, 50)} data-device-menu-root>
+        <div
+          className={`${styles.deviceSlot} ${styles.desktopDeviceSlot} ${styles.desktopSpeakerSlot}`}
+          data-device-menu-root
+        >
           <button
             className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
             type="button"
@@ -2271,7 +2345,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           )}
         </div>
 
-        <div className={styles.deviceSlot} style={stageRect(475, 949, 200, 50)} data-device-menu-root>
+        <div
+          className={`${styles.deviceSlot} ${styles.desktopDeviceSlot} ${styles.desktopCameraSlot}`}
+          data-device-menu-root
+        >
           <TrackToggle
             className={`${styles.deviceButton} ${styles.deviceButtonFill}`}
             source={Track.Source.Camera}
@@ -2296,15 +2373,14 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
         </div>
 
         <TrackToggle
-          className={styles.deviceButton}
-          style={stageRect(700, 949, 200, 50)}
+          className={`${styles.deviceButton} ${styles.desktopScreenShareButton}`}
           source={Track.Source.ScreenShare}
           showIcon={false}
         >
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
-        <div className={styles.utilityGroup} style={stageRect(1222, 949, 200, 50)}>
+        <div className={`${styles.utilityGroup} ${styles.desktopUtilityGroup}`}>
           <button
             className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
             type="button"

@@ -32,10 +32,28 @@
 }
 
 .stage {
-  position: relative;
-  width: min(100vw, calc(100vh * 1.40625), 2200px);
-  height: min(100vh, calc(100vw * 0.7111111111), 1564.4444px);
-  aspect-ratio: 1440 / 1024;
+  --stage-safe-top: 100px;
+  --stage-safe-bottom: 100px;
+  --stage-content-top-ratio: 0.09765625;
+  --stage-content-height-ratio: 0.8046875;
+  --stage-content-height: max(1px, calc(100vh - var(--stage-safe-top) - var(--stage-safe-bottom)));
+  --stage-height: min(
+    calc(var(--stage-content-height) / var(--stage-content-height-ratio)),
+    calc(100vw * 0.7111111111),
+    1564.4444px
+  );
+  --stage-width: calc(var(--stage-height) * 1.40625);
+  --stage-content-screen-height: calc(var(--stage-height) * var(--stage-content-height-ratio));
+
+  position: fixed;
+  left: calc((100vw - var(--stage-width)) / 2);
+  top: calc(
+    var(--stage-safe-top) +
+    ((var(--stage-content-height) - var(--stage-content-screen-height)) / 2) -
+    (var(--stage-height) * var(--stage-content-top-ratio))
+  );
+  width: var(--stage-width);
+  height: var(--stage-height);
   overflow: hidden;
   background: #fff;
   color: #000;
@@ -145,22 +163,71 @@
 }
 
 .bottomBar {
+  position: fixed;
+  left: 0;
   bottom: 0;
+  width: 100vw;
   height: 100px;
   border-radius: 25px 25px 0 0;
+  z-index: 1;
 }
 
-.tabletToolbarHandle {
-  position: absolute;
-  left: calc((334 / 768) * 100%);
-  top: calc((929 / 1024) * 100%);
-  width: calc((100 / 768) * 100%);
-  height: calc((15 / 1024) * 100%);
-  display: grid;
-  place-items: center;
+.viewIndicator {
+  width: 100px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   border-radius: 25px;
   background: #dddddd;
-  z-index: 1;
+}
+
+.viewIndicatorDot {
+  appearance: none;
+  width: 10px;
+  height: 11px;
+  flex: 0 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 25px;
+  background: #999999;
+  cursor: pointer;
+}
+
+.viewIndicatorDot:focus,
+.viewIndicatorDot:focus-visible {
+  outline: none;
+}
+
+.viewIndicatorDot:disabled {
+  cursor: default;
+}
+
+.viewIndicatorDot[data-distance="0"] {
+  background: #0077ff;
+}
+
+.viewIndicatorDot[data-distance="1"] {
+  background: #000000;
+}
+
+.viewIndicatorDot[data-distance="2"] {
+  background: #444444;
+}
+
+.viewIndicatorDot[data-distance="3"] {
+  background: #999999;
+}
+
+.desktopToolbarIndicator,
+.tabletToolbarHandle {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 3;
 }
 
 .tabletToolbarHandleThumb {
@@ -191,6 +258,25 @@
 .chatPanel {
   border-radius: 25px;
   box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.06);
+}
+
+.desktopParticipantsPanel,
+.desktopChatPanel {
+  position: fixed;
+  top: 100px;
+  bottom: 100px;
+  height: auto;
+  z-index: 2;
+}
+
+.desktopParticipantsPanel {
+  left: 0;
+  width: 470px;
+}
+
+.desktopChatPanel {
+  right: 0;
+  width: 384px;
 }
 
 .participantsPanel::after,
@@ -635,7 +721,7 @@
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.chatSendButton {
+.chatSendButton:not(:disabled) {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
@@ -644,8 +730,12 @@
 }
 
 .chatIconButton:disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.chatIconButton:focus,
+.chatIconButton:focus-visible {
+  outline: none;
 }
 
 .chatInput {
@@ -664,6 +754,8 @@
 
 .chatInput:focus,
 .chatInput:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
   outline: none;
 }
 
@@ -735,31 +827,32 @@
 
 .tileCard {
   position: absolute;
+  container-type: inline-size;
+  min-width: 0;
+  min-height: 0;
   border-radius: 25px;
   overflow: hidden;
-  background: #eedcff;
+  background: #eedcff !important;
 }
 
 .tileCardAccent::before {
-  content: "";
+  content: none !important;
+  display: none !important;
   position: absolute;
   inset: 0;
   padding: 5px;
   border-radius: inherit;
-  background: linear-gradient(180deg, #00ff00 0%, rgba(238, 220, 255, 0) 100%);
+  background: none !important;
   pointer-events: none;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  -webkit-mask: none !important;
+  mask: none !important;
 }
 
 .tileMedia {
   position: absolute;
   inset: 0 0 50px;
   overflow: hidden;
-  background: #eedcff;
+  background: #eedcff !important;
 }
 
 .tileFooter {
@@ -769,26 +862,24 @@
   bottom: 0;
   height: 50px;
   padding: 0 25px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(
-    360deg,
-    rgba(40, 0, 80, 0.78) 0%,
-    rgba(40, 0, 80, 0.35) 60%,
-    rgba(40, 0, 80, 0) 100%
-  );
+  gap: 10px;
+  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
 }
 
 .tileFooterName {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 16px;
   line-height: 23px;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: #000;
+  text-shadow: none;
 }
 
 .tileSignal {
@@ -796,6 +887,7 @@
   place-items: center;
   width: 16px;
   height: 20px;
+  flex: 0 0 16px;
 }
 
 .tileSignal svg {
@@ -810,6 +902,79 @@
 .tileSignalOff {
   color: #000;
   --tile-signal-accent: #ff3333;
+}
+
+@container (max-width: 180px) {
+  .tileMedia {
+    inset: 0 0 44px;
+  }
+
+  .tileFooter {
+    height: 44px;
+    padding-inline: 12px;
+    gap: 8px;
+  }
+
+  .tileFooterName {
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+
+@container (max-width: 130px) {
+  .tileMedia {
+    inset: 0 0 38px;
+  }
+
+  .tileFooter {
+    height: 38px;
+    padding-inline: 8px;
+    gap: 6px;
+  }
+
+  .tileFooterName {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .tileSignal {
+    width: 14px;
+    height: 18px;
+    flex-basis: 14px;
+  }
+
+  .tileSignal svg {
+    width: 14px;
+    height: 18px;
+  }
+}
+
+@container (max-width: 96px) {
+  .tileFooter {
+    height: 34px;
+    padding-inline: 6px;
+    gap: 4px;
+  }
+
+  .tileMedia {
+    inset: 0 0 34px;
+  }
+
+  .tileFooterName {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .tileSignal {
+    width: 12px;
+    height: 16px;
+    flex-basis: 12px;
+  }
+
+  .tileSignal svg {
+    width: 12px;
+    height: 16px;
+  }
 }
 
 .stageConferenceName {
@@ -841,6 +1006,22 @@
   font-size: 11px;
   line-height: 16px;
   color: #000;
+}
+
+.stageRoomCode.roomCodeCopy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  line-height: 16px;
+  overflow: hidden;
+}
+
+.stageRoomCode .roomCodeCopyLabel {
+  line-height: 16px;
+}
+
+.stageRoomCode .roomCodeCopyHint {
+  display: none;
 }
 
 button.stageRoomCode {
@@ -1322,8 +1503,7 @@ button.stageRoomCode:disabled {
 }
 
 .deviceMenuTrigger:focus-visible {
-  outline: 2px solid #0077ff;
-  outline-offset: -2px;
+  outline: none;
   border-radius: 50%;
 }
 
@@ -1847,7 +2027,7 @@ button.stageRoomCode:disabled {
 }
 
 .desktopRoomCode {
-  top: 64px;
+  top: 65px;
 }
 
 .tabletRoomCode {
@@ -1866,18 +2046,24 @@ button.stageRoomCode:disabled {
 .desktopRecordingIndicator,
 .tabletRecordingIndicator {
   top: 25px;
-  width: 200px;
+  width: 50px;
   height: 50px;
+  background: transparent;
+  box-shadow: none;
   z-index: 4;
 }
 
 .desktopRecordingIndicator {
-  left: 620px;
-  top: 26px;
+  left: calc(50% - 25px);
 }
 
 .tabletRecordingIndicator {
-  left: 284px;
+  left: calc(50% - 25px);
+}
+
+.desktopRecordingIndicator .recordingLabel,
+.tabletRecordingIndicator .recordingLabel {
+  display: none;
 }
 
 .desktopHeaderExitButton,
@@ -1957,6 +2143,48 @@ button.stageRoomCode:disabled {
   color: #000;
   cursor: pointer;
   overflow: hidden;
+}
+
+.tabletStage .deviceSlot,
+.tabletStage > .tabletDeviceButton,
+.tabletStage > .utilityGroup {
+  z-index: 4;
+}
+
+.tabletBottomDeviceSlot,
+.tabletScreenShareButton,
+.tabletUtilityGroup {
+  position: fixed;
+  top: auto;
+  bottom: 25px;
+  height: 50px;
+  z-index: 4;
+}
+
+.tabletBottomDeviceSlot,
+.tabletScreenShareButton {
+  width: 100px;
+}
+
+.tabletMicrophoneSlot {
+  left: 25px;
+}
+
+.tabletSpeakerSlot {
+  left: 140px;
+}
+
+.tabletCameraSlot {
+  left: 255px;
+}
+
+.tabletScreenShareButton {
+  left: 370px;
+}
+
+.tabletUtilityGroup {
+  left: 543px;
+  width: 200px;
 }
 
 .tabletDeviceStatus {
@@ -2046,11 +2274,47 @@ button.stageRoomCode:disabled {
 }
 
 .utilityButtonActive {
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .utilityButton svg {
   display: block;
+}
+
+.desktopDeviceSlot,
+.desktopScreenShareButton,
+.desktopUtilityGroup {
+  position: fixed;
+  top: auto;
+  bottom: 25px;
+  height: 50px;
+  z-index: 4;
+}
+
+.desktopDeviceSlot {
+  width: 200px;
+}
+
+.desktopMicrophoneSlot {
+  left: 25px;
+}
+
+.desktopSpeakerSlot {
+  left: 250px;
+}
+
+.desktopCameraSlot {
+  left: 475px;
+}
+
+.desktopScreenShareButton {
+  left: 700px;
+  width: 200px;
+}
+
+.desktopUtilityGroup {
+  right: 18px;
+  width: 200px;
 }
 
 .livekitTile {
@@ -2067,8 +2331,8 @@ button.stageRoomCode:disabled {
 }
 
 .placeholderLogo {
-  width: 100px;
-  height: 100px;
+  width: clamp(44px, 22cqw, 100px);
+  height: clamp(44px, 22cqw, 100px);
   color: #8000ff;
 }
 
@@ -2102,9 +2366,9 @@ button.stageRoomCode:disabled {
 
 .mobileStage {
   position: relative;
-  width: min(100vw, calc(100vh * 0.4620853081));
-  height: min(100vh, calc(100vw * 2.1641025641));
-  aspect-ratio: 390 / 844;
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
   overflow: hidden;
   background: #ffffff;
   color: #000000;
@@ -2115,7 +2379,7 @@ button.stageRoomCode:disabled {
 .mobileBottomBar {
   position: absolute;
   left: 0;
-  width: 390px;
+  width: 100vw;
   height: 100px;
   background: #ffffff;
   z-index: 1;
@@ -2818,7 +3082,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(.lk-participant-tile) {
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: #eedcff !important;
 }
 
 :global(.lk-participant-media),
@@ -2837,9 +3101,7 @@ button.stageRoomCode .roomCodeCopyHint {
   position: relative;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(128, 0, 255, 0.28), transparent 35%),
-    linear-gradient(180deg, #f5edff 0%, #eedcff 100%);
+  background: #eedcff !important;
 }
 
 :global(.lk-participant-placeholder > svg) {
@@ -2869,17 +3131,25 @@ button.stageRoomCode .roomCodeCopyHint {
 .tabletExitButton:focus-visible,
 .mobileExitButton:focus-visible,
 .compactExitButton:focus-visible,
-.deviceButton:focus-visible,
-.tabletDeviceButton:focus-visible,
-.mobileToolbarButton:focus-visible,
-.compactControlButton:focus-visible,
-.utilityButton:focus-visible,
-.compactUtilityButton:focus-visible,
-.chatIconButton:focus-visible,
 .waitingClose:focus-visible,
 .waitingSubmit:focus-visible {
   outline: 2px solid #0077ff;
   outline-offset: 2px;
+}
+
+.deviceButton:focus,
+.deviceButton:focus-visible,
+.tabletDeviceButton:focus,
+.tabletDeviceButton:focus-visible,
+.mobileToolbarButton:focus,
+.mobileToolbarButton:focus-visible,
+.compactControlButton:focus,
+.compactControlButton:focus-visible,
+.utilityButton:focus,
+.utilityButton:focus-visible,
+.compactUtilityButton:focus,
+.compactUtilityButton:focus-visible {
+  outline: none;
 }
 
 .loading {
@@ -3432,13 +3702,55 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #444444;
 }
 
+:global(:root[data-theme="dark"]) .mobileToolbarHandle {
+  background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicator {
+  background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="0"] {
+  background: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="1"] {
+  background: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="2"] {
+  background: #dddddd;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="3"] {
+  background: #999999;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarHandleThumbBlack {
+  background: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .mobileExitGlow {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .tileSignalOn,
 :global(:root[data-theme="dark"]) .tileSignalOff {
   color: #ffffff;
   --tile-signal-accent: #ffffff;
 }
 
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalOn {
+  color: #00ff00;
+}
+
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalOff {
+  color: #ffffff;
+  --tile-signal-accent: #0077ff;
+}
+
 :global(:root[data-theme="dark"]) .tabletExitButton,
+:global(:root[data-theme="dark"]) .mobileExitButton,
 :global(:root[data-theme="dark"]) .compactExitButton,
 :global(:root[data-theme="dark"]) .headerInviteButton,
 :global(:root[data-theme="dark"]) .compactHeaderInviteButton,
@@ -3564,6 +3876,14 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
+:global(:root[data-theme="dark"]) .mobileToolbarMoreActive {
+  background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled) {
+  background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .mobileMoreMenu {
   background: #1e1e1e;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
@@ -3596,23 +3916,25 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .tileCard,
 :global(:root[data-theme="dark"]) .tileMedia,
 :global(:root[data-theme="dark"]) .placeholderTile {
-  background: #280050;
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .tileCardAccent {
   border: 0;
-  background: #280050;
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .tileCardAccent::before {
+  content: none !important;
+  display: none !important;
   inset: 0 auto auto 0;
   width: 100%;
   height: 5px;
   padding: 0;
   border-radius: 25px 25px 0 0;
-  background: #00ff00;
-  -webkit-mask: none;
-  mask: none;
+  background: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
 }
 
 :global(:root[data-theme="dark"]) .tileFooter {
@@ -3623,16 +3945,17 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .stage :global(.lk-participant-placeholder) {
-  background: #280050;
-}
-
-:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-placeholder) {
-  background: #280050;
+:global(:root[data-theme="dark"]) .stage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .stage :global(.lk-participant-placeholder),
+:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .tabletStage :global(.lk-participant-placeholder),
+:global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-tile),
+:global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-placeholder) {
+  background: #280050 !important;
 }
 
 :global(:root[data-theme="dark"]) .placeholderLogo {
-  color: #ffffff;
+  color: #8000ff;
 }
 
 :global(:root[data-theme="dark"]) .loading {
@@ -3869,6 +4192,12 @@ button.stageRoomCode .roomCodeCopyHint {
     aspect-ratio: auto;
   }
 
+  .tabletStage {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+  }
+
   :global(:root[data-theme="dark"]) .tabletViewport {
     background: #222222;
   }
@@ -3894,23 +4223,22 @@ button.stageRoomCode .roomCodeCopyHint {
   :global(:root[data-theme="dark"]) .tabletStage .tileCard,
   :global(:root[data-theme="dark"]) .tabletStage .tileMedia,
   :global(:root[data-theme="dark"]) .tabletStage .placeholderTile {
-    background: #280050;
+    background: #280050 !important;
     box-shadow: none;
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileCardAccent::before {
+    content: none !important;
+    display: none !important;
     inset: 0;
     width: auto;
     height: auto;
     padding: 5px;
     border-radius: inherit;
-    background: linear-gradient(180deg, #00ff00 0%, rgba(40, 0, 80, 0) 100%);
+    background: none !important;
     box-shadow: none;
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    -webkit-mask: none !important;
+    mask: none !important;
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileFooter {
