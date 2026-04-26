@@ -72,6 +72,9 @@ export function DashboardPage({ user, onLogout }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [roomNameInput, setRoomNameInput] = useState("");
+  const [maxUsersInput, setMaxUsersInput] = useState("");
+  const [allowGuests, setAllowGuests] = useState(true);
+  const [requireRequest, setRequireRequest] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -209,6 +212,9 @@ export function DashboardPage({ user, onLogout }: Props) {
 
   const handleCreateRoom = () => {
     setRoomNameInput("");
+    setMaxUsersInput("");
+    setAllowGuests(true);
+    setRequireRequest(false);
     setJoinOpen(false);
     setCreateOpen(true);
   };
@@ -218,8 +224,17 @@ export function DashboardPage({ user, onLogout }: Props) {
     setError("");
     setLoading(true);
 
+    const parsedMax = Number.parseInt(maxUsersInput.trim(), 10);
+    const options: { maxUsers?: number; allowGuests?: boolean; requireRequest?: boolean } = {
+      allowGuests,
+      requireRequest,
+    };
+    if (Number.isFinite(parsedMax) && parsedMax >= 2) {
+      options.maxUsers = parsedMax;
+    }
+
     try {
-      const data = await api.createRoom(roomNameInput.trim());
+      const data: any = await api.createRoom(roomNameInput.trim(), options);
       setCreateOpen(false);
       navigate(`/room/${data.room.slug}`);
     } catch (err: any) {
@@ -501,18 +516,52 @@ export function DashboardPage({ user, onLogout }: Props) {
                 />
               </div>
 
-              <label className="create-label" htmlFor="new-room-name">
+              <label className="create-label create-label-name" htmlFor="new-room-name">
                 Название комнаты
               </label>
               <input
                 id="new-room-name"
-                className="create-input"
+                className="create-input create-input-name"
                 value={roomNameInput}
                 onChange={(e) => setRoomNameInput(e.target.value)}
-                placeholder="Введите название комнаты"
+                placeholder="Название"
                 maxLength={100}
                 autoFocus
               />
+
+              <label className="create-label create-label-max" htmlFor="new-room-max">
+                Максимальное количество участников
+              </label>
+              <input
+                id="new-room-max"
+                className="create-input create-input-max"
+                type="number"
+                min={2}
+                max={50}
+                value={maxUsersInput}
+                onChange={(e) => setMaxUsersInput(e.target.value)}
+                placeholder="Количество"
+              />
+
+              <button
+                type="button"
+                className={`create-toggle-row create-toggle-guests ${allowGuests ? "is-on" : "is-off"}`}
+                onClick={() => setAllowGuests((v) => !v)}
+                aria-pressed={allowGuests}
+              >
+                <span className="create-toggle-text">Разрешить вход гостям</span>
+                <span className="create-toggle-dot" aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                className={`create-toggle-row create-toggle-request ${requireRequest ? "is-on" : "is-off"}`}
+                onClick={() => setRequireRequest((v) => !v)}
+                aria-pressed={requireRequest}
+              >
+                <span className="create-toggle-text">Вход по запросу</span>
+                <span className="create-toggle-dot" aria-hidden="true" />
+              </button>
 
               <button
                 className="create-submit"
@@ -712,8 +761,20 @@ export function DashboardPage({ user, onLogout }: Props) {
             alt="VOCO. Видеоконференции без границ. Разработчики: Ворожцов М.С., Горшков Н.В., Мельникова Д.А., Толмачев М.Р. © 2026 VOCO | help@voco-meet-support.ru"
           />
           <img
+            className="footer-image footer-image--light-mobile"
+            src="/voco-footer-light-mobile.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <img
             className="footer-image footer-image--dark"
             src="/voco-footer-dark.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <img
+            className="footer-image footer-image--dark-mobile"
+            src="/voco-footer-dark-mobile.svg"
             alt=""
             aria-hidden="true"
           />

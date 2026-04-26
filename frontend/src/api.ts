@@ -71,10 +71,13 @@ class ApiClient {
   }
 
   // Rooms
-  async createRoom(name: string) {
+  async createRoom(
+    name: string,
+    options?: { maxUsers?: number; allowGuests?: boolean; requireRequest?: boolean },
+  ) {
     return this.request("/rooms", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...options }),
     });
   }
 

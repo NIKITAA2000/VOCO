@@ -471,7 +471,10 @@
   display: none;
 }
 
-.footer-image--dark {
+.footer-image--light,
+.footer-image--dark,
+.footer-image--light-mobile,
+.footer-image--dark-mobile {
   display: none;
 }
 
@@ -512,7 +515,7 @@
     position: relative;
     width: 100%;
     height: 314px;
-    background: #222222;
+    background: #444444;
     z-index: 5;
     flex: 0 0 314px;
   }
@@ -585,7 +588,7 @@
     position: relative;
     width: 100%;
     height: 314px;
-    background: #222222;
+    background: #444444;
     z-index: 5;
     flex: 0 0 314px;
   }
@@ -660,15 +663,63 @@
     margin: 0 auto;
   }
 
-  .theme-light .footer-image {
+  .theme-light .footer-image,
+  .theme-dark .footer-image {
     position: absolute;
     left: 30px;
     top: 30px;
     width: 330px;
-    height: auto;
-    display: block;
+    height: 254px;
     user-select: none;
     pointer-events: none;
+  }
+
+  .theme-light .footer-image--light {
+    display: none;
+  }
+
+  .theme-light .footer-image--light-mobile {
+    display: block;
+  }
+
+  .theme-dark.screen {
+    --footer-height: 314px;
+    min-height: max(100vh, 1158px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .theme-dark .content {
+    position: relative;
+    inset: auto;
+    flex: 1 0 844px;
+  }
+
+  .theme-dark .footer {
+    position: relative;
+    width: 100%;
+    height: 314px;
+    background: #444444;
+    z-index: 5;
+    flex: 0 0 314px;
+  }
+
+  .theme-dark .footer-content {
+    position: relative;
+    display: block;
+    width: 390px;
+    height: 314px;
+    margin: 0 auto;
+  }
+
+  .theme-dark .footer-image--dark {
+    display: none;
+  }
+
+  .theme-dark .footer-image--dark-mobile {
+    display: block;
   }
 }
 
@@ -2616,28 +2667,100 @@
     background: var(--screen-bg);
   }
 
+  .theme-light .menu-core {
+    width: 390px;
+    height: 924px;
+    background: #ffffff;
+  }
+
+  .theme-light .menu-core::after {
+    display: none;
+  }
+
   .theme-light .menu-core-stripes {
-    z-index: 3;
+    display: none;
   }
 
   .theme-light .menu-mobile-brand {
     display: block;
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 390px;
-    height: 844px;
+    left: 47.5px;
+    top: 144.5px;
+    width: 295px;
+    height: 215px;
     z-index: 6;
+    pointer-events: none;
+    background: url("/voco-mobile-hero-logo.svg") center / 295px 215px no-repeat;
+  }
+
+  .theme-light .menu-mobile-brand-logo {
+    display: none;
+  }
+
+  .theme-light .menu-core::before {
+    content: "";
+    position: absolute;
+    left: 92px;
+    top: 364.5px;
+    width: 216px;
+    height: 415px;
+    background: url("/voco-mobile-menu.svg") top left / 216px 415px no-repeat;
+    z-index: 5;
     pointer-events: none;
   }
 
-  .theme-light .menu-mobile-brand-logo--light {
+  .theme-light .menu-buttons {
     position: absolute;
-    left: 31.51px;
-    top: 262.07px;
-    width: 330px;
-    height: 97.26px;
-    display: block;
+    inset: 0;
+    z-index: 6;
+  }
+
+  .theme-light .menu-button {
+    width: 100px;
+    height: 155px;
+    text-align: center;
+    background: transparent;
+  }
+
+  .theme-light .menu-icon-stack,
+  .theme-light .menu-icon-stack::before,
+  .theme-light .menu-icon-stack::after,
+  .theme-light .menu-button-text,
+  .theme-light .menu-button-text::before,
+  .theme-light .menu-button-text::after {
+    display: none !important;
+  }
+
+  .theme-light .menu-button {
+    color: transparent !important;
+  }
+
+  .theme-light .button-create {
+    left: 92px;
+    top: 409.5px;
+    width: 100px;
+    height: 155px;
+  }
+
+  .theme-light .button-connect {
+    left: 206px;
+    top: 409.5px;
+    width: 102px;
+    height: 155px;
+  }
+
+  .theme-light .button-profile {
+    left: 92px;
+    top: 579.5px;
+    width: 100px;
+    height: 155px;
+  }
+
+  .theme-light .button-settings {
+    left: 207px;
+    top: 579.5px;
+    width: 100px;
+    height: 155px;
   }
 
   .theme-dark .menu-core-source--dark {
@@ -2655,21 +2778,101 @@
   .theme-dark .menu-mobile-brand {
     display: block;
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 390px;
-    height: 844px;
+    left: 47.5px;
+    top: 144.5px;
+    width: 295px;
+    height: 215px;
     z-index: 6;
+    pointer-events: none;
+    background: url("/voco-mobile-hero-logo-dark.svg") center / 295px 215px no-repeat;
+  }
+
+  .theme-dark .menu-mobile-brand-logo {
+    display: none;
+  }
+
+  .theme-dark .menu-core {
+    width: 390px;
+    height: 924px;
+    background: #222222;
+  }
+
+  .theme-dark .menu-core::after {
+    display: none;
+  }
+
+  .theme-dark .menu-core-stripes,
+  .theme-dark .menu-stripe-zone,
+  .theme-dark .menu-stripe-zone--top,
+  .theme-dark .menu-stripe-zone--bottom,
+  .theme-dark .menu-stripe {
+    display: none !important;
+  }
+
+  .theme-dark .menu-core::before {
+    content: "";
+    position: absolute;
+    left: 92px;
+    top: 364.5px;
+    width: 216px;
+    height: 415px;
+    background: url("/voco-mobile-menu-dark.svg") top left / 216px 415px no-repeat;
+    z-index: 5;
     pointer-events: none;
   }
 
-  .theme-dark .menu-mobile-brand-logo--dark {
+  .theme-dark .menu-buttons {
     position: absolute;
-    left: 31.51px;
-    top: 262.07px;
-    width: 330px;
-    height: 97.26px;
-    display: block;
+    inset: 0;
+    z-index: 6;
+  }
+
+  .theme-dark .menu-button {
+    width: 100px;
+    height: 155px;
+    text-align: center;
+    background: transparent;
+  }
+
+  .theme-dark .menu-icon-stack,
+  .theme-dark .menu-icon-stack::before,
+  .theme-dark .menu-icon-stack::after,
+  .theme-dark .menu-button-text,
+  .theme-dark .menu-button-text::before,
+  .theme-dark .menu-button-text::after {
+    display: none !important;
+  }
+
+  .theme-dark .menu-button {
+    color: transparent !important;
+  }
+
+  .theme-dark .button-create {
+    left: 92px;
+    top: 409.5px;
+    width: 100px;
+    height: 155px;
+  }
+
+  .theme-dark .button-connect {
+    left: 206px;
+    top: 409.5px;
+    width: 102px;
+    height: 155px;
+  }
+
+  .theme-dark .button-profile {
+    left: 92px;
+    top: 579.5px;
+    width: 100px;
+    height: 155px;
+  }
+
+  .theme-dark .button-settings {
+    left: 207px;
+    top: 579.5px;
+    width: 100px;
+    height: 155px;
   }
 
   .menu-brand {
