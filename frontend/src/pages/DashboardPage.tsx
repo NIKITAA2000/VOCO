@@ -106,12 +106,16 @@ export function DashboardPage({ user, onLogout }: Props) {
     return window.matchMedia("(max-width: 767px)").matches;
   });
   const createIconSrc = isMobileViewport
-    ? "/create-screen-mobile-light.svg"
+    ? resolvedTheme === "dark"
+      ? "/create-page-mobile-dark.svg"
+      : "/create-page-mobile-light.svg"
     : isTabletViewport
-      ? "/create-icons-tablet-light.svg"
+      ? resolvedTheme === "dark"
+        ? "/create-page-tablet-dark.svg"
+        : "/create-page-tablet-light.svg"
       : resolvedTheme === "dark"
-        ? "/create-icons-dark.svg"
-        : "/create-icons.svg";
+        ? "/create-page-dark.svg"
+        : "/create-page-light.svg";
   const joinTopIconSrc =
     resolvedTheme === "dark" ? "/join-icons-top-dark.svg" : "/join-icons-top.svg";
   const joinBottomIconSrc =
