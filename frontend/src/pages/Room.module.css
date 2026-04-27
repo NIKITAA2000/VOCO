@@ -102,7 +102,7 @@
 
 .micSvg {
   width: 18px;
-  height: 30px;
+  height: 25px;
 }
 
 .speakerSvg {
@@ -223,7 +223,7 @@
 .desktopToolbarIndicator,
 .tabletToolbarHandle {
   position: fixed;
-  left: 50%;
+  left: 50vw;
   top: auto;
   bottom: 80px;
   transform: translateX(-50%);
@@ -835,6 +835,31 @@
   background: #eedcff !important;
 }
 
+.tileCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  padding: 5px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #00ff00 0%, rgba(238, 220, 255, 0) 100%);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.tileSpeaking::after,
+.tileCard:has(:global(.lk-participant-tile[data-lk-speaking="true"]:not([data-lk-source="screen_share"])))::after {
+  opacity: 1;
+}
+
 .tileCardAccent::before {
   content: none !important;
   display: none !important;
@@ -1212,9 +1237,13 @@ button.stageRoomCode:disabled {
 
 .exitLabel {
   position: absolute;
-  left: 79px;
-  right: 58px;
-  top: 13px;
+  left: 50px;
+  right: 50px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-size: 16px;
   line-height: 23px;
@@ -1475,6 +1504,59 @@ button.stageRoomCode:disabled {
 .compactDeviceSlot .deviceButtonFill {
   position: relative;
   inset: auto;
+}
+
+.deviceButton[data-lk-source][aria-pressed="true"],
+.deviceButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+.deviceButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+.deviceButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover,
+.tabletDeviceButton[data-lk-source][aria-pressed="true"],
+.tabletDeviceButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+.tabletDeviceButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+.tabletDeviceButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover,
+.compactControlButton[data-lk-source][aria-pressed="true"],
+.compactControlButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+.compactControlButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+.compactControlButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover {
+  background: #ddd;
+  background-color: #ddd;
+}
+
+.mobileToolbarButton[data-lk-source][aria-pressed="true"],
+.mobileToolbarButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+.mobileToolbarButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+.mobileToolbarButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover {
+  background: transparent;
+  background-color: transparent;
+}
+
+.deviceButton:not(:disabled):hover,
+.deviceButton:not(:disabled):active,
+.tabletDeviceButton:not(:disabled):hover,
+.tabletDeviceButton:not(:disabled):active,
+.compactControlButton:not(:disabled):hover,
+.compactControlButton:not(:disabled):active {
+  background: #ddd;
+  background-color: #ddd;
+}
+
+.mobileToolbarButton:not(:disabled):hover,
+.mobileToolbarButton:not(:disabled):active {
+  background: transparent;
+  background-color: transparent;
+}
+
+.deviceButton:active,
+.tabletDeviceButton:active,
+.compactControlButton:active {
+  background: #ddd;
+  background-color: #ddd;
+}
+
+.mobileToolbarButton:active,
+.utilityButton:active {
+  background: transparent;
+  background-color: transparent;
 }
 
 .deviceMenuTrigger {
@@ -2245,6 +2327,7 @@ button.stageRoomCode:disabled {
 }
 
 .utilityButton {
+  position: relative;
   width: 50px;
   height: 50px;
   padding: 0;
@@ -2255,21 +2338,56 @@ button.stageRoomCode:disabled {
   display: grid;
   place-items: center;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.utilityButton::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.utilityButton > svg {
+  position: relative;
+  z-index: 1;
 }
 
 .utilityButton:nth-child(1)[aria-pressed="true"] {
+  background: transparent;
+}
+
+.utilityButton:nth-child(1)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .utilityButton:nth-child(2)[aria-pressed="true"] {
+  background: transparent;
+}
+
+.utilityButton:nth-child(2)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .utilityButton:nth-child(3)[aria-pressed="true"] {
+  background: transparent;
+}
+
+.utilityButton:nth-child(3)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .utilityButton:nth-child(4)[aria-pressed="true"] {
+  background: transparent;
+}
+
+.utilityButton:nth-child(4)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
 }
 
@@ -2660,13 +2778,24 @@ button.stageRoomCode:disabled {
 }
 
 .mobileToolbarButton svg {
+  position: relative;
+  z-index: 1;
   display: block;
   flex: 0 0 auto;
 }
 
+.mobileToolbarButton::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .mobileToolbarButton .micSvg {
   width: 18px;
-  height: 30px;
+  height: 25px;
 }
 
 .mobileToolbarButton .speakerSvg {
@@ -2718,14 +2847,29 @@ button.stageRoomCode:disabled {
 }
 
 .mobileToolbarParticipantsActive {
+  background: transparent;
+}
+
+.mobileToolbarParticipantsActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .mobileToolbarChatActive {
+  background: transparent;
+}
+
+.mobileToolbarChatActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .mobileToolbarMoreActive {
+  background: transparent;
+}
+
+.mobileToolbarMoreActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
@@ -3024,6 +3168,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .compactUtilityButton {
+  position: relative;
   min-width: 0;
   height: 52px;
   padding: 0 14px;
@@ -3040,11 +3185,28 @@ button.stageRoomCode .roomCodeCopyHint {
   font-size: 15px;
   line-height: 22px;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .compactUtilityButton svg {
+  position: relative;
+  z-index: 1;
   display: block;
   flex: 0 0 auto;
+}
+
+.compactUtilityButton::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.compactUtilityButton > span {
+  position: relative;
+  z-index: 1;
 }
 
 .compactUtilityParticipants {
@@ -3064,25 +3226,50 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .compactUtilityParticipants.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(128, 0, 255, 0.14) 0%, #fff 100%);
+  background: #f3f3f3;
+}
+
+.compactUtilityParticipants.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(128, 0, 255, 0.55) 0%, rgba(243, 243, 243, 0) 100%);
 }
 
 .compactUtilityChat.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(0, 119, 255, 0.14) 0%, #fff 100%);
+  background: #f3f3f3;
+}
+
+.compactUtilityChat.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 119, 255, 0.55) 0%, rgba(243, 243, 243, 0) 100%);
 }
 
 .compactUtilityAudio.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(0, 255, 0, 0.12) 0%, #fff 100%);
+  background: #f3f3f3;
+}
+
+.compactUtilityAudio.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 255, 0, 0.5) 0%, rgba(243, 243, 243, 0) 100%);
 }
 
 .compactUtilitySettings.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0%, #fff 100%);
+  background: #f3f3f3;
+}
+
+.compactUtilitySettings.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.18) 0%, rgba(243, 243, 243, 0) 100%);
 }
 
 :global(.lk-participant-tile) {
   width: 100%;
   height: 100%;
   background: #eedcff !important;
+}
+
+.tileMedia :global(.lk-participant-tile)::after {
+  content: none !important;
+  border: 0 !important;
 }
 
 :global(.lk-participant-media),
@@ -3095,6 +3282,12 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(.lk-video-track video) {
   object-fit: cover;
+}
+
+.tileMedia :global(.lk-participant-media-video[data-lk-source="camera"]),
+.tileMedia :global(.lk-participant-media-video[data-lk-source="screen_share"]) {
+  object-fit: contain;
+  background: #eedcff;
 }
 
 :global(.lk-participant-placeholder) {
@@ -3824,6 +4017,51 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #444444;
 }
 
+:global(:root[data-theme="dark"]) .deviceButton[data-lk-source][aria-pressed="true"],
+:global(:root[data-theme="dark"]) .deviceButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .deviceButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+:global(:root[data-theme="dark"]) .deviceButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .tabletDeviceButton[data-lk-source][aria-pressed="true"],
+:global(:root[data-theme="dark"]) .tabletDeviceButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .tabletDeviceButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+:global(:root[data-theme="dark"]) .tabletDeviceButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .compactControlButton[data-lk-source][aria-pressed="true"],
+:global(:root[data-theme="dark"]) .compactControlButton[data-lk-source][aria-pressed="true"]:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .compactControlButton[data-lk-source="screen_share"][data-lk-enabled="true"],
+:global(:root[data-theme="dark"]) .compactControlButton[data-lk-source="screen_share"][data-lk-enabled="true"]:not(:disabled):hover {
+  background: #444444;
+  background-color: #444444;
+}
+
+:global(:root[data-theme="dark"]) .deviceButton:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .deviceButton:not(:disabled):active,
+:global(:root[data-theme="dark"]) .tabletDeviceButton:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .tabletDeviceButton:not(:disabled):active,
+:global(:root[data-theme="dark"]) .compactControlButton:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .compactControlButton:not(:disabled):active {
+  background: #444444;
+  background-color: #444444;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarButton:not(:disabled):hover,
+:global(:root[data-theme="dark"]) .mobileToolbarButton:not(:disabled):active {
+  background: transparent;
+  background-color: transparent;
+}
+
+:global(:root[data-theme="dark"]) .deviceButton:active,
+:global(:root[data-theme="dark"]) .tabletDeviceButton:active,
+:global(:root[data-theme="dark"]) .compactControlButton:active {
+  background: #444444;
+  background-color: #444444;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarButton:active,
+:global(:root[data-theme="dark"]) .utilityButton:active {
+  background: transparent;
+  background-color: transparent;
+}
+
 :global(:root[data-theme="dark"]) .deviceIcon,
 :global(:root[data-theme="dark"]) .tabletDeviceIcon {
   color: #ffffff;
@@ -3855,19 +4093,39 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityParticipants.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(128, 0, 255, 0.2) 0%, #222222 100%);
+  background: #222222;
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityParticipants.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(128, 0, 255, 0.55) 0%, rgba(34, 34, 34, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityChat.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(0, 119, 255, 0.2) 0%, #222222 100%);
+  background: #222222;
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityChat.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 119, 255, 0.55) 0%, rgba(34, 34, 34, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .compactUtilityAudio.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(0, 255, 0, 0.16) 0%, #222222 100%);
+  background: #222222;
+}
+
+:global(:root[data-theme="dark"]) .compactUtilityAudio.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 255, 0, 0.5) 0%, rgba(34, 34, 34, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .compactUtilitySettings.utilityButtonActive {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, #222222 100%);
+  background: #222222;
+}
+
+:global(:root[data-theme="dark"]) .compactUtilitySettings.utilityButtonActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.16) 0%, rgba(34, 34, 34, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .exitGlow {
@@ -3932,14 +4190,29 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarParticipantsActive {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarParticipantsActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarChatActive {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarChatActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarMoreActive {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarMoreActive::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
@@ -3957,18 +4230,38 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"] {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(2)[aria-pressed="true"] {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(2)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(3)[aria-pressed="true"] {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(3)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(4)[aria-pressed="true"] {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(4)[aria-pressed="true"]::before {
+  opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
@@ -4015,6 +4308,11 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-tile),
 :global(:root[data-theme="dark"]) .mobileStage :global(.lk-participant-placeholder) {
   background: #280050 !important;
+}
+
+:global(:root[data-theme="dark"]) .tileMedia :global(.lk-participant-media-video[data-lk-source="camera"]),
+:global(:root[data-theme="dark"]) .tileMedia :global(.lk-participant-media-video[data-lk-source="screen_share"]) {
+  background: #280050;
 }
 
 :global(:root[data-theme="dark"]) .placeholderLogo {
@@ -4338,18 +4636,38 @@ button.stageRoomCode .roomCodeCopyHint {
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(1)[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(1)[aria-pressed="true"]::before {
+    opacity: 1;
     background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(2)[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(2)[aria-pressed="true"]::before {
+    opacity: 1;
     background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(3)[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(3)[aria-pressed="true"]::before {
+    opacity: 1;
     background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(4)[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  :global(:root[data-theme="dark"]) .tabletStage .utilityButton:nth-child(4)[aria-pressed="true"]::before {
+    opacity: 1;
     background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   }
 
@@ -4368,4 +4686,153 @@ button.stageRoomCode .roomCodeCopyHint {
   .compactUtilityButton {
     justify-content: flex-start;
   }
+}
+
+.deviceStatusOn,
+.tabletDeviceStatusOn,
+.mobileToolbarStatusOn,
+.stageParticipantStatus,
+.chatAttachButton,
+.compactUtilityAudio.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.deviceStatusOff,
+.tabletDeviceStatusOff,
+.mobileToolbarStatusOff,
+.exitGlow,
+.mobileExitGlow,
+.compactUtilityButton:nth-child(4).utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.recordingGlow {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+.deviceMenu,
+.tabletDeviceMenu,
+.exitMenu,
+.tabletExitMenu,
+.utilityButton:nth-child(1)[aria-pressed="true"]::before,
+.mobileToolbarParticipantsActive::before,
+.compactUtilityParticipants.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.utilityButton:nth-child(2)[aria-pressed="true"]::before,
+.mobileToolbarChatActive::before,
+.chatSendButton:not(:disabled),
+.compactUtilityChat.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.utilityButton:nth-child(3)[aria-pressed="true"]::before,
+.compactUtilityAudio.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.utilityButton:nth-child(4)[aria-pressed="true"]::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarMoreActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ffffff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.compactUtilitySettings.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, rgba(0, 0, 0, 0.18) 0%, rgba(243, 243, 243, 0) 100%);
+}
+
+.stageParticipantStatus,
+.chatAttachButton,
+.chatSendButton:not(:disabled),
+.recordingGlow,
+.exitGlow,
+.exitMenu,
+.tabletExitMenu,
+.mobileExitGlow,
+.deviceStatus,
+.deviceMenu,
+.tabletDeviceStatus,
+.tabletDeviceMenu,
+.utilityButton::before,
+.mobileToolbarStatus,
+.mobileToolbarButton::before,
+.compactUtilityButton::before {
+  background: var(--room-toolbar-glow, none) !important;
+}
+
+:global(:root[data-theme="dark"]) .deviceStatusOn,
+:global(:root[data-theme="dark"]) .tabletDeviceStatusOn,
+:global(:root[data-theme="dark"]) .mobileToolbarStatusOn,
+:global(:root[data-theme="dark"]) .stageParticipantStatus,
+:global(:root[data-theme="dark"]) .chatAttachButton,
+:global(:root[data-theme="dark"]) .compactUtilityAudio.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .deviceStatusOff,
+:global(:root[data-theme="dark"]) .tabletDeviceStatusOff,
+:global(:root[data-theme="dark"]) .mobileToolbarStatusOff,
+:global(:root[data-theme="dark"]) .exitGlow,
+:global(:root[data-theme="dark"]) .mobileExitGlow {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .recordingGlow {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 34, 34, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .deviceMenu,
+:global(:root[data-theme="dark"]) .tabletDeviceMenu,
+:global(:root[data-theme="dark"]) .exitMenu,
+:global(:root[data-theme="dark"]) .tabletExitMenu,
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"]::before,
+:global(:root[data-theme="dark"]) .mobileToolbarParticipantsActive::before,
+:global(:root[data-theme="dark"]) .compactUtilityParticipants.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(2)[aria-pressed="true"]::before,
+:global(:root[data-theme="dark"]) .mobileToolbarChatActive::before,
+:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled),
+:global(:root[data-theme="dark"]) .compactUtilityChat.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(3)[aria-pressed="true"]::before,
+:global(:root[data-theme="dark"]) .compactUtilityAudio.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .utilityButton:nth-child(4)[aria-pressed="true"]::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .mobileToolbarMoreActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .compactUtilitySettings.utilityButtonActive::before {
+  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, rgba(255, 255, 255, 0.16) 0%, rgba(34, 34, 34, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .stageParticipantStatus,
+:global(:root[data-theme="dark"]) .chatAttachButton,
+:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled),
+:global(:root[data-theme="dark"]) .recordingGlow,
+:global(:root[data-theme="dark"]) .exitGlow,
+:global(:root[data-theme="dark"]) .exitMenu,
+:global(:root[data-theme="dark"]) .tabletExitMenu,
+:global(:root[data-theme="dark"]) .mobileExitGlow,
+:global(:root[data-theme="dark"]) .deviceStatus,
+:global(:root[data-theme="dark"]) .deviceMenu,
+:global(:root[data-theme="dark"]) .tabletDeviceStatus,
+:global(:root[data-theme="dark"]) .tabletDeviceMenu,
+:global(:root[data-theme="dark"]) .utilityButton::before,
+:global(:root[data-theme="dark"]) .mobileToolbarStatus,
+:global(:root[data-theme="dark"]) .mobileToolbarButton::before,
+:global(:root[data-theme="dark"]) .compactUtilityButton::before {
+  background: var(--room-toolbar-glow, none) !important;
 }
