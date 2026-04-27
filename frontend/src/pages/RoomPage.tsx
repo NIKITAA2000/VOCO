@@ -34,6 +34,12 @@ const TABLET_WIDTH = 768;
 const MOBILE_WIDTH = 390;
 const ROOM_BAR_HEIGHT = 100;
 const ROOM_TILE_PAGE_SIZE = 4;
+const DESKTOP_TILE_COLUMN_WIDTH = 293;
+const DESKTOP_TILE_GRID_WIDTH = DESKTOP_TILE_COLUMN_WIDTH * 2;
+const DESKTOP_TILE_GRID_LEFT = (STAGE_WIDTH - DESKTOP_TILE_GRID_WIDTH) / 2;
+const DESKTOP_TILE_PANEL_SAFE_LEFT = 470;
+const DESKTOP_EXPANDED_MEDIA_TOP = 107;
+const DESKTOP_EXPANDED_MEDIA_HEIGHT = 810;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
 const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px)";
@@ -100,33 +106,105 @@ function mobileContentRect(row: number, rows: number, rowSpan = 1): CSSPropertie
   return contentRect(0, MOBILE_WIDTH, MOBILE_WIDTH, row, rows, rowSpan);
 }
 
-function getStageTileFrames(count: number) {
+function getStageTileFrames(count: number, gridLeft = DESKTOP_TILE_GRID_LEFT, expandSingleTile = false) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
   if (normalizedCount === 1) {
-    return [{ id: "tile-1", accent: true, style: stageRect(470, 100, 586, 824) }];
+    if (expandSingleTile) {
+      return [
+        {
+          id: "tile-1",
+          accent: true,
+          style: stageRect(0, DESKTOP_EXPANDED_MEDIA_TOP, STAGE_WIDTH, DESKTOP_EXPANDED_MEDIA_HEIGHT),
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "tile-1",
+        accent: true,
+        style: stageRect(gridLeft, 100, DESKTOP_TILE_GRID_WIDTH, 824),
+      },
+    ];
   }
 
   if (normalizedCount === 2) {
     return [
-      { id: "tile-1", accent: true, style: stageRect(470, 100, 293, 824) },
-      { id: "tile-2", accent: false, style: stageRect(763, 100, 293, 824) },
+      {
+        id: "tile-1",
+        accent: true,
+        style: stageRect(gridLeft, 100, DESKTOP_TILE_COLUMN_WIDTH, 824),
+      },
+      {
+        id: "tile-2",
+        accent: false,
+        style: stageRect(
+          gridLeft + DESKTOP_TILE_COLUMN_WIDTH,
+          100,
+          DESKTOP_TILE_COLUMN_WIDTH,
+          824,
+        ),
+      },
     ];
   }
 
   if (normalizedCount === 3) {
     return [
-      { id: "tile-1", accent: true, style: stageRect(470, 100, 586, 412) },
-      { id: "tile-2", accent: false, style: stageRect(470, 512, 293, 412) },
-      { id: "tile-3", accent: false, style: stageRect(763, 512, 293, 412) },
+      {
+        id: "tile-1",
+        accent: true,
+        style: stageRect(gridLeft, 100, DESKTOP_TILE_GRID_WIDTH, 412),
+      },
+      {
+        id: "tile-2",
+        accent: false,
+        style: stageRect(gridLeft, 512, DESKTOP_TILE_COLUMN_WIDTH, 412),
+      },
+      {
+        id: "tile-3",
+        accent: false,
+        style: stageRect(
+          gridLeft + DESKTOP_TILE_COLUMN_WIDTH,
+          512,
+          DESKTOP_TILE_COLUMN_WIDTH,
+          412,
+        ),
+      },
     ];
   }
 
   return [
-    { id: "tile-1", accent: true, style: stageRect(470, 100, 293, 412) },
-    { id: "tile-2", accent: false, style: stageRect(763, 100, 293, 412) },
-    { id: "tile-3", accent: false, style: stageRect(470, 512, 293, 412) },
-    { id: "tile-4", accent: false, style: stageRect(763, 512, 293, 412) },
+    {
+      id: "tile-1",
+      accent: true,
+      style: stageRect(gridLeft, 100, DESKTOP_TILE_COLUMN_WIDTH, 412),
+    },
+    {
+      id: "tile-2",
+      accent: false,
+      style: stageRect(
+        gridLeft + DESKTOP_TILE_COLUMN_WIDTH,
+        100,
+        DESKTOP_TILE_COLUMN_WIDTH,
+        412,
+      ),
+    },
+    {
+      id: "tile-3",
+      accent: false,
+      style: stageRect(gridLeft, 512, DESKTOP_TILE_COLUMN_WIDTH, 412),
+    },
+    {
+      id: "tile-4",
+      accent: false,
+      style: stageRect(
+        gridLeft + DESKTOP_TILE_COLUMN_WIDTH,
+        512,
+        DESKTOP_TILE_COLUMN_WIDTH,
+        412,
+      ),
+    },
   ];
 }
 
@@ -196,6 +274,27 @@ function getTrackDisplayName(trackRef: any, localIdentity?: string) {
 
 function getTrackMicEnabled(trackRef: any) {
   return Boolean(trackRef?.participant?.isMicrophoneEnabled);
+}
+
+function getTrackSource(trackRef: any) {
+  return trackRef?.publication?.source ?? trackRef?.source;
+}
+
+function isTrackSpeaking(trackRef: any) {
+  return (
+    getTrackSource(trackRef) !== Track.Source.ScreenShare &&
+    Boolean(trackRef?.participant?.isSpeaking)
+  );
+}
+
+function hasExpandedVideoMedia(trackRef: any) {
+  const source = getTrackSource(trackRef);
+
+  if (source === Track.Source.ScreenShare) {
+    return true;
+  }
+
+  return source === Track.Source.Camera && Boolean(trackRef?.participant?.isCameraEnabled);
 }
 
 function getInitials(name: string) {
@@ -329,7 +428,7 @@ function ChevronDownIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
         y1="-1"
         x2="10.2591"
         y2="-1"
-        transform="matrix(0.682318 0.731055 -0.682318 0.731055 0 1.46289)"
+        transform="matrix(0.682318 0.731055 -0.682318 0.731055 0 1)"
         stroke="currentColor"
         strokeWidth="2"
       />
@@ -337,7 +436,7 @@ function ChevronDownIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
         y1="-1"
         x2="10.2591"
         y2="-1"
-        transform="matrix(0.682318 -0.731055 0.682318 0.731055 7 8.96289)"
+        transform="matrix(0.682318 -0.731055 0.682318 0.731055 7 8.5)"
         stroke="currentColor"
         strokeWidth="2"
       />
@@ -349,16 +448,16 @@ function MicIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       className={iconClassName(styles.roomIcon, styles.micSvg, className)}
-      viewBox="0 0 18 30"
+      viewBox="0 0 18 25"
       fill="none"
       aria-hidden="true"
       {...props}
     >
-      <rect x="5" y="1" width="8" height="18" rx="4" stroke="currentColor" strokeWidth="2" />
-      <path d="M4 29H14" stroke="currentColor" strokeWidth="2" />
-      <path d="M9 22V30" stroke="currentColor" strokeWidth="2" />
+      <rect x="5" y="0" width="8" height="16" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 24H14" stroke="currentColor" strokeWidth="2" />
+      <path d="M9 19V23" stroke="currentColor" strokeWidth="2" />
       <path
-        d="M18 15C18 19.9706 13.9706 24 9 24C4.02944 24 0 19.9706 0 15H2C2 18.866 5.13401 22 9 22C12.866 22 16 18.866 16 15H18Z"
+        d="M18 12C18 16.9706 13.9706 21 9 21C4.02944 21 0 16.9706 0 12H2C2 15.866 5.13401 19 9 19C12.866 19 16 15.866 16 12H18Z"
         fill="currentColor"
       />
     </svg>
@@ -408,12 +507,12 @@ function CameraIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
       aria-hidden="true"
       {...props}
     >
-      <rect x="1" y="1" width="20" height="18" rx="9" stroke="currentColor" strokeWidth="2" />
+      <rect x="1" y="3" width="16" height="14" rx="7" stroke="currentColor" strokeWidth="2" />
       <mask id={maskId} fill="white">
-        <path d="M30 20L20 10L30 0V20Z" />
+        <path d="M26 20L16 10L26 0V20Z" />
       </mask>
       <path
-        d="M30 20L28.5858 21.4142L32 24.8284V20H30ZM20 10L18.5858 8.58579L17.1716 10L18.5858 11.4142L20 10ZM30 0H32V-4.82843L28.5858 -1.41421L30 0ZM30 20L31.4142 18.5858L21.4142 8.58579L20 10L18.5858 11.4142L28.5858 21.4142L30 20ZM20 10L21.4142 11.4142L31.4142 1.41421L30 0L28.5858 -1.41421L18.5858 8.58579L20 10ZM30 0H28V20H30H32V0H30Z"
+        d="M26 20L24.5858 21.4142L28 24.8284V20H26ZM16 10L14.5858 8.58579L13.1716 10L14.5858 11.4142L16 10ZM26 0H28V-4.82843L24.5858 -1.41421L26 0ZM26 20L27.4142 18.5858L17.4142 8.58579L16 10L14.5858 11.4142L24.5858 21.4142L26 20ZM16 10L17.4142 11.4142L27.4142 1.41421L26 0L24.5858 -1.41421L14.5858 8.58579L16 10ZM26 0H24V20H26H28V0H26Z"
         fill="currentColor"
         mask={`url(#${maskId})`}
       />
@@ -430,9 +529,9 @@ function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
       aria-hidden="true"
       {...props}
     >
-      <rect x="1" y="1" width="28" height="14.3636" stroke="currentColor" strokeWidth="2" />
-      <path d="M15 14.5449V18.1813" stroke="currentColor" strokeWidth="2" />
-      <line x1="9" y1="19" x2="21.8571" y2="19" stroke="currentColor" strokeWidth="2" />
+      <rect x="5" y="1" width="20" height="14" stroke="currentColor" strokeWidth="2" />
+      <path d="M15 15V19" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 19H22" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -1356,12 +1455,19 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   const visibleTracks = hasScreenShare
     ? [allTracks[0]]
     : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
-  const tileFrames = getStageTileFrames(visibleTracks.length);
+  const isParticipantsPanelOpen = visiblePanels.participants;
+  const isChatPanelOpen = visiblePanels.chat;
+  const canExpandSingleDesktopTile = !isParticipantsPanelOpen && !isChatPanelOpen;
+  const desktopTileGridLeft =
+    isParticipantsPanelOpen || isChatPanelOpen ? DESKTOP_TILE_PANEL_SAFE_LEFT : DESKTOP_TILE_GRID_LEFT;
+  const tileFrames = getStageTileFrames(
+    visibleTracks.length,
+    desktopTileGridLeft,
+    canExpandSingleDesktopTile && visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+  );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
   const mobileTileFrames = getMobileTileFrames(mobileVisibleTracks.length);
-  const isParticipantsPanelOpen = visiblePanels.participants;
-  const isChatPanelOpen = visiblePanels.chat;
 
   useEffect(() => {
     setTilePage((current) => Math.min(current, tilePageCount - 1));
@@ -1686,12 +1792,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             const trackRef = visibleTracks[index];
             const micEnabled = getTrackMicEnabled(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
+            const speaking = isTrackSpeaking(trackRef);
 
             return (
               <article
                 className={`${styles.tileCard} ${styles.tabletTileCard} ${
                   frame.accent ? styles.tileCardAccent : ""
-                }`}
+                } ${speaking ? styles.tileSpeaking : ""}`}
                 style={frame.style}
                 key={frame.id}
               >
@@ -1951,12 +2058,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             const trackRef = mobileVisibleTracks[index];
             const micEnabled = getTrackMicEnabled(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
+            const speaking = isTrackSpeaking(trackRef);
 
             return (
               <article
                 className={`${styles.tileCard} ${styles.mobileTileCard} ${
                   frame.accent ? styles.tileCardAccent : ""
-                }`}
+                } ${speaking ? styles.tileSpeaking : ""}`}
                 style={frame.style}
                 key={frame.id}
               >
@@ -2242,10 +2350,13 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           const trackRef = visibleTracks[index];
           const micEnabled = getTrackMicEnabled(trackRef);
           const displayName = getTrackDisplayName(trackRef, localIdentity);
+          const speaking = isTrackSpeaking(trackRef);
 
           return (
             <article
-              className={`${styles.tileCard} ${frame.accent ? styles.tileCardAccent : ""}`}
+              className={`${styles.tileCard} ${frame.accent ? styles.tileCardAccent : ""} ${
+                speaking ? styles.tileSpeaking : ""
+              }`}
               style={frame.style}
               key={frame.id}
             >
