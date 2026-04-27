@@ -4367,6 +4367,13 @@ button.stageRoomCode .roomCodeCopyHint {
     linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
 }
 
+:global(:root[data-theme="dark"]) .waitingClock,
+:global(:root[data-theme="dark"]) .waitingMeta {
+  background: linear-gradient(90deg, #002550 5.26%, #0077ff 50%, #002550 94.74%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .waitingCircle {
     animation: none;
