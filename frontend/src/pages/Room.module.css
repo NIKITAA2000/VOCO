@@ -3327,6 +3327,69 @@ button.stageRoomCode .roomCodeCopyHint {
   z-index: 1;
 }
 
+.waitingClock {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 225px);
+  width: 475px;
+  text-align: center;
+  transform: translateX(-50%);
+  z-index: 1;
+  font-family: "Jost", sans-serif;
+  background: linear-gradient(90deg, #deeeff 5.26%, #0077ff 50%, #deeeff 94.74%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.waitingClockDate {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 23px;
+  height: 23px;
+}
+
+.waitingClockTime {
+  font-weight: 900;
+  font-size: 32px;
+  line-height: 46px;
+  margin-top: 7px;
+}
+
+.waitingMeta {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 149px);
+  width: 475px;
+  text-align: center;
+  transform: translateX(-50%);
+  z-index: 1;
+  font-family: "Jost", sans-serif;
+  background: linear-gradient(90deg, #deeeff 5.26%, #0077ff 50%, #deeeff 94.74%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.waitingMetaName {
+  font-weight: 900;
+  font-size: 24px;
+  line-height: 35px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waitingMetaOwner {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 23px;
+  margin-top: 7px;
+}
+
 .waitingHeader {
   position: relative;
   display: flex;
@@ -4103,54 +4166,59 @@ button.stageRoomCode .roomCodeCopyHint {
   .waitingPanel {
     left: 50%;
     top: 50%;
-    width: min(475px, calc(100vw - 48px));
+    width: min(330px, calc(100vw - 48px));
     height: 205px;
     transform: translate(-50%, -50%);
   }
 
   .waitingHeader h2 {
-    font-size: 22px;
-    line-height: 32px;
+    font-size: 32px;
+    line-height: 46px;
   }
 
   .waitingClose {
-    width: 31px;
-    height: 31px;
-    background-size: 31px 31px;
+    width: 45px;
+    height: 45px;
+    background-size: 45px 45px;
   }
 
   .waitingInput,
   .waitingSubmit {
-    height: 46px;
-    font-size: 14px;
+    height: 50px;
+    font-size: 16px;
   }
 
   .waitingLabel {
-    left: 13px;
-    top: 46px;
-    width: calc(100% - 26px);
-    height: 16px;
-    font-size: 11px;
-    line-height: 16px;
+    left: 20px;
+    top: 52px;
+    width: calc(100% - 40px);
+    height: 23px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .waitingInput {
-    top: 62px;
-    padding: 0 13px;
+    top: 75px;
+    padding: 0 20px;
   }
 
   .waitingError {
     left: 0;
-    top: 116px;
+    top: 132px;
     width: 100%;
-    min-height: 16px;
-    padding: 0 13px;
-    font-size: 11px;
-    line-height: 16px;
+    min-height: 23px;
+    padding: 0 20px;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .waitingSubmit {
-    top: 135px;
+    top: 155px;
+  }
+
+  .waitingClock,
+  .waitingMeta {
+    width: min(330px, calc(100vw - 48px));
   }
 
   .waitingPanelTall {
