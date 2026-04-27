@@ -2431,11 +2431,29 @@ export function RoomPage({ user }: Props) {
     const [token, setToken] = useState("");
     const [livekitUrl, setLivekitUrl] = useState("");
     const [roomName, setRoomName] = useState("");
+    const [ownerName, setOwnerName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
+    const [now, setNow] = useState(() => new Date());
+
+    useEffect(() => {
+        const id = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(id);
+    }, []);
+
+    const waitingDate = now.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+    });
+    const waitingTime = now.toLocaleTimeString("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
     // LiveKit emits `disconnected` on cleanup/unmount as well, so only finalize leave after an explicit exit action.
     const leaveRequestedRef = useRef(false);
     const [displayName, setDisplayName] = useState(() => {
@@ -2457,6 +2475,7 @@ export function RoomPage({ user }: Props) {
                     const details = await api.getRoom(slug);
                     setIsOwner(details.room?.owner?.id === user?.id);
                     setMyRole(details.room?.myRole ?? null);
+                    setOwnerName(details.room?.owner?.username ?? "");
                 } catch {
                     // ignore — не критично для входа
                 }
@@ -2598,6 +2617,11 @@ export function RoomPage({ user }: Props) {
                         <div className={`${styles.waitingCircle} ${styles.waitingCircle10}`} />
                     </div>
 
+                    <div className={styles.waitingClock} aria-hidden="true">
+                        <div className={styles.waitingClockDate}>{waitingDate}</div>
+                        <div className={styles.waitingClockTime}>{waitingTime}</div>
+                    </div>
+
                     <section className={styles.waitingPanel} aria-label="Комната ожидания">
                         <div className={styles.waitingHeader}>
                             <h2>Комната ожидания</h2>
@@ -2638,6 +2662,13 @@ export function RoomPage({ user }: Props) {
                             {entering ? "Вход..." : "Войти"}
                         </button>
                     </section>
+
+                    {(roomName || ownerName) && (
+                        <div className={styles.waitingMeta} aria-hidden="true">
+                            {roomName && <div className={styles.waitingMetaName}>{roomName}</div>}
+                            {ownerName && <div className={styles.waitingMetaOwner}>{ownerName}</div>}
+                        </div>
+                    )}
                 </div>
             </div>
         );
