@@ -19,6 +19,7 @@ export function InviteLandingPage({ user }: Props) {
   const [livekitUrl, setLivekitUrl] = useState("");
   const [roomName, setRoomName] = useState("");
   const [roomSlug, setRoomSlug] = useState("");
+  const [sessionId, setSessionId] = useState<string>("");
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
   const [guestName, setGuestName] = useState("");
@@ -38,12 +39,16 @@ export function InviteLandingPage({ user }: Props) {
     setSubmitting(true);
     setError("");
     try {
-      const data = await api.joinByInvite(code, name || undefined);
+      const data = await api.joinByInvite(code, {
+        isGuest: false,
+        displayName: name || undefined,
+      });
       if (name) localStorage.setItem("voco_room_display_name", name);
       setToken(data.token);
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
+      if (data.sessionId) setSessionId(data.sessionId);
       setConferenceReady(true);
     } catch (err: any) {
       setError(err.message);
@@ -58,11 +63,16 @@ export function InviteLandingPage({ user }: Props) {
     setSubmitting(true);
     setError("");
     try {
-      const data = await api.joinByInviteAsGuest(code, name);
+      // Используем метод joinByInvite, но с isGuest: true
+      const data = await api.joinByInvite(code, {
+        isGuest: true,
+        displayName: name,
+      });
       setToken(data.token);
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
+      if (data.sessionId) setSessionId(data.sessionId);
       setConferenceReady(true);
     } catch (err: any) {
       const message: string = err?.message ?? "";
@@ -104,18 +114,37 @@ export function InviteLandingPage({ user }: Props) {
   }, []);
 
   const handleDisconnected = useCallback(() => {
-    if (!leaveRequestedRef.current) return;
-    if (isAuthed && roomSlug) {
-      api.leaveRoom(roomSlug).catch(() => undefined);
-      navigate("/dashboard");
-      return;
-    }
-    navigate("/login");
-  }, [isAuthed, navigate, roomSlug]);
+      if (!leaveRequestedRef.current)
+          return;
+
+      // Передаём sessionId, если он есть (для гостей и авторизованных)
+      if (roomSlug && sessionId) {
+        api.leaveRoom(roomSlug, sessionId)
+          .then(() => {})
+          .catch(err => {});
+      }
+
+      navigate(isAuthed ? "/dashboard" : "/login");
+  }, [isAuthed, navigate, roomSlug, sessionId]);
 
   useEffect(() => {
     if (!code) setError("Ссылка недействительна");
   }, [code]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (conferenceReady && sessionId && roomSlug) {
+        const blob = new Blob([JSON.stringify({ sessionId })], { type: 'application/json' });
+        navigator.sendBeacon(`/api/rooms/${roomSlug}/leave`, blob);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [conferenceReady, sessionId, roomSlug]);
 
   if (!conferenceReady) {
     const headerTitle = guestsDenied

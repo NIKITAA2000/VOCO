@@ -49,6 +49,33 @@ interface ConferenceRoomContentProps {
   canEndRoom?: boolean;
 }
 
+// Утилита: стабильный sessionId для гостя в конкретной комнате
+function getStableGuestSessionId(roomSlug: string): string {
+  if (typeof window === 'undefined') return `guest_${Math.random().toString(36).slice(2, 18)}`;
+
+  const storageKey = `voco_guest_session_${roomSlug}`;
+  let sessionId = localStorage.getItem(storageKey);
+
+  // Валидируем формат: guest_[16 символов a-zA-Z0-9]
+  const validPattern = /^guest_[a-zA-Z0-9]{16}$/;
+
+  if (!sessionId || !validPattern.test(sessionId)) {
+    // Генерируем новый стабильный ID
+    const randomPart = Math.random().toString(36).slice(2, 18);
+    sessionId = `guest_${randomPart}`;
+    localStorage.setItem(storageKey, sessionId);
+  }
+
+  return sessionId;
+}
+
+  // Утилита: очистка сессии при выходе
+  function clearGuestSessionId(roomSlug: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(`voco_guest_session_${roomSlug}`);
+  }
+}
+
 function toStagePercent(value: number, max: number) {
   return `${(value / max) * 100}%`;
 }
@@ -159,7 +186,21 @@ function formatMessageTime(timestamp: number) {
 }
 
 function getParticipantDisplayName(participant: any, localIdentity?: string) {
-  const baseName = participant?.name || participant?.identity || "Участник";
+  let baseName = "Участник";
+
+  // Пытаемся достать из metadata
+  try {
+    if (participant.metadata) {
+      const meta = JSON.parse(participant.metadata);
+      if (meta?.displayName) baseName = meta.displayName;
+    }
+  } catch {}
+
+  // Fallback на стандартные поля LiveKit
+  if (!baseName || baseName === "Участник") {
+    baseName = participant?.name || participant?.identity || "Участник";
+  }
+
   return formatParticipantName(baseName, participant?.identity === localIdentity);
 }
 
@@ -1835,6 +1876,7 @@ export function RoomPage({ user }: Props) {
     const [token, setToken] = useState("");
     const [livekitUrl, setLivekitUrl] = useState("");
     const [roomName, setRoomName] = useState("");
+    const [sessionId, setSessionId] = useState<string>("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
@@ -1849,43 +1891,28 @@ export function RoomPage({ user }: Props) {
     });
 
     useEffect(() => {
-        if (!slug) return;
+      if (!slug) return;
+      // Сразу показываем форму ввода имени, не ждём ответа от сервера
+      setLoading(false);
+    }, [slug]);
 
-        const joinRoom = async () => {
-            try {
-                const data = await api.joinRoom(slug);
-                setToken(data.token);
-                setLivekitUrl(data.livekitUrl);
-                setRoomName(data.room.name);
-                try {
-                    const details = await api.getRoom(slug);
-                    setIsOwner(details.room?.owner?.id === user?.id);
-                    setMyRole(details.room?.myRole ?? null);
-                } catch {
-                    // ignore — не критично для входа
-                }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        joinRoom();
-    }, [slug, user?.id]);
 
     const leaveRoomAndNavigate = useCallback(async () => {
-        leaveRequestedRef.current = false;
+      leaveRequestedRef.current = false;
 
-        if (slug) {
-            try {
-                await api.leaveRoom(slug);
-            } catch {
-                // ignore
-            }
+      if (slug && sessionId) {
+        try {
+          await api.leaveRoom(slug, sessionId);
+          // Очищаем стабильный sessionId для гостя при выходе
+          if (!api.getToken()) { // Если это гость (нет токена)
+            clearGuestSessionId(slug);
+          }
+        } catch (err) {
+          console.warn('[LEAVE] Error:', err);
         }
-        navigate("/dashboard");
-    }, [slug, navigate]);
+      }
+      navigate("/dashboard");
+    }, [slug, navigate, sessionId]);
 
     const handleWaitingLeave = useCallback(() => {
         void leaveRoomAndNavigate();
@@ -1950,31 +1977,63 @@ export function RoomPage({ user }: Props) {
     const [entering, setEntering] = useState(false);
 
     const handleEnterConference = useCallback(async () => {
-        if (!slug || !token || !livekitUrl || error || entering) return;
+        if (!slug || entering) return;
 
-        const normalizedName = displayName.trim() || user?.username || user?.email || "";
-        if (normalizedName) {
-            localStorage.setItem("voco_room_display_name", normalizedName);
-            setDisplayName(normalizedName);
+        const normalizedName = displayName.trim();
+        if (!normalizedName) {
+            setError("Введите имя для входа");
+            return;
         }
 
         setEntering(true);
+        setError("");
         try {
-            const fallbackName = user?.username || user?.email || "";
-            if (normalizedName && normalizedName !== fallbackName) {
-                const data = await api.joinRoom(slug, normalizedName);
-                setToken(data.token);
-                setLivekitUrl(data.livekitUrl);
-                setRoomName(data.room.name);
-            }
+            const authToken = api.getToken();
+            const isGuest = !authToken;
+
+            // Запрос выполняется только по клику, когда имя уже введено
+            const data = await api.joinRoom(slug, {
+                isGuest,
+                displayName: normalizedName,
+            });
+
+            setToken(data.token);
+            setLivekitUrl(data.livekitUrl);
+            setRoomName(data.room.name);
+            if (data.sessionId) setSessionId(data.sessionId);
+
+            // Получаем роли/права
+            try {
+                const details = await api.getRoom(slug);
+                setIsOwner(details.room?.owner?.id === user?.id);
+                setMyRole(details.room?.myRole ?? null);
+            } catch { /* ignore */ }
+
+            localStorage.setItem("voco_room_display_name", normalizedName);
             leaveRequestedRef.current = false;
-            setConferenceReady(true);
+            setConferenceReady(true); // Мгновенный переход в конференцию
         } catch (err: any) {
             setError(err.message);
         } finally {
             setEntering(false);
         }
-    }, [displayName, entering, error, livekitUrl, slug, token, user]);
+    }, [slug, displayName, entering, user?.id]);
+
+    useEffect(() => {
+      const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        // Если в конференции и есть sessionId — отправляем leave через beacon
+        if (conferenceReady && sessionId && slug) {
+          const blob = new Blob([JSON.stringify({ sessionId })], { type: 'application/json' });
+          navigator.sendBeacon(`/api/rooms/${slug}/leave`, blob);
+        }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }, [conferenceReady, sessionId, slug]);
 
     if (loading) {
         return (
@@ -2037,7 +2096,7 @@ export function RoomPage({ user }: Props) {
                             className={styles.waitingSubmit}
                             type="button"
                             onClick={handleEnterConference}
-                            disabled={!token || !livekitUrl || !!error || entering}
+                            disabled={entering || !displayName.trim()}
                         >
                             {entering ? "Вход..." : "Войти"}
                         </button>

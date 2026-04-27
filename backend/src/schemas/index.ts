@@ -37,6 +37,17 @@ export const blockUserSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+export const kickUserSchema = z.object({
+  sessionId: z.string().min(1, 'sessionId обязателен'),
+  reason: z.string().max(500).optional(),
+});
+
+export const muteTrackSchema = z.object({
+  sessionId: z.string().min(1, 'sessionId обязателен'),
+  trackSid: z.string().optional(), // undefined = все аудио-треки
+  mute: z.boolean().default(true),
+});
+
 export const changeRoleSchema = z.object({
   role: z.enum(["MODERATOR", "PARTICIPANT"], {
     errorMap: () => ({ message: "Роль должна быть MODERATOR или PARTICIPANT" }),
@@ -49,6 +60,16 @@ export const joinGuestSchema = z.object({
     .min(1, "Имя обязательно")
     .max(50, "Имя — максимум 50 символов"),
 });
+
+export const joinRoomSchema = z.object({
+  displayName: z.string().min(1).max(50).optional(),
+  isGuest: z.boolean().optional(),
+  inviteCode: z.string().max(20).optional(),
+});
+
+export type KickUserInput = z.infer<typeof kickUserSchema>;
+export type MuteTrackInput = z.infer<typeof muteTrackSchema>;
+export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

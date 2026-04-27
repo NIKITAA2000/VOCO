@@ -17,6 +17,6 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
-app.use("/api/invite", inviteRoutes);
+app.use("/api/invites", inviteRoutes);
 
 export default app;

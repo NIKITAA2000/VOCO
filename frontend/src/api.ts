@@ -86,15 +86,32 @@ class ApiClient {
     return this.request(`/rooms/${slug}`);
   }
 
-  async joinRoom(slug: string, displayName?: string) {
+  async joinRoom(slug: string, options?: {
+    displayName?: string;
+    isGuest?: boolean;
+    sessionId?: string;
+  }) {
+    const body: Record<string, any> = {};
+    if (options?.displayName)
+      body.displayName = options.displayName;
+    if (options?.isGuest !== undefined)
+      body.isGuest = options.isGuest;
+    if (options?.sessionId)
+      body.sessionId = options.sessionId;
+
     return this.request(`/rooms/${slug}/join`, {
       method: "POST",
-      body: JSON.stringify(displayName ? { displayName } : {}),
+      body: JSON.stringify(body),
     });
   }
 
-  async leaveRoom(slug: string) {
-    return this.request(`/rooms/${slug}/leave`, { method: "POST" });
+  async leaveRoom(slug: string, sessionId: string) {
+    const result = await this.request(`/rooms/${slug}/leave`, {
+        method: "POST",
+        body: JSON.stringify({ sessionId }),
+    });
+
+    return result;
   }
 
   async deleteRoom(slug: string) {
@@ -125,17 +142,17 @@ class ApiClient {
   }
 
   // Invites (join)
-  async joinByInvite(code: string, displayName?: string) {
-    return this.request(`/invite/${code}/join`, {
-      method: "POST",
-      body: JSON.stringify(displayName ? { displayName } : {}),
-    });
-  }
+  async joinByInvite(code: string, options?: { displayName?: string; isGuest?: boolean }) {
+    const body: Record<string, any> = {};
+    if (options?.displayName)
+      body.displayName = options.displayName;
+    if (options?.isGuest !== undefined)
+      body.isGuest = options.isGuest;
 
-  async joinByInviteAsGuest(code: string, displayName: string) {
-    return this.request(`/invite/${code}/join-guest`, {
+    // Путь: /invites/:code/join
+    return this.request(`/invites/${code}/join`, {
       method: "POST",
-      body: JSON.stringify({ displayName }),
+      body: JSON.stringify(body),
     });
   }
 }
