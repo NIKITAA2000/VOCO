@@ -657,6 +657,20 @@ type DeviceMenuKey = "mic" | "speaker" | "cam";
 type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
 type RoomPanelKey = "participants" | "chat";
 
+function DeviceCheckIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 30 30"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M7 14.6667L12.714 20L22 0" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 function DeviceSelectDropdown({
   kind,
   className,
@@ -677,7 +691,7 @@ function DeviceSelectDropdown({
           const label = device.label || `Устройство ${index + 1}`;
           const isActive = device.deviceId === activeDeviceId;
           return (
-            <li key={device.deviceId || `device-${index}`}>
+            <li key={device.deviceId || `device-${index}`} role="none">
               <button
                 type="button"
                 role="menuitemradio"
@@ -691,6 +705,9 @@ function DeviceSelectDropdown({
                 }}
               >
                 <span className={styles.deviceDropdownItemLabel}>{label}</span>
+                <span className={styles.deviceDropdownCheck} aria-hidden="true">
+                  {isActive && <DeviceCheckIcon />}
+                </span>
               </button>
             </li>
           );
@@ -1138,22 +1155,20 @@ function InviteIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       className={iconClassName(styles.roomIcon, styles.inviteSvg, className)}
-      viewBox="0 0 24 24"
+      viewBox="0 0 50 50"
       fill="none"
       aria-hidden="true"
       {...props}
     >
       <path
-        d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.41 1.41"
+        d="M23.0332 18L16.8256 24.1026C11.8599 28.9846 18.067 35.0872 23.0329 30.2052L29 24.1026"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinecap="round"
       />
       <path
-        d="M14 11a5 5 0 0 0-7.07 0l-2.83 2.83a5 5 0 0 0 7.07 7.07l1.41-1.41"
+        d="M26.9668 32L33.1744 25.8974C38.1401 21.0154 31.933 14.9128 26.9671 19.7948L21 25.8974"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinecap="round"
       />
     </svg>
   );
@@ -1321,7 +1336,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           className={styles.exitMenuDanger}
           onClick={handleExitMenuEnd}
         >
-          Выйти и завершить комнату
+          Выйти и завершить конференцию
         </button>
       </div>
     ) : null;
