@@ -134,8 +134,8 @@
 }
 
 .inviteSvg {
-  width: 24px;
-  height: 24px;
+  width: 50px;
+  height: 50px;
 }
 
 .moreVerticalSvg {
@@ -502,22 +502,25 @@
   top: 0;
   z-index: 40;
   width: 173px;
+  height: 127px;
+  box-sizing: border-box;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 5px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #ffdddd 0%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.16);
+  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
+  box-shadow: none;
 }
 
 .participantActionMenu button {
   appearance: none;
   width: 100%;
   min-height: 23px;
+  height: 23px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   color: #000;
   font: inherit;
@@ -530,7 +533,7 @@
 .participantActionMenu button:hover,
 .participantActionMenu button:focus-visible {
   outline: none;
-  background: rgba(128, 0, 255, 0.1);
+  background: transparent;
 }
 
 .participantActionMenu button:disabled {
@@ -540,7 +543,7 @@
 
 .participantDangerAction:hover,
 .participantDangerAction:focus-visible {
-  color: #b00020;
+  color: inherit;
 }
 
 .unblockButton {
@@ -1366,6 +1369,142 @@ button.stageRoomCode:disabled {
   color: #dc2626;
 }
 
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown {
+  top: 85px;
+  left: auto;
+  right: 25px;
+  width: 200px;
+  min-width: 0;
+  height: 93px;
+  padding: 0;
+  gap: 0;
+  display: block;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffdddd 0%, #ffffff 100%);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown button,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown button,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown button {
+  position: absolute;
+  left: 10px;
+  width: 153px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border-radius: 0;
+  color: #000000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 23px;
+  white-space: normal;
+}
+
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown button:first-child,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown button:first-child,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown button:first-child {
+  top: 10px;
+  height: 23px;
+}
+
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown button:nth-child(2),
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown button:nth-child(2),
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown button:nth-child(2) {
+  top: 38px;
+  height: 45px;
+}
+
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown button:hover,
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="light"]) .desktopHeaderExitDropdown .exitMenuDanger:focus-visible,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown button:hover,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="light"]) .tabletHeaderExitDropdown .exitMenuDanger:focus-visible,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown button:hover,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="light"]) .mobileHeaderExitDropdown .exitMenuDanger:focus-visible {
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown.exitMenuDropdown,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown.exitMenuDropdown,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown.exitMenuDropdown {
+  top: 85px;
+  left: auto;
+  right: 25px;
+  width: 200px;
+  min-width: 0;
+  height: 93px;
+  padding: 0;
+  gap: 0;
+  display: block;
+  overflow: hidden;
+  background: linear-gradient(180deg, #800000 0%, #222222 100%);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown button,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown button,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown button {
+  position: absolute;
+  left: 10px;
+  width: 153px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border-radius: 0;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 23px;
+  white-space: normal;
+}
+
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown button:first-child,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown button:first-child,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown button:first-child {
+  top: 10px;
+  height: 23px;
+}
+
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown button:nth-child(2),
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown button:nth-child(2),
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown button:nth-child(2) {
+  top: 38px;
+  height: 45px;
+}
+
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown button:hover,
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="dark"]) .desktopHeaderExitDropdown .exitMenuDanger:focus-visible,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown button:hover,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="dark"]) .tabletHeaderExitDropdown .exitMenuDanger:focus-visible,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown button:hover,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown button:focus-visible,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown .exitMenuDanger:hover,
+:global(:root[data-theme="dark"]) .mobileHeaderExitDropdown .exitMenuDanger:focus-visible {
+  background: transparent;
+  color: #ffffff;
+  outline: none;
+}
+
 :global(:root[data-theme="dark"]) .exitMenuDropdown {
   background: #1c1c2e;
   border-color: rgba(255, 255, 255, 0.1);
@@ -1592,61 +1731,84 @@ button.stageRoomCode:disabled {
 .deviceDropdown {
   position: absolute;
   left: 0;
-  right: 0;
-  min-width: 220px;
-  max-height: 260px;
+  right: auto;
+  width: 200px;
+  min-width: 0;
+  height: 99px;
+  max-height: 99px;
   overflow-y: auto;
   margin: 0;
-  padding: 8px;
+  padding: 10px 5px;
   list-style: none;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.18),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
   z-index: 10;
 }
 
 .deviceDropdownUp {
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
 }
 
 .deviceDropdownItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  padding: 10px 14px;
+  height: 28px;
+  padding: 0 5px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0;
   background: transparent;
   color: #000;
   text-align: left;
   font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
   cursor: pointer;
 }
 
 .deviceDropdownItem:hover,
 .deviceDropdownItem:focus-visible {
-  background: rgba(128, 0, 255, 0.08);
+  background: transparent;
   outline: none;
 }
 
 .deviceDropdownItemActive {
-  background: rgba(128, 0, 255, 0.16);
-  font-weight: 600;
+  background: transparent;
+  font-weight: 400;
 }
 
 .deviceDropdownItemLabel {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.deviceDropdownCheck {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: #000000;
+}
+
+.deviceDropdownCheck svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
 .deviceDropdownEmpty {
-  padding: 12px 14px;
-  font-size: 14px;
+  padding: 0 5px;
+  font-size: 16px;
+  line-height: 23px;
   color: #666;
 }
 
@@ -2146,6 +2308,44 @@ button.stageRoomCode:disabled {
 .desktopRecordingIndicator .recordingLabel,
 .tabletRecordingIndicator .recordingLabel {
   display: none;
+}
+
+:global(:root[data-theme="light"]) .desktopRecordingIndicator {
+  left: 50%;
+  top: 26px;
+  width: 200px;
+  height: 50px;
+  transform: translateX(-50%);
+  background: #ffdddd;
+  box-shadow: none;
+}
+
+:global(:root[data-theme="light"]) .desktopRecordingIndicator .recordingLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+}
+
+:global(:root[data-theme="dark"]) .desktopRecordingIndicator.recordingIndicator {
+  left: 50%;
+  top: 26px;
+  width: 200px;
+  height: 50px;
+  transform: translateX(-50%);
+  background: #800000;
+  box-shadow: none;
+}
+
+:global(:root[data-theme="dark"]) .desktopRecordingIndicator .recordingGlow {
+  --room-toolbar-glow: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .desktopRecordingIndicator .recordingLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
 }
 
 .desktopHeaderExitButton,
@@ -2999,6 +3199,20 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .compactExitButton svg {
   display: block;
+}
+
+:global(:root[data-theme="light"]) .exitButton:not(:disabled):hover,
+:global(:root[data-theme="light"]) .exitButton:not(:disabled):active,
+:global(:root[data-theme="light"]) .tabletExitButton:not(:disabled):hover,
+:global(:root[data-theme="light"]) .tabletExitButton:not(:disabled):active,
+:global(:root[data-theme="light"]) .mobileExitButton:not(:disabled):hover,
+:global(:root[data-theme="light"]) .mobileExitButton:not(:disabled):active,
+:global(:root[data-theme="light"]) .compactExitButton:not(:disabled):hover,
+:global(:root[data-theme="light"]) .compactExitButton:not(:disabled):active {
+  --lk-control-hover-bg: #dddddd;
+  background: #dddddd;
+  border: 0;
+  color: #000000;
 }
 
 .compactContent {
@@ -3900,8 +4114,8 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .participantActionMenu {
-  background: linear-gradient(180deg, rgba(255, 51, 51, 0.24) 0%, #222222 100%);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #280050 0%, #222222 100%);
+  box-shadow: none;
 }
 
 :global(:root[data-theme="dark"]) .recordingIndicator {
@@ -4015,6 +4229,14 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .exitButton,
 :global(:root[data-theme="dark"]) .deviceButton {
   background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .headerInviteButton:hover,
+:global(:root[data-theme="dark"]) .headerInviteButton:focus-visible,
+:global(:root[data-theme="dark"]) .compactHeaderInviteButton:hover,
+:global(:root[data-theme="dark"]) .compactHeaderInviteButton:focus-visible {
+  background: #444444;
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .deviceButton[data-lk-source][aria-pressed="true"],
@@ -4161,10 +4383,9 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .deviceDropdown {
-  background: #1e1e1e;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.5),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, #005000 0%, #222222 100%);
+  border: 0;
+  box-shadow: none;
 }
 
 :global(:root[data-theme="dark"]) .deviceDropdownItem {
@@ -4173,11 +4394,15 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .deviceDropdownItem:hover,
 :global(:root[data-theme="dark"]) .deviceDropdownItem:focus-visible {
-  background: rgba(128, 0, 255, 0.28);
+  background: transparent;
 }
 
 :global(:root[data-theme="dark"]) .deviceDropdownItemActive {
-  background: rgba(128, 0, 255, 0.38);
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .deviceDropdownCheck {
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .deviceDropdownEmpty {
