@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+export const profileAvatarOptions = [
+  "._.",
+  ":)",
+  ":(",
+  "=)",
+  "=(",
+  ";)",
+  ":D",
+  "XD",
+  ":P",
+  ":O",
+  ":/",
+  ":|",
+  "^_^",
+  "-_-",
+  "o_O",
+  "o_o",
+  "O_O",
+  "x_x",
+  ">_<",
+  ":3",
+  "<3",
+] as const;
+
 export const registerSchema = z.object({
   email: z.string().email("Некорректный email"),
   username: z
@@ -63,9 +87,14 @@ export const updateProfileSchema = z
       .optional(),
     email: z.string().email("Некорректный email").optional(),
     password: z.string().min(6, "Пароль — минимум 6 символов").optional(),
+    avatarUrl: z.enum(profileAvatarOptions).nullable().optional(),
   })
   .refine(
-    (data) => data.username !== undefined || data.email !== undefined || data.password !== undefined,
+    (data) =>
+      data.username !== undefined ||
+      data.email !== undefined ||
+      data.password !== undefined ||
+      data.avatarUrl !== undefined,
     { message: "Нужно указать хотя бы одно поле" }
   );
 

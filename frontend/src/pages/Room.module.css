@@ -4702,6 +4702,10 @@ button.stageRoomCode .roomCodeCopyHint {
   background: linear-gradient(360deg, #8000ff 0%, rgba(40, 0, 80, 0) 100%);
 }
 
+:global(:root[data-theme="dark"]) .participantAvatar {
+  color: #280050;
+}
+
 :global(:root[data-theme="dark"]) .stageParticipantStatusOn {
   color: #ffffff;
 }

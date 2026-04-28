@@ -104,6 +104,7 @@ interface ConferenceRoomContentProps {
   onEndRoomIntent?: () => void;
   isOwner?: boolean;
   canEndRoom?: boolean;
+  currentUserAvatarUrl?: string | null;
 }
 
 type RoomRole = "OWNER" | "MODERATOR" | "PARTICIPANT";
@@ -1320,21 +1321,33 @@ function MoreVerticalIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 function ParticipantAvatar({
   name,
+  avatarUrl,
   className,
   square,
 }: {
   name: string;
+  avatarUrl?: string | null;
   className?: string;
   square?: boolean;
 }) {
+  const avatarLabel = typeof avatarUrl === "string" && avatarUrl.trim() ? avatarUrl : null;
+
   return (
     <span className={`${styles.participantAvatar} ${square ? styles.participantAvatarSquare : ""} ${className ?? ""}`}>
-      {getInitials(name)}
+      {avatarLabel ?? getInitials(name)}
     </span>
   );
 }
 
-export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomIntent, isOwner, canEndRoom }: ConferenceRoomContentProps) {
+export function ConferenceRoomContent({
+  roomName,
+  slug,
+  onExitIntent,
+  onEndRoomIntent,
+  isOwner,
+  canEndRoom,
+  currentUserAvatarUrl,
+}: ConferenceRoomContentProps) {
   const participants = useParticipants();
   const {
     localParticipant,
@@ -1862,6 +1875,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       user: {
         id: participant?.identity ?? "",
         username: participant?.name || participant?.identity || "Участник",
+        avatarUrl: participant?.identity === localIdentity ? currentUserAvatarUrl ?? null : null,
       },
     } satisfies RoomParticipantMeta);
 
@@ -1964,7 +1978,11 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
           } ${canManage ? styles.participantRowManaged : ""}`}
           key={participant.identity}
         >
-          <ParticipantAvatar name={displayName} square={isLocal || meta.role === "MODERATOR"} />
+          <ParticipantAvatar
+            name={displayName}
+            avatarUrl={meta.user.avatarUrl}
+            square={isLocal || meta.role === "MODERATOR"}
+          />
           <span className={styles.stageParticipantText}>
             {displayName}
           </span>
@@ -1986,12 +2004,19 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       chatMessages.map((entry) => {
         const isLocal = entry.from?.identity === localIdentity;
         const authorName = entry.from?.name || entry.from?.identity || "Система";
+        const authorMeta = participantMetaByUserId.get(entry.from?.identity ?? "");
         return (
           <div
             className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
             key={`${entry.timestamp}-${entry.from?.identity ?? "system"}`}
           >
-            {!isLocal ? <ParticipantAvatar name={authorName} className={styles.chatAvatar} /> : null}
+            {!isLocal ? (
+              <ParticipantAvatar
+                name={authorName}
+                avatarUrl={authorMeta?.user.avatarUrl}
+                className={styles.chatAvatar}
+              />
+            ) : null}
             <article
               className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
             >
@@ -2996,6 +3021,7 @@ export function RoomPage({ user }: Props) {
                     onEndRoomIntent={handleEndRoomIntent}
                     isOwner={isOwner}
                     canEndRoom={isOwner || myRole === "MODERATOR"}
+                    currentUserAvatarUrl={user?.avatarUrl ?? null}
                 />
             </LiveKitRoom>
 

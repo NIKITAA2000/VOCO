@@ -239,6 +239,7 @@ export function InviteLandingPage({ user }: Props) {
           roomName={roomName}
           slug={roomSlug}
           onExitIntent={handleLeaveIntent}
+          currentUserAvatarUrl={user?.avatarUrl ?? null}
         />
       </LiveKitRoom>
     </div>

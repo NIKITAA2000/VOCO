@@ -67,6 +67,30 @@ const SETTINGS_PATHS = [
   "M957 497C953.717 497 950.466 496.353 947.433 495.097C944.4 493.84 941.644 491.999 939.322 489.678C937.001 487.356 935.16 484.6 933.903 481.567C932.647 478.534 932 475.283 932 472H907C907 478.566 908.293 485.068 910.806 491.134C913.318 497.2 917.002 502.713 921.645 507.355C926.287 511.998 931.8 515.682 937.866 518.194C943.932 520.707 950.434 522 957 522V497Z",
 ];
 
+const PROFILE_AVATAR_OPTIONS = [
+  "._.",
+  ":)",
+  ":(",
+  "=)",
+  "=(",
+  ";)",
+  ":D",
+  "XD",
+  ":P",
+  ":O",
+  ":/",
+  ":|",
+  "^_^",
+  "-_-",
+  "o_O",
+  "o_o",
+  "O_O",
+  "x_x",
+  ">_<",
+  ":3",
+  "<3",
+] as const;
+
 export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -84,8 +108,11 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [profileUsernameInput, setProfileUsernameInput] = useState("");
   const [profileEmailInput, setProfileEmailInput] = useState("");
   const [profilePasswordInput, setProfilePasswordInput] = useState("");
+  const [profileAvatarInput, setProfileAvatarInput] = useState("");
   const [profileInitialUsername, setProfileInitialUsername] = useState("");
   const [profileInitialEmail, setProfileInitialEmail] = useState("");
+  const [profileInitialAvatar, setProfileInitialAvatar] = useState("");
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(false);
@@ -291,11 +318,19 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     setSettingsOpen(false);
     const initialUsername = user?.username || "";
     const initialEmail = user?.email || "";
+    const initialAvatar =
+      typeof user?.avatarUrl === "string" &&
+      PROFILE_AVATAR_OPTIONS.includes(user.avatarUrl as (typeof PROFILE_AVATAR_OPTIONS)[number])
+        ? user.avatarUrl
+        : "";
     setProfileInitialUsername(initialUsername);
     setProfileInitialEmail(initialEmail);
+    setProfileInitialAvatar(initialAvatar);
     setProfileUsernameInput(initialUsername);
     setProfileEmailInput(initialEmail);
     setProfilePasswordInput("");
+    setProfileAvatarInput(initialAvatar);
+    setAvatarPickerOpen(false);
     setProfileOpen(true);
   };
 
@@ -308,7 +343,12 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     const trimmedEmail = profileEmailInput.trim();
     const trimmedPassword = profilePasswordInput.trim();
 
-    const payload: { username?: string; email?: string; password?: string } = {};
+    const payload: {
+      username?: string;
+      email?: string;
+      password?: string;
+      avatarUrl?: string | null;
+    } = {};
     if (trimmedUsername && trimmedUsername !== profileInitialUsername.trim()) {
       payload.username = trimmedUsername;
     }
@@ -317,6 +357,13 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     }
     if (trimmedPassword) {
       payload.password = trimmedPassword;
+    }
+    const avatarChanged =
+      profileAvatarInput !== profileInitialAvatar &&
+      (profileAvatarInput === "" ||
+        PROFILE_AVATAR_OPTIONS.includes(profileAvatarInput as (typeof PROFILE_AVATAR_OPTIONS)[number]));
+    if (avatarChanged) {
+      payload.avatarUrl = profileAvatarInput || null;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -332,6 +379,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
         onUserUpdate?.(data.user);
       }
       setProfilePasswordInput("");
+      setAvatarPickerOpen(false);
       setProfileOpen(false);
     } catch (err: any) {
       setError(err?.message || "Не удалось сохранить профиль");
@@ -351,9 +399,16 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     }
     return "ИИ";
   })();
+  const profileAvatarText = PROFILE_AVATAR_OPTIONS.includes(
+    profileAvatarInput as (typeof PROFILE_AVATAR_OPTIONS)[number],
+  )
+    ? profileAvatarInput
+    : profileInitials;
+  const profileAvatarPickerOptions = ["", ...PROFILE_AVATAR_OPTIONS] as const;
   const profileHasChanges =
     profileUsernameInput.trim() !== profileInitialUsername.trim() ||
     profileEmailInput.trim() !== profileInitialEmail.trim() ||
+    profileAvatarInput.trim() !== profileInitialAvatar.trim() ||
     profilePasswordInput.trim().length > 0;
 
   const isStaging = window.location.hostname === "voco.su";
@@ -743,9 +798,36 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                 />
               </div>
 
-              <div className="profile-avatar" aria-hidden="true">
-                {profileInitials}
-              </div>
+              <button
+                className="profile-avatar"
+                type="button"
+                aria-label="Выбрать аватарку"
+                aria-haspopup="listbox"
+                aria-expanded={avatarPickerOpen}
+                onClick={() => setAvatarPickerOpen((current) => !current)}
+              >
+                {profileAvatarText}
+              </button>
+              {avatarPickerOpen && (
+                <div className="profile-avatar-picker" role="listbox" aria-label="Аватарки">
+                  {profileAvatarPickerOptions.map((avatar) => (
+                    <button
+                      key={avatar || "initials"}
+                      className={`profile-avatar-option${avatar === profileAvatarInput ? " is-selected" : ""}`}
+                      type="button"
+                      role="option"
+                      aria-selected={avatar === profileAvatarInput}
+                      aria-label={avatar ? `Выбрать аватарку ${avatar}` : "Использовать инициалы"}
+                      onClick={() => {
+                        setProfileAvatarInput(avatar);
+                        setAvatarPickerOpen(false);
+                      }}
+                    >
+                      {avatar || profileInitials}
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="profile-name">
                 {profileNameParts.length >= 2 ? (
                   <>

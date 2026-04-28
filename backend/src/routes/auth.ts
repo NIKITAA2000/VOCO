@@ -40,7 +40,7 @@ router.post("/register", async (req: Request, res: Response) => {
     const result = await db.query(
       `INSERT INTO users (email, username, password)
        VALUES ($1, $2, $3)
-       RETURNING id, email, username, created_at AS "createdAt"`,
+       RETURNING id, email, username, avatar_url AS "avatarUrl", created_at AS "createdAt"`,
       [email, username, hashedPassword]
     );
 
@@ -78,7 +78,8 @@ router.post("/login", async (req: Request, res: Response) => {
     const { email, password } = parsed.data;
 
     const result = await db.query(
-      "SELECT id, email, username, password FROM users WHERE email = $1",
+      `SELECT id, email, username, password, avatar_url AS "avatarUrl"
+       FROM users WHERE email = $1`,
       [email]
     );
 
@@ -107,6 +108,7 @@ router.post("/login", async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         username: user.username,
+        avatarUrl: user.avatarUrl,
       },
       token,
     });
@@ -149,7 +151,7 @@ router.patch("/me", authenticate, async (req: Request, res: Response) => {
       return;
     }
 
-    const { username, email, password } = parsed.data;
+    const { username, email, password, avatarUrl } = parsed.data;
     const userId = req.user!.userId;
 
     if (username !== undefined || email !== undefined) {
@@ -186,6 +188,10 @@ router.patch("/me", authenticate, async (req: Request, res: Response) => {
       const hashedPassword = await bcrypt.hash(password, 12);
       updates.push(`password = $${idx++}`);
       values.push(hashedPassword);
+    }
+    if (avatarUrl !== undefined) {
+      updates.push(`avatar_url = $${idx++}`);
+      values.push(avatarUrl);
     }
 
     values.push(userId);

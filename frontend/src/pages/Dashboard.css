@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;900&display=swap');
 
 .screen {
   position: relative;
@@ -2048,9 +2048,72 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Jost', sans-serif;
   font-weight: 900;
   font-size: 32px;
   line-height: 45px;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.profile-avatar:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
+}
+
+.profile-avatar-picker {
+  position: absolute;
+  z-index: 4;
+  left: 483px;
+  top: 515px;
+  width: 310px;
+  height: 310px;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
+  display: grid;
+  grid-template-columns: repeat(5, 50px);
+  grid-auto-rows: 50px;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.profile-avatar-option {
+  width: 50px;
+  height: 50px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: #8000ff;
+  color: #eedcff;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.profile-avatar-option:focus-visible,
+.profile-avatar-option.is-selected {
+  outline: none;
+}
+
+.profile-avatar-option:focus-visible {
+  box-shadow: inset 0 0 0 3px #eedcff;
+}
+
+.profile-avatar-option.is-selected {
+  box-shadow: none;
 }
 
 .profile-name {
@@ -2620,6 +2683,11 @@
     top: 405px;
   }
 
+  .profile-avatar-picker {
+    left: 146.5px;
+    top: 515px;
+  }
+
   .profile-name {
     left: 266.5px;
     top: 410px;
@@ -2710,6 +2778,26 @@
 
 .theme-dark .profile-avatar {
   color: #280050;
+}
+
+.theme-dark .profile-avatar:focus-visible {
+  outline-color: #ffffff;
+}
+
+.theme-dark .profile-avatar-picker {
+  background: linear-gradient(180deg, #280050 0%, #222222 100%);
+}
+
+.theme-dark .profile-avatar-option {
+  color: #280050;
+}
+
+.theme-dark .profile-avatar-option:focus-visible {
+  box-shadow: inset 0 0 0 3px #280050;
+}
+
+.theme-dark .profile-avatar-option.is-selected {
+  box-shadow: none;
 }
 
 .theme-dark .profile-input {
@@ -3913,6 +4001,33 @@
     height: 69.47px;
     font-size: 22px;
     line-height: 32px;
+  }
+
+  .profile-avatar-picker {
+    left: 40px;
+    top: 365px;
+    width: 310px;
+    height: 310px;
+    grid-template-columns: repeat(5, 50px);
+    grid-auto-rows: 50px;
+    gap: 10px;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .profile-avatar-option {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .profile-avatar-option:focus-visible {
+    box-shadow: inset 0 0 0 3px #eedcff;
+  }
+
+  .profile-avatar-option.is-selected {
+    box-shadow: none;
   }
 
   .profile-name {
