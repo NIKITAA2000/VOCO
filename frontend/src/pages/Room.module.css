@@ -129,8 +129,13 @@
 }
 
 .plusSvg {
-  width: 26px;
-  height: 26px;
+  width: 50px;
+  height: 50px;
+}
+
+.smileSvg {
+  width: 30px;
+  height: 30px;
 }
 
 .inviteSvg {
@@ -629,7 +634,7 @@
   width: auto;
   max-width: min(304px, 100%);
   min-width: 0;
-  padding: 10px;
+  padding: 10px 10px 0;
   border-radius: 10px 10px 0 10px;
   box-sizing: border-box;
 }
@@ -662,11 +667,11 @@
 
 .chatBubbleOwn {
   background: #0077ff;
-  color: #fff;
+  color: #000000;
 }
 
 .chatAuthor {
-  margin-bottom: 6px;
+  margin-bottom: 0;
   font-size: 16px;
   line-height: 23px;
   color: #0077ff;
@@ -685,14 +690,20 @@
 }
 
 .chatTime {
-  margin-top: 6px;
+  margin: 0 -5px 0 0;
   text-align: right;
   color: #999;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.chatBubbleRemote .chatTime {
+  margin-left: 0;
+  text-align: right;
 }
 
 .chatBubbleOwn .chatTime {
-  color: rgba(255, 255, 255, 0.85);
+  color: #dddddd;
 }
 
 .chatComposer {
@@ -702,7 +713,7 @@
   width: 100%;
   height: 50px;
   display: grid;
-  grid-template-columns: 50px minmax(0, 1fr) 50px;
+  grid-template-columns: 50px 50px minmax(0, 1fr) 50px;
   align-items: center;
   background: linear-gradient(360deg, #ddd 0%, rgba(255, 255, 255, 0) 100%);
 }
@@ -722,6 +733,10 @@
 
 .chatAttachButton {
   background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.chatEmojiButton {
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .chatSendButton:not(:disabled) {
@@ -760,6 +775,88 @@
   border-color: transparent;
   box-shadow: none;
   outline: none;
+}
+
+.chatEmojiPicker {
+  position: absolute;
+  left: 10px;
+  bottom: 60px;
+  z-index: 4;
+  width: 364px;
+  height: 200px;
+  box-sizing: border-box;
+  padding: 18px 20px 18px 18px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
+  box-shadow: none;
+  --chat-emoji-scroll-track: #dddddd;
+  --chat-emoji-scroll-thumb: #0077ff;
+}
+
+.chatEmojiPicker::before,
+.chatEmojiPicker::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  border-radius: 100px;
+}
+
+.chatEmojiPicker::before {
+  top: 10px;
+  right: 2px;
+  width: 5px;
+  height: 180px;
+  background: var(--chat-emoji-scroll-track);
+}
+
+.chatEmojiPicker::after {
+  top: var(--chat-emoji-scroll-thumb-top, 10px);
+  right: 3px;
+  width: 3px;
+  height: 20px;
+  background: var(--chat-emoji-scroll-thumb);
+}
+
+.chatEmojiList {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(6, 44px);
+  grid-auto-rows: 44px;
+  align-content: start;
+  justify-content: start;
+  gap: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chatEmojiList::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.chatEmojiOption {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: #000000;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chatEmojiOption:hover,
+.chatEmojiOption:focus-visible,
+.chatEmojiOption:active {
+  outline: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .tabletParticipantsPanel,
@@ -801,7 +898,6 @@
 }
 
 .tabletChatPanel .chatBubbleOwn {
-  padding: 10px 10px 0;
   color: #000000;
 }
 
@@ -815,7 +911,6 @@
 }
 
 .tabletChatPanel .chatTime {
-  margin-top: 0;
   font-size: 16px;
   line-height: 23px;
 }
@@ -1736,15 +1831,76 @@ button.stageRoomCode:disabled {
   min-width: 0;
   height: 99px;
   max-height: 99px;
-  overflow-y: auto;
+  overflow: visible;
   margin: 0;
-  padding: 10px 5px;
-  list-style: none;
   background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
   border: 0;
   border-radius: 10px;
   box-shadow: none;
+  --device-dropdown-scroll-track: #dddddd;
+  --device-dropdown-scroll-thumb: #0077ff;
   z-index: 10;
+}
+
+.deviceDropdown::before,
+.deviceDropdown::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  border-radius: 100px;
+}
+
+.deviceDropdown::before {
+  top: 6px;
+  right: 2px;
+  width: 5px;
+  height: 88px;
+  background: var(--device-dropdown-scroll-track);
+}
+
+.deviceDropdown::after {
+  top: var(--device-scroll-thumb-top, 7px);
+  right: 3px;
+  width: 3px;
+  height: 10px;
+  background: var(--device-dropdown-scroll-thumb);
+}
+
+.deviceDropdownList {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 10px 5px;
+  list-style: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.deviceDropdownList::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.deviceDropdownTooltip {
+  position: absolute;
+  left: 10px;
+  min-width: 180px;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 23px;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  white-space: normal;
+  z-index: 20;
 }
 
 .deviceDropdownUp {
@@ -2908,7 +3064,6 @@ button.stageRoomCode:disabled {
 }
 
 .mobileChatPanel .chatBubbleOwn {
-  padding: 10px 10px 0;
   color: #000000;
 }
 
@@ -2922,7 +3077,6 @@ button.stageRoomCode:disabled {
 }
 
 .mobileChatPanel .chatTime {
-  margin-top: 0;
   font-size: 16px;
   line-height: 23px;
 }
@@ -4069,6 +4223,24 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #ffffff;
 }
 
+:global(:root[data-theme="dark"]) .chatEmojiPicker {
+  background: linear-gradient(180deg, #280050 0%, #222222 100%);
+  box-shadow: none;
+  --chat-emoji-scroll-track: #444444;
+  --chat-emoji-scroll-thumb: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .chatEmojiOption {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatEmojiOption:hover,
+:global(:root[data-theme="dark"]) .chatEmojiOption:focus-visible,
+:global(:root[data-theme="dark"]) .chatEmojiOption:active {
+  background: transparent;
+  box-shadow: none;
+}
+
 :global(:root[data-theme="dark"]) .chatDate,
 :global(:root[data-theme="dark"]) .chatEmpty,
 :global(:root[data-theme="dark"]) .chatTime,
@@ -4135,11 +4307,11 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn {
-  color: #ffffff;
+  color: #000000;
 }
 
 :global(:root[data-theme="dark"]) .mobileChatPanel .chatBubbleOwn {
-  color: #ffffff;
+  color: #000000;
 }
 
 :global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn .chatTime {
@@ -4386,6 +4558,8 @@ button.stageRoomCode .roomCodeCopyHint {
   background: linear-gradient(180deg, #005000 0%, #222222 100%);
   border: 0;
   box-shadow: none;
+  --device-dropdown-scroll-track: #444444;
+  --device-dropdown-scroll-thumb: #0077ff;
 }
 
 :global(:root[data-theme="dark"]) .deviceDropdownItem {
@@ -4407,6 +4581,12 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .deviceDropdownEmpty {
   color: #bbb;
+}
+
+:global(:root[data-theme="dark"]) .deviceDropdownTooltip {
+  background: #222222;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.38);
 }
 
 :global(:root[data-theme="dark"]) .tabletExitMenu,
@@ -4946,6 +5126,7 @@ button.stageRoomCode .roomCodeCopyHint {
 .tabletDeviceMenu,
 .exitMenu,
 .tabletExitMenu,
+.chatEmojiButton,
 .utilityButton:nth-child(1)[aria-pressed="true"]::before,
 .mobileToolbarParticipantsActive::before,
 .compactUtilityParticipants.utilityButtonActive::before {
@@ -4978,6 +5159,7 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .stageParticipantStatus,
 .chatAttachButton,
+.chatEmojiButton,
 .chatSendButton:not(:disabled),
 .recordingGlow,
 .exitGlow,
@@ -5020,6 +5202,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .tabletDeviceMenu,
 :global(:root[data-theme="dark"]) .exitMenu,
 :global(:root[data-theme="dark"]) .tabletExitMenu,
+:global(:root[data-theme="dark"]) .chatEmojiButton,
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(1)[aria-pressed="true"]::before,
 :global(:root[data-theme="dark"]) .mobileToolbarParticipantsActive::before,
 :global(:root[data-theme="dark"]) .compactUtilityParticipants.utilityButtonActive::before {
@@ -5052,6 +5235,7 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .stageParticipantStatus,
 :global(:root[data-theme="dark"]) .chatAttachButton,
+:global(:root[data-theme="dark"]) .chatEmojiButton,
 :global(:root[data-theme="dark"]) .chatSendButton:not(:disabled),
 :global(:root[data-theme="dark"]) .recordingGlow,
 :global(:root[data-theme="dark"]) .exitGlow,

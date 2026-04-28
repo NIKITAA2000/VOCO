@@ -37,12 +37,61 @@ const ROOM_TILE_PAGE_SIZE = 4;
 const DESKTOP_TILE_COLUMN_WIDTH = 293;
 const DESKTOP_TILE_GRID_WIDTH = DESKTOP_TILE_COLUMN_WIDTH * 2;
 const DESKTOP_TILE_GRID_LEFT = (STAGE_WIDTH - DESKTOP_TILE_GRID_WIDTH) / 2;
-const DESKTOP_TILE_PANEL_SAFE_LEFT = 470;
 const DESKTOP_EXPANDED_MEDIA_TOP = 107;
 const DESKTOP_EXPANDED_MEDIA_HEIGHT = 810;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
 const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px)";
+const CHAT_EMOJI_OPTIONS = [
+  "😀",
+  "😃",
+  "😄",
+  "😁",
+  "😆",
+  "😅",
+  "😂",
+  "🤣",
+  "😊",
+  "😇",
+  "🙂",
+  "😉",
+  "😍",
+  "😘",
+  "😎",
+  "🤔",
+  "😢",
+  "😭",
+  "😡",
+  "👍",
+  "👎",
+  "👏",
+  "🙌",
+  "🙏",
+  "🤝",
+  "💪",
+  "🔥",
+  "✨",
+  "🎉",
+  "🎊",
+  "❤️",
+  "💜",
+  "💙",
+  "✅",
+  "❌",
+  "⭐",
+  "💬",
+  "👀",
+  "🚀",
+  "💡",
+  "📌",
+  "📎",
+  "⏰",
+  "☕",
+  "🎧",
+  "📷",
+  "📝",
+  "🔒",
+];
 
 interface Props {
   user: any;
@@ -612,13 +661,32 @@ function PlusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       className={iconClassName(styles.roomIcon, styles.plusSvg, className)}
-      viewBox="0 0 26 26"
+      viewBox="0 0 50 50"
       fill="none"
       aria-hidden="true"
       {...props}
     >
-      <path d="M0 13L26 13" stroke="currentColor" strokeWidth="2" />
-      <path d="M13 0L13 26" stroke="currentColor" strokeWidth="2" />
+      <path d="M14 25L36 25" stroke="currentColor" strokeWidth="2" />
+      <path d="M25 14L25 36" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function SmileIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.smileSvg, className)}
+      viewBox="0 0 30 30"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M25 16C25 21.5228 20.5228 26 15 26C9.47715 26 5 21.5228 5 16H7C7 20.4183 10.5817 24 15 24C19.4183 24 23 20.4183 23 16H25Z"
+        fill="currentColor"
+      />
+      <path d="M12 4V14" stroke="currentColor" strokeWidth="2" />
+      <path d="M18 4V14" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -681,39 +749,99 @@ function DeviceSelectDropdown({
   onSelect: () => void;
 }) {
   const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({ kind });
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const [scrollThumbTop, setScrollThumbTop] = useState(7);
+  const [deviceTooltip, setDeviceTooltip] = useState<{ label: string; top: number } | null>(
+    null,
+  );
+
+  const updateScrollThumb = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const thumbTop = maxScroll > 0 ? 7 + (list.scrollTop / maxScroll) * 77 : 7;
+    setScrollThumbTop(thumbTop);
+  }, []);
+
+  const showDeviceTooltip = useCallback((label: string, target: HTMLElement) => {
+    const dropdown = dropdownRef.current;
+    if (!dropdown) return;
+
+    const dropdownRect = dropdown.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    setDeviceTooltip({
+      label,
+      top: targetRect.top - dropdownRect.top + targetRect.height + 4,
+    });
+  }, []);
+
+  useEffect(() => {
+    updateScrollThumb();
+  }, [devices.length, updateScrollThumb]);
 
   return (
-    <ul className={className} role="menu" onMouseDown={(event) => event.stopPropagation()}>
-      {devices.length === 0 ? (
-        <li className={styles.deviceDropdownEmpty}>Устройства не найдены</li>
-      ) : (
-        devices.map((device, index) => {
-          const label = device.label || `Устройство ${index + 1}`;
-          const isActive = device.deviceId === activeDeviceId;
-          return (
-            <li key={device.deviceId || `device-${index}`} role="none">
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={isActive}
-                className={`${styles.deviceDropdownItem} ${
-                  isActive ? styles.deviceDropdownItemActive : ""
-                }`}
-                onClick={() => {
-                  void setActiveMediaDevice(device.deviceId);
-                  onSelect();
-                }}
-              >
-                <span className={styles.deviceDropdownItemLabel}>{label}</span>
-                <span className={styles.deviceDropdownCheck} aria-hidden="true">
-                  {isActive && <DeviceCheckIcon />}
-                </span>
-              </button>
-            </li>
-          );
-        })
+    <div
+      ref={dropdownRef}
+      className={className}
+      style={{ "--device-scroll-thumb-top": `${scrollThumbTop}px` } as CSSProperties}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseLeave={() => setDeviceTooltip(null)}
+    >
+      <ul
+        ref={listRef}
+        className={styles.deviceDropdownList}
+        role="menu"
+        onScroll={() => {
+          updateScrollThumb();
+          setDeviceTooltip(null);
+        }}
+      >
+        {devices.length === 0 ? (
+          <li className={styles.deviceDropdownEmpty}>Устройства не найдены</li>
+        ) : (
+          devices.map((device, index) => {
+            const label = device.label || `Устройство ${index + 1}`;
+            const isActive = device.deviceId === activeDeviceId;
+            return (
+              <li key={device.deviceId || `device-${index}`} role="none">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={isActive}
+                  className={`${styles.deviceDropdownItem} ${
+                    isActive ? styles.deviceDropdownItemActive : ""
+                  }`}
+                  onMouseEnter={(event) => showDeviceTooltip(label, event.currentTarget)}
+                  onFocus={(event) => showDeviceTooltip(label, event.currentTarget)}
+                  onMouseLeave={() => setDeviceTooltip(null)}
+                  onBlur={() => setDeviceTooltip(null)}
+                  onClick={() => {
+                    void setActiveMediaDevice(device.deviceId);
+                    onSelect();
+                  }}
+                >
+                  <span className={styles.deviceDropdownItemLabel}>{label}</span>
+                  <span className={styles.deviceDropdownCheck} aria-hidden="true">
+                    {isActive && <DeviceCheckIcon />}
+                  </span>
+                </button>
+              </li>
+            );
+          })
+        )}
+      </ul>
+      {deviceTooltip && (
+        <div
+          className={styles.deviceDropdownTooltip}
+          style={{ top: deviceTooltip.top }}
+          aria-hidden="true"
+        >
+          {deviceTooltip.label}
+        </div>
       )}
-    </ul>
+    </div>
   );
 }
 
@@ -1217,9 +1345,12 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   const { chatMessages, send, isSending } = useChat();
   const chatInputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const emojiListRef = useRef<HTMLDivElement>(null);
   const participantsSectionRef = useRef<HTMLElement>(null);
   const chatSectionRef = useRef<HTMLElement>(null);
   const [message, setMessage] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [emojiScrollThumbTop, setEmojiScrollThumbTop] = useState(10);
   const [outputEnabled, setOutputEnabled] = useState(true);
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
@@ -1303,6 +1434,27 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
       window.removeEventListener("keydown", handleKey);
     };
   }, [openParticipantMenu]);
+
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-chat-emoji-root]")) return;
+      setEmojiPickerOpen(false);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setEmojiPickerOpen(false);
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [emojiPickerOpen]);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -1472,13 +1624,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
-  const canExpandSingleDesktopTile = !isParticipantsPanelOpen && !isChatPanelOpen;
-  const desktopTileGridLeft =
-    isParticipantsPanelOpen || isChatPanelOpen ? DESKTOP_TILE_PANEL_SAFE_LEFT : DESKTOP_TILE_GRID_LEFT;
   const tileFrames = getStageTileFrames(
     visibleTracks.length,
-    desktopTileGridLeft,
-    canExpandSingleDesktopTile && visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+    DESKTOP_TILE_GRID_LEFT,
+    visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
   );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
@@ -1495,6 +1644,10 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     });
   }, [chatMessages]);
 
+  useEffect(() => {
+    if (!isChatPanelOpen) setEmojiPickerOpen(false);
+  }, [isChatPanelOpen]);
+
   const handleChatSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedMessage = message.trim();
@@ -1503,6 +1656,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
     try {
       await send(normalizedMessage);
       setMessage("");
+      setEmojiPickerOpen(false);
     } catch {
       // Keep the current value so the user can retry.
     }
@@ -1541,6 +1695,112 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
   );
 
   const focusChatInput = useCallback(() => chatInputRef.current?.focus(), []);
+  const updateEmojiScrollThumb = useCallback(() => {
+    const list = emojiListRef.current;
+    if (!list) return;
+
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const thumbTop = maxScroll > 0 ? 10 + (list.scrollTop / maxScroll) * 160 : 10;
+    setEmojiScrollThumbTop(thumbTop);
+  }, []);
+
+  const insertChatEmoji = useCallback(
+    (emoji: string) => {
+      const input = chatInputRef.current;
+      const selectionStart = input?.selectionStart ?? message.length;
+      const selectionEnd = input?.selectionEnd ?? message.length;
+      const nextMessage = `${message.slice(0, selectionStart)}${emoji}${message.slice(selectionEnd)}`;
+      const nextCursorPosition = selectionStart + emoji.length;
+
+      setMessage(nextMessage);
+      window.requestAnimationFrame(() => {
+        chatInputRef.current?.focus();
+        chatInputRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition);
+      });
+    },
+    [message],
+  );
+
+  const renderChatComposer = (className?: string) => (
+    <form
+      className={`${styles.chatComposer}${className ? ` ${className}` : ""}`}
+      onSubmit={handleChatSubmit}
+    >
+      <button
+        className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
+        type="button"
+        aria-label="Добавить вложение"
+        onClick={focusChatInput}
+      >
+        <PlusIcon />
+      </button>
+
+      <button
+        className={`${styles.chatIconButton} ${styles.chatEmojiButton}`}
+        type="button"
+        aria-label={emojiPickerOpen ? "Закрыть смайлики" : "Открыть смайлики"}
+        aria-haspopup="menu"
+        aria-expanded={emojiPickerOpen}
+        onClick={() => {
+          setEmojiScrollThumbTop(10);
+          setEmojiPickerOpen((current) => !current);
+          focusChatInput();
+        }}
+        data-chat-emoji-root
+      >
+        <SmileIcon />
+      </button>
+
+      {emojiPickerOpen ? (
+        <div
+          className={styles.chatEmojiPicker}
+          style={{ "--chat-emoji-scroll-thumb-top": `${emojiScrollThumbTop}px` } as CSSProperties}
+          role="menu"
+          aria-label="Смайлики"
+          data-chat-emoji-root
+        >
+          <div
+            ref={emojiListRef}
+            className={styles.chatEmojiList}
+            onScroll={updateEmojiScrollThumb}
+          >
+            {CHAT_EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                className={styles.chatEmojiOption}
+                type="button"
+                role="menuitem"
+                aria-label={`Вставить ${emoji}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => insertChatEmoji(emoji)}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <input
+        ref={chatInputRef}
+        className={styles.chatInput}
+        type="text"
+        value={message}
+        onChange={(event) => setMessage(event.target.value)}
+        placeholder="Сообщение..."
+      />
+
+      <button
+        className={`${styles.chatIconButton} ${styles.chatSendButton}`}
+        type="submit"
+        aria-label="Отправить сообщение"
+        disabled={isSending || !message.trim()}
+      >
+        <SendIcon />
+      </button>
+    </form>
+  );
+
   const toggleRoomPanel = useCallback((panel: RoomPanelKey) => {
     setVisiblePanels((current) => {
       if (isCompactLayout) {
@@ -1735,7 +1995,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
             <article
               className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
             >
-              <div className={styles.chatAuthor}>{authorName}</div>
+              {!isLocal ? <div className={styles.chatAuthor}>{authorName}</div> : null}
               <div className={styles.chatBody}>{entry.message}</div>
               <div className={styles.chatTime}>{formatMessageTime(entry.timestamp)}</div>
             </article>
@@ -1855,34 +2115,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
                 {renderChatMessages()}
               </div>
 
-              <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
-                <button
-                  className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
-                  type="button"
-                  aria-label="Добавить вложение"
-                  onClick={focusChatInput}
-                >
-                  <PlusIcon />
-                </button>
-
-                <input
-                  ref={chatInputRef}
-                  className={styles.chatInput}
-                  type="text"
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  placeholder="Сообщение..."
-                />
-
-                <button
-                  className={`${styles.chatIconButton} ${styles.chatSendButton}`}
-                  type="submit"
-                  aria-label="Отправить сообщение"
-                  disabled={isSending || !message.trim()}
-                >
-                  <SendIcon />
-                </button>
-              </form>
+              {renderChatComposer()}
             </aside>
           ) : null}
 
@@ -2121,34 +2354,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
                 {renderChatMessages()}
               </div>
 
-              <form className={`${styles.chatComposer} ${styles.mobileChatComposer}`} onSubmit={handleChatSubmit}>
-                <button
-                  className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
-                  type="button"
-                  aria-label="Добавить вложение"
-                  onClick={focusChatInput}
-                >
-                  <PlusIcon />
-                </button>
-
-                <input
-                  ref={chatInputRef}
-                  className={styles.chatInput}
-                  type="text"
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  placeholder="Сообщение..."
-                />
-
-                <button
-                  className={`${styles.chatIconButton} ${styles.chatSendButton}`}
-                  type="submit"
-                  aria-label="Отправить сообщение"
-                  disabled={isSending || !message.trim()}
-                >
-                  <SendIcon />
-                </button>
-              </form>
+              {renderChatComposer(styles.mobileChatComposer)}
             </aside>
           ) : null}
 
@@ -2330,34 +2536,7 @@ export function ConferenceRoomContent({ roomName, slug, onExitIntent, onEndRoomI
               {renderChatMessages()}
             </div>
 
-            <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
-              <button
-                className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
-                type="button"
-                aria-label="Добавить вложение"
-                onClick={focusChatInput}
-              >
-                <PlusIcon />
-              </button>
-
-              <input
-                ref={chatInputRef}
-                className={styles.chatInput}
-                type="text"
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Сообщение..."
-              />
-
-              <button
-                className={`${styles.chatIconButton} ${styles.chatSendButton}`}
-                type="submit"
-                aria-label="Отправить сообщение"
-                disabled={isSending || !message.trim()}
-              >
-                <SendIcon />
-              </button>
-            </form>
+            {renderChatComposer()}
           </aside>
         ) : null}
 
