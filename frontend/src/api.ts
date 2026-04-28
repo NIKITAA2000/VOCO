@@ -70,7 +70,12 @@ class ApiClient {
     return this.request("/auth/me");
   }
 
-  async updateProfile(payload: { username?: string; email?: string; password?: string }) {
+  async updateProfile(payload: {
+    username?: string;
+    email?: string;
+    password?: string;
+    avatarUrl?: string | null;
+  }) {
     const data = await this.request("/auth/me", {
       method: "PATCH",
       body: JSON.stringify(payload),

@@ -182,6 +182,39 @@ describe("GET /api/auth/me", () => {
   });
 });
 
+describe("PATCH /api/auth/me", () => {
+  it("сохраняет выбранную аватарку", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: ":D" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.avatarUrl).toBe(":D");
+    expect(res.body.token).toBeDefined();
+  });
+
+  it("сбрасывает аватарку на инициалы", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.avatarUrl).toBeNull();
+  });
+
+  it("отклоняет аватарку вне списка", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: "bad-avatar" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Ошибка валидации");
+  });
+});
+
 // ==========================================
 // Rooms: Create
 // ==========================================
