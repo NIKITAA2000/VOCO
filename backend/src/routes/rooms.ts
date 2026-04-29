@@ -602,7 +602,7 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
 
     const updateResult = await db.query(
       `UPDATE participants SET role = $1
-       WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL
+       WHERE user_id = $2 AND room_id = $3
        RETURNING id`,
       [parsed.data.role, req.params.userId, room.id]
     );

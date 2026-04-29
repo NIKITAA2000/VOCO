@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   DisconnectButton,
@@ -20,10 +21,11 @@ import {
   useLocalParticipant,
   useMediaDeviceSelect,
   useParticipants,
+  useRoomContext,
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track } from "livekit-client";
+import { RoomEvent, Track } from "livekit-client";
 import { api } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
@@ -1303,6 +1305,24 @@ function InviteIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
+function OwnerCrownIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.ownerCrownSvg, className)}
+      viewBox="0 0 50 50"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M18 36V16L22 23L25 17L28 23L32 16V36H18Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function MoreVerticalIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1348,6 +1368,7 @@ export function ConferenceRoomContent({
   canEndRoom,
   currentUserAvatarUrl,
 }: ConferenceRoomContentProps) {
+  const room = useRoomContext();
   const participants = useParticipants();
   const {
     localParticipant,
@@ -1375,6 +1396,7 @@ export function ConferenceRoomContent({
   });
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
+  const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
   const [roomParticipants, setRoomParticipants] = useState<RoomParticipantMeta[]>([]);
   const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -1427,6 +1449,92 @@ export function ConferenceRoomContent({
     return () => window.clearInterval(timer);
   }, [refreshRoomState]);
 
+  const closeParticipantMenu = useCallback(() => {
+    setParticipantMenuRect(null);
+    setOpenParticipantMenu(null);
+  }, []);
+
+  const sendModerationCommand = useCallback(
+    async (type: "mute" | "kick", targetIdentity: string) => {
+      if (!localParticipant || !targetIdentity) return;
+      const payload = new TextEncoder().encode(
+        JSON.stringify({ type, target: targetIdentity }),
+      );
+      try {
+        await localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "voco-moderation",
+          destinationIdentities: [targetIdentity],
+        });
+      } catch (error) {
+        console.error("Не удалось отправить команду модерации", error);
+      }
+    },
+    [localParticipant],
+  );
+
+  const handleToggleModerator = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!slug || !meta.user.id) return;
+      const nextRole = meta.role === "MODERATOR" ? "PARTICIPANT" : "MODERATOR";
+      try {
+        await api.changeParticipantRole(slug, meta.user.id, nextRole);
+        await refreshRoomState();
+      } catch (error) {
+        console.error("Не удалось изменить роль", error);
+      }
+    },
+    [slug, refreshRoomState, closeParticipantMenu],
+  );
+
+  const handleMuteParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!meta.user.id) return;
+      await sendModerationCommand("mute", meta.user.id);
+    },
+    [sendModerationCommand, closeParticipantMenu],
+  );
+
+  const handleKickParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!meta.user.id) return;
+      await sendModerationCommand("kick", meta.user.id);
+    },
+    [sendModerationCommand, closeParticipantMenu],
+  );
+
+  useEffect(() => {
+    if (!room) return;
+    const handleData = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic && topic !== "voco-moderation") return;
+      let message: { type?: string; target?: string } | null = null;
+      try {
+        message = JSON.parse(new TextDecoder().decode(payload));
+      } catch {
+        return;
+      }
+      if (!message || message.target !== localParticipant?.identity) return;
+      if (message.type === "mute") {
+        void localParticipant?.setMicrophoneEnabled(false);
+      } else if (message.type === "kick") {
+        onExitIntent();
+        void room.disconnect();
+      }
+    };
+    room.on(RoomEvent.DataReceived, handleData);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleData);
+    };
+  }, [room, localParticipant, onExitIntent]);
+
   useEffect(() => {
     if (!openParticipantMenu) return;
 
@@ -1434,17 +1542,26 @@ export function ConferenceRoomContent({
       const target = event.target as HTMLElement | null;
       if (!target) return;
       if (target.closest("[data-participant-menu-root]")) return;
-      setOpenParticipantMenu(null);
+      { setParticipantMenuRect(null); setOpenParticipantMenu(null); };
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenParticipantMenu(null);
+      if (event.key === "Escape") { setParticipantMenuRect(null); setOpenParticipantMenu(null); };
+    };
+
+    const handleViewportChange = () => {
+      setParticipantMenuRect(null);
+      setOpenParticipantMenu(null);
     };
 
     window.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleKey);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
     };
   }, [openParticipantMenu]);
 
@@ -1619,9 +1736,8 @@ export function ConferenceRoomContent({
   const participantMetaByUserId = new Map(
     roomParticipants.map((participant) => [participant.user.id, participant] as const),
   );
-  const localParticipantRole = participantMetaByUserId.get(localIdentity ?? "")?.role;
   const canModerateParticipants = Boolean(
-    canEndRoom || localParticipantRole === "OWNER" || localParticipantRole === "MODERATOR" || roomRole === "OWNER" || roomRole === "MODERATOR",
+    isOwner || roomRole === "OWNER" || roomRole === "MODERATOR",
   );
   const recordingSeconds =
     isRecording && recordingStartedAt ? Math.floor((recordingNow - recordingStartedAt) / 1000) : 0;
@@ -1914,51 +2030,73 @@ export function ConferenceRoomContent({
           aria-expanded={isOpen}
           onClick={(event) => {
             event.stopPropagation();
-            setOpenParticipantMenu((current) => (current === meta.user.id ? null : meta.user.id));
+            const button = event.currentTarget;
+            setOpenParticipantMenu((current) => {
+              if (current === meta.user.id) {
+                setParticipantMenuRect(null);
+                return null;
+              }
+              const rect = button.getBoundingClientRect();
+              const menuWidth = 173;
+              const top = isCompactLayout ? rect.bottom + 4 : rect.top;
+              const left = isCompactLayout
+                ? Math.max(8, rect.right - menuWidth)
+                : rect.right + 8;
+              setParticipantMenuRect({ top, left });
+              return meta.user.id;
+            });
           }}
         >
           <MoreVerticalIcon />
         </button>
 
-        {isOpen ? (
-          <div className={styles.participantActionMenu} role="menu">
-            {canChangeRole ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setOpenParticipantMenu(null)}
+        {isOpen && participantMenuRect
+          ? createPortal(
+              <div
+                className={styles.participantActionMenu}
+                role="menu"
+                data-participant-menu-root
+                style={{
+                  position: "fixed",
+                  top: participantMenuRect.top,
+                  left: participantMenuRect.left,
+                  right: "auto",
+                }}
               >
-                {meta.role === "MODERATOR" ? "Снять права модера" : "Выдать права модера"}
-              </button>
-            ) : null}
-            {canManage ? (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Замутить
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Кикнуть
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.participantDangerAction}
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Забанить
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+                {canChangeRole ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void handleToggleModerator(meta)}
+                  >
+                    {meta.role === "MODERATOR" ? "Снять права модера" : "Выдать права модера"}
+                  </button>
+                ) : null}
+                {canManage ? (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleMuteParticipant(meta)}
+                    >
+                      Замутить
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleKickParticipant(meta)}
+                    >
+                      Кикнуть
+                    </button>
+                    <button type="button" role="menuitem">
+                      Забанить
+                    </button>
+                  </>
+                ) : null}
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
     );
   };
@@ -1969,13 +2107,12 @@ export function ConferenceRoomContent({
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
       const shouldShowRaisedHand = isLocal && isHandRaised;
-      const canManage = canManageTarget(meta, isLocal);
 
       return (
         <div
-          className={`${styles.stageParticipantRow} ${isLocal ? styles.participantRowLocal : ""} ${
-            meta.role === "MODERATOR" && !isLocal ? styles.participantRowModerator : ""
-          } ${canManage ? styles.participantRowManaged : ""}`}
+          className={`${styles.stageParticipantRow} ${
+            meta.role === "MODERATOR" || meta.role === "OWNER" ? styles.participantRowModerator : ""
+          }`}
           key={participant.identity}
         >
           <ParticipantAvatar
@@ -1992,7 +2129,13 @@ export function ConferenceRoomContent({
               <RaisedHandIcon />
             </span>
           ) : null}
-          {renderParticipantMenu(meta, isLocal)}
+          {meta.role === "OWNER" ? (
+            <span className={styles.participantOwnerCrown} aria-label="Владелец комнаты">
+              <OwnerCrownIcon />
+            </span>
+          ) : (
+            renderParticipantMenu(meta, isLocal)
+          )}
         </div>
       );
     });

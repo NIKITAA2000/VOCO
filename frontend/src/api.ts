@@ -123,6 +123,18 @@ class ApiClient {
     return this.request(`/rooms/${slug}/report`);
   }
 
+  // Moderation
+  async changeParticipantRole(
+    slug: string,
+    userId: string,
+    role: "MODERATOR" | "PARTICIPANT",
+  ) {
+    return this.request(`/rooms/${slug}/participants/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  }
+
   // Invites (owner)
   async createInvite(
     slug: string,

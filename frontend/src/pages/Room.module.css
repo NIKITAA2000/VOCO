@@ -462,11 +462,6 @@
   border-radius: 10px;
 }
 
-.participantRowManaged {
-  background: #ddffdd;
-}
-
-.participantRowLocal,
 .participantRowModerator {
   background: #eedcff;
   border-radius: 10px;
@@ -482,6 +477,21 @@
   width: 50px;
   height: 50px;
   flex: 0 0 auto;
+}
+
+.participantOwnerCrown {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #000;
+}
+
+.ownerCrownSvg {
+  width: 50px;
+  height: 50px;
+  display: block;
 }
 
 .participantMoreButton {
@@ -502,9 +512,6 @@
 }
 
 .participantActionMenu {
-  position: absolute;
-  left: calc(100% + 20px);
-  top: 0;
   z-index: 40;
   width: 173px;
   height: 127px;
@@ -516,6 +523,7 @@
   border-radius: 10px;
   background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
   box-shadow: none;
+  font-family: "Jost", sans-serif;
 }
 
 .participantActionMenu button {
@@ -528,27 +536,33 @@
   border-radius: 0;
   background: transparent;
   color: #000;
-  font: inherit;
+  font-family: inherit;
   font-size: 16px;
   line-height: 23px;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
+}
+
+.participantActionMenu button {
+  transition: color 0.12s ease;
 }
 
 .participantActionMenu button:hover,
 .participantActionMenu button:focus-visible {
   outline: none;
-  background: transparent;
+  color: var(--brand-purple, #7c3aed);
+}
+
+.participantActionMenu button:active {
+  color: #5b21b6;
 }
 
 .participantActionMenu button:disabled {
   opacity: 0.5;
   cursor: wait;
-}
-
-.participantDangerAction:hover,
-.participantDangerAction:focus-visible {
-  color: inherit;
 }
 
 .unblockButton {
@@ -3017,12 +3031,6 @@ button.stageRoomCode:disabled {
   right: 25px;
 }
 
-.mobileParticipantsPanel .participantActionMenu {
-  left: auto;
-  right: 0;
-  top: calc(100% + 4px);
-}
-
 .mobileChatPanel {
   border-radius: 25px;
   box-shadow: none;
@@ -4265,11 +4273,6 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #0077ff;
 }
 
-:global(:root[data-theme="dark"]) .participantRowManaged {
-  background: rgba(0, 255, 0, 0.16);
-}
-
-:global(:root[data-theme="dark"]) .participantRowLocal,
 :global(:root[data-theme="dark"]) .participantRowModerator {
   background: rgba(128, 0, 255, 0.24);
 }
@@ -4280,9 +4283,19 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .participantMoreButton,
 :global(:root[data-theme="dark"]) .participantActionMenu button,
+:global(:root[data-theme="dark"]) .participantOwnerCrown,
 :global(:root[data-theme="dark"]) .unblockButton,
 :global(:root[data-theme="dark"]) .recordingIndicator {
   color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .participantActionMenu button:hover,
+:global(:root[data-theme="dark"]) .participantActionMenu button:focus-visible {
+  color: #c4b5fd;
+}
+
+:global(:root[data-theme="dark"]) .participantActionMenu button:active {
+  color: #a78bfa;
 }
 
 :global(:root[data-theme="dark"]) .participantActionMenu {
