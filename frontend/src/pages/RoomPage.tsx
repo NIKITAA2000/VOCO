@@ -1745,12 +1745,10 @@ export function ConferenceRoomContent({
     ) : null;
 
   const handleCopyRoomCode = useCallback(async () => {
-    if (!slug || !isOwner || codeCopyStatus === "copying") return;
+    if (!slug || codeCopyStatus === "copying") return;
     setCodeCopyStatus("copying");
     try {
-      const data = await api.createInvite(slug, { maxUses: 1 });
-      const url = `${window.location.origin}/invite/${data.invite.code}`;
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(slug);
       setCodeCopyStatus("copied");
     } catch {
       setCodeCopyStatus("error");
@@ -1763,7 +1761,7 @@ export function ConferenceRoomContent({
         codeCopyResetRef.current = null;
       }, 1800);
     }
-  }, [slug, isOwner, codeCopyStatus]);
+  }, [slug, codeCopyStatus]);
 
   const closeDeviceMenu = useCallback(() => setOpenDeviceMenu(null), []);
   const toggleDeviceMenu = useCallback(
@@ -2005,13 +2003,13 @@ export function ConferenceRoomContent({
   const roomCodeBase = slug ? `Код комнаты: ${slug}` : "Код комнаты";
   const roomCodeLabel =
     codeCopyStatus === "copied"
-      ? "Ссылка скопирована"
+      ? "Код скопирован"
       : codeCopyStatus === "copying"
-        ? "Создаём ссылку..."
+        ? "Копируем..."
         : codeCopyStatus === "error"
           ? "Не удалось скопировать"
           : roomCodeBase;
-  const roomCodeTitle = isOwner && slug ? "Скопировать одноразовую ссылку" : undefined;
+  const roomCodeTitle = slug ? "Скопировать код комнаты" : undefined;
 
   const renderOwnerCopyButton = (className: string, style?: CSSProperties) => (
     <button
@@ -2024,7 +2022,7 @@ export function ConferenceRoomContent({
       data-copy-status={codeCopyStatus}
     >
       <span className={styles.roomCodeCopyLabel}>{roomCodeLabel}</span>
-      <span className={styles.roomCodeCopyHint}>Скопировать одноразовую ссылку</span>
+      <span className={styles.roomCodeCopyHint}>Скопировать код комнаты</span>
     </button>
   );
 
@@ -2724,7 +2722,7 @@ export function ConferenceRoomContent({
           <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
             {roomTitle}
           </h1>
-          {isOwner && slug ? (
+          {slug ? (
             renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode}`)
           ) : (
             <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode}`}>
@@ -2963,7 +2961,7 @@ export function ConferenceRoomContent({
           <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName}`}>
             {roomTitle}
           </h1>
-          {isOwner && slug ? (
+          {slug ? (
             renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode}`)
           ) : (
             <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode}`}>
@@ -3180,7 +3178,7 @@ export function ConferenceRoomContent({
         <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
           {roomTitle}
         </h1>
-        {isOwner && slug ? (
+        {slug ? (
           renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode}`)
         ) : (
           <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode}`}>
@@ -3585,11 +3583,11 @@ export function RoomPage({ user }: Props) {
         </div>
     ) : null;
 
-    if (!conferenceReady) {
-        return (
-            <div className={styles.waitingScreen}>
-                {rejectionToastNode}
-                {liveKitConnection}
+    return (
+        <div className={conferenceReady ? styles.container : styles.waitingScreen}>
+            {rejectionToastNode}
+            {liveKitConnection}
+            {!conferenceReady ? (
                 <div className={styles.waitingStage}>
                     <div className={styles.waitingBackdrop} aria-hidden="true">
                         <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
@@ -3666,16 +3664,7 @@ export function RoomPage({ user }: Props) {
                         </div>
                     )}
                 </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className={styles.container}>
-            {rejectionToastNode}
-            {liveKitConnection}
-
-            {reportModalOpen ? (
+            ) : reportModalOpen ? (
                 <div
                     className={styles.reportModalOverlay}
                     role="dialog"

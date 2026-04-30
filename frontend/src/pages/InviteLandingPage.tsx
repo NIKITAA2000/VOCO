@@ -146,33 +146,45 @@ export function InviteLandingPage({ user }: Props) {
     if (!code) setError("Ссылка недействительна");
   }, [code]);
 
-  if (!conferenceReady) {
-    const headerTitle = guestsDenied
-      ? "Требуется регистрация"
-      : isAuthed
-        ? "Присоединение по ссылке"
-        : "Вход гостем";
+  const headerTitle = guestsDenied
+    ? "Требуется регистрация"
+    : isAuthed
+      ? "Присоединение по ссылке"
+      : "Вход гостем";
 
-    return (
-      <div className={styles.waitingScreen}>
-        {rejectionToast ? (
-          <div className={styles.rejectionToast} role="status" aria-live="assertive">
-            {rejectionToast}
-          </div>
-        ) : null}
-        {inQueue && token && livekitUrl ? (
-          <div style={{ display: "none" }}>
-            <LiveKitRoom
-              serverUrl={livekitUrl}
-              token={token}
-              connect={true}
-              onDisconnected={handleDisconnected}
-              data-lk-theme="default"
-            >
-              <PendingWatcher onApproved={handlePendingApproved} />
-            </LiveKitRoom>
-          </div>
-        ) : null}
+  const liveKitConnection =
+    token && livekitUrl && (inQueue || conferenceReady) ? (
+      <div style={conferenceReady ? undefined : { display: "none" }}>
+        <LiveKitRoom
+          serverUrl={livekitUrl}
+          token={token}
+          connect={true}
+          onDisconnected={handleDisconnected}
+          data-lk-theme="default"
+          className={conferenceReady ? styles.livekitRoot : undefined}
+        >
+          {!conferenceReady && <PendingWatcher onApproved={handlePendingApproved} />}
+          {conferenceReady && (
+            <ConferenceRoomContent
+              roomName={roomName}
+              slug={roomSlug}
+              onExitIntent={handleLeaveIntent}
+              currentUserAvatarUrl={user?.avatarUrl ?? null}
+            />
+          )}
+        </LiveKitRoom>
+      </div>
+    ) : null;
+
+  return (
+    <div className={conferenceReady ? styles.container : styles.waitingScreen}>
+      {rejectionToast && !conferenceReady ? (
+        <div className={styles.rejectionToast} role="status" aria-live="assertive">
+          {rejectionToast}
+        </div>
+      ) : null}
+      {liveKitConnection}
+      {!conferenceReady ? (
         <div className={styles.waitingStage}>
           <section
             className={`${styles.waitingPanel} ${guestsDenied ? styles.waitingPanelTall : ""}`}
@@ -286,27 +298,7 @@ export function InviteLandingPage({ user }: Props) {
             )}
           </section>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.container}>
-      <LiveKitRoom
-        serverUrl={livekitUrl}
-        token={token}
-        connect={true}
-        onDisconnected={handleDisconnected}
-        data-lk-theme="default"
-        className={styles.livekitRoot}
-      >
-        <ConferenceRoomContent
-          roomName={roomName}
-          slug={roomSlug}
-          onExitIntent={handleLeaveIntent}
-          currentUserAvatarUrl={user?.avatarUrl ?? null}
-        />
-      </LiveKitRoom>
+      ) : null}
     </div>
   );
 }
