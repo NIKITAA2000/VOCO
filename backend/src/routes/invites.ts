@@ -5,6 +5,10 @@ import { db } from "../lib/db.js";
 import { authenticate } from "../middleware/auth.js";
 import { joinGuestSchema } from "../schemas/index.js";
 import { config } from "../config/index.js";
+import {
+  buildMetadata,
+  PARTICIPANT_STATUS_ACTIVE,
+} from "../lib/livekit.js";
 
 const router = Router();
 
@@ -21,6 +25,9 @@ interface InviteRow {
   roomSlug: string;
   roomName: string;
   maxUsers: number;
+  roomAllowGuests: boolean;
+  roomRequireApproval: boolean;
+  roomOwnerId: string;
 }
 
 async function validateInvite(
@@ -32,7 +39,10 @@ async function validateInvite(
             il.uses_count AS "usesCount", il.is_active AS "isActive",
             il.allow_guests AS "allowGuests",
             r.is_active AS "roomIsActive", r.slug AS "roomSlug",
-            r.name AS "roomName", r.max_users AS "maxUsers"
+            r.name AS "roomName", r.max_users AS "maxUsers",
+            r.allow_guests AS "roomAllowGuests",
+            r.require_approval AS "roomRequireApproval",
+            r.owner_id AS "roomOwnerId"
      FROM invite_links il
      JOIN rooms r ON il.room_id = r.id
      WHERE il.code = $1`,
@@ -90,8 +100,9 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       "SELECT id FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
       [req.user!.userId, invite.roomId]
     );
+    const alreadyInRoom = existingResult.rows.length > 0;
 
-    if (existingResult.rows.length === 0) {
+    if (!alreadyInRoom) {
       // Проверяем вместимость
       const countResult = await db.query(
         "SELECT COUNT(DISTINCT user_id) AS count FROM participants WHERE room_id = $1 AND left_at IS NULL",
@@ -103,9 +114,22 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
         return;
       }
 
-      await db.query(
-        "INSERT INTO participants (user_id, room_id, role) VALUES ($1, $2, 'PARTICIPANT')",
+      // Сохраняем роль если пользователь уже был в комнате (MODERATOR не теряется после rejoin)
+      const lastRoleResult = await db.query(
+        "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 ORDER BY joined_at DESC LIMIT 1",
         [req.user!.userId, invite.roomId]
+      );
+      const lastRole = lastRoleResult.rows[0]?.role;
+      const role =
+        invite.roomOwnerId === req.user!.userId
+          ? "OWNER"
+          : lastRole === "MODERATOR"
+          ? "MODERATOR"
+          : "PARTICIPANT";
+
+      await db.query(
+        "INSERT INTO participants (user_id, room_id, role) VALUES ($1, $2, $3)",
+        [req.user!.userId, invite.roomId, role]
       );
 
       await db.query(
@@ -121,28 +145,43 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
     );
     const participantRole = roleResult.rows[0]?.role ?? "PARTICIPANT";
     const canPublishData = participantRole === "OWNER" || participantRole === "MODERATOR";
+    const isPrivileged = participantRole === "OWNER" || participantRole === "MODERATOR";
+    let wasApproved = false;
+    if (invite.roomRequireApproval && !isPrivileged) {
+      const approvedResult = await db.query(
+        "SELECT 1 FROM participants WHERE user_id = $1 AND room_id = $2 AND approved = true LIMIT 1",
+        [req.user!.userId, invite.roomId],
+      );
+      wasApproved = approvedResult.rows.length > 0;
+    }
+    const isPending = invite.roomRequireApproval && !isPrivileged && !wasApproved;
 
     const { displayName } = req.body;
     const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
       identity: req.user!.userId,
       name: displayName || req.user!.username,
+      metadata: buildMetadata({
+        status: isPending ? "pending" : PARTICIPANT_STATUS_ACTIVE,
+      }),
     });
 
     at.addGrant({
       roomJoin: true,
       room: invite.roomSlug,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData,
+      canPublish: !isPending,
+      canSubscribe: !isPending,
+      canPublishData: isPending ? false : canPublishData,
+      canUpdateOwnMetadata: !isPending,
     });
 
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
     res.json({
-      message: "Присоединились к комнате",
+      message: isPending ? "Запрос отправлен модератору" : "Присоединились к комнате",
       token: livekitToken,
       livekitUrl,
+      pending: isPending,
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
     });
   } catch (error) {
@@ -177,6 +216,10 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
       res.status(403).json({ error: "Гостевой вход по этой ссылке запрещён" });
       return;
     }
+    if (!invite.roomAllowGuests) {
+      res.status(403).json({ error: "В этой комнате запрещён гостевой вход" });
+      return;
+    }
 
     // Проверяем вместимость по зарегистрированным участникам
     const countResult = await db.query(
@@ -195,28 +238,37 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
     );
 
     const guestIdentity = `guest_${nanoid(8)}`;
+    const isPending = invite.roomRequireApproval;
 
     const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
       identity: guestIdentity,
       name: displayName,
+      metadata: buildMetadata({
+        status: isPending ? "pending" : PARTICIPANT_STATUS_ACTIVE,
+        isGuest: true,
+      }),
     });
 
     at.addGrant({
       roomJoin: true,
       room: invite.roomSlug,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true,
+      canPublish: !isPending,
+      canSubscribe: !isPending,
+      canPublishData: isPending ? false : true,
+      canUpdateOwnMetadata: !isPending,
     });
 
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
     res.json({
-      message: "Присоединились к комнате как гость",
+      message: isPending
+        ? "Запрос отправлен модератору"
+        : "Присоединились к комнате как гость",
       token: livekitToken,
       livekitUrl,
       guestIdentity,
+      pending: isPending,
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
     });
   } catch (error) {

@@ -25,7 +25,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { RoomEvent, Track } from "livekit-client";
+import { DisconnectReason, RoomEvent, Track } from "livekit-client";
 import { api } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
@@ -39,8 +39,9 @@ const ROOM_TILE_PAGE_SIZE = 4;
 const DESKTOP_TILE_COLUMN_WIDTH = 293;
 const DESKTOP_TILE_GRID_WIDTH = DESKTOP_TILE_COLUMN_WIDTH * 2;
 const DESKTOP_TILE_GRID_LEFT = (STAGE_WIDTH - DESKTOP_TILE_GRID_WIDTH) / 2;
-const DESKTOP_EXPANDED_MEDIA_TOP = 107;
-const DESKTOP_EXPANDED_MEDIA_HEIGHT = 810;
+const DESKTOP_PARTICIPANTS_PANEL_WIDTH = 470;
+const DESKTOP_CHAT_PANEL_WIDTH = 384;
+const TILE_FOOTER_HEIGHT = 50;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
 const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px)";
@@ -158,16 +159,41 @@ function mobileContentRect(row: number, rows: number, rowSpan = 1): CSSPropertie
   return contentRect(0, MOBILE_WIDTH, MOBILE_WIDTH, row, rows, rowSpan);
 }
 
-function getStageTileFrames(count: number, gridLeft = DESKTOP_TILE_GRID_LEFT, expandSingleTile = false) {
+function getStageTileFrames(
+  count: number,
+  gridLeft = DESKTOP_TILE_GRID_LEFT,
+  expandSingleTile = false,
+  expandedLeftPx = 0,
+  expandedRightPx = 0,
+  expandedAspectRatio = 16 / 9,
+) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
   if (normalizedCount === 1) {
     if (expandSingleTile) {
+      // Tile максимально занимает зону между viewport-fixed панелями и bar'ами,
+      // сохраняя aspect ratio демки — без обрезки и без боковых/верхних полос.
+      // Тайл = медиа (зона видео) + футер 50px снизу. При подгонке аспекта учитываем,
+      // что source aspect должен совпадать с медиа-зоной, а не со всем тайлом.
+      const safeAspect = expandedAspectRatio > 0 ? expandedAspectRatio : 16 / 9;
+      const horizontalReserved = expandedLeftPx + expandedRightPx;
+      const verticalReserved = ROOM_BAR_HEIGHT * 2;
+      const footer = TILE_FOOTER_HEIGHT;
+      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved}px - ${footer}px) * ${safeAspect}))`;
+      const heightCss = `min(calc(100vh - ${verticalReserved}px), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
       return [
         {
           id: "tile-1",
           accent: true,
-          style: stageRect(0, DESKTOP_EXPANDED_MEDIA_TOP, STAGE_WIDTH, DESKTOP_EXPANDED_MEDIA_HEIGHT),
+          style: {
+            position: "fixed" as const,
+            top: `calc(${ROOM_BAR_HEIGHT}px + (100vh - ${verticalReserved}px) / 2)`,
+            left: `calc((100vw + ${expandedLeftPx}px - ${expandedRightPx}px) / 2)`,
+            width: widthCss,
+            height: heightCss,
+            transform: "translate(-50%, -50%)",
+            zIndex: 1,
+          },
         },
       ];
     }
@@ -337,6 +363,25 @@ function isTrackSpeaking(trackRef: any) {
     getTrackSource(trackRef) !== Track.Source.ScreenShare &&
     Boolean(trackRef?.participant?.isSpeaking)
   );
+}
+
+function parseParticipantStatus(participant: any): {
+  status: "pending" | "active";
+  isGuest: boolean;
+} {
+  const raw = participant?.metadata;
+  if (!raw || typeof raw !== "string") {
+    return { status: "active", isGuest: false };
+  }
+  try {
+    const data = JSON.parse(raw);
+    return {
+      status: data?.status === "pending" ? "pending" : "active",
+      isGuest: Boolean(data?.isGuest),
+    };
+  } catch {
+    return { status: "active", isGuest: false };
+  }
 }
 
 function hasExpandedVideoMedia(trackRef: any) {
@@ -1359,6 +1404,33 @@ function ParticipantAvatar({
   );
 }
 
+interface PendingWatcherProps {
+  onApproved: () => void;
+}
+
+export function PendingWatcher({ onApproved }: PendingWatcherProps) {
+  const room = useRoomContext();
+  useEffect(() => {
+    if (!room) return;
+    // Слушаем РЕАЛЬНОЕ событие смены permissions у локального участника.
+    // Initial check не делаем — он ловит дефолтные значения до первого heartbeat
+    // от LiveKit и ошибочно триггерит approved.
+    const handle = (_prev: unknown, participant: any) => {
+      const localIdentity = room.localParticipant?.identity;
+      if (!participant || !localIdentity || participant.identity !== localIdentity) return;
+      const perms = participant.permissions;
+      if (perms?.canSubscribe === true) {
+        onApproved();
+      }
+    };
+    room.on(RoomEvent.ParticipantPermissionsChanged, handle);
+    return () => {
+      room.off(RoomEvent.ParticipantPermissionsChanged, handle);
+    };
+  }, [room, onApproved]);
+  return null;
+}
+
 export function ConferenceRoomContent({
   roomName,
   slug,
@@ -1386,7 +1458,7 @@ export function ConferenceRoomContent({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [emojiScrollThumbTop, setEmojiScrollThumbTop] = useState(10);
   const [outputEnabled, setOutputEnabled] = useState(true);
-  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [handRaisedMap, setHandRaisedMap] = useState<Record<string, boolean>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
@@ -1398,13 +1470,33 @@ export function ConferenceRoomContent({
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
   const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
   const [roomParticipants, setRoomParticipants] = useState<RoomParticipantMeta[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<
+    Array<{ id: string; user: { id: string; username: string }; reason?: string | null }>
+  >([]);
   const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingNow, setRecordingNow] = useState(Date.now());
   const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const [tilePage, setTilePage] = useState(0);
+  const [participantsMetaTick, setParticipantsMetaTick] = useState(0);
+  const [pendingActionFor, setPendingActionFor] = useState<string | null>(null);
   const codeCopyResetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!room) return;
+    const bump = () => setParticipantsMetaTick((tick) => tick + 1);
+    room.on(RoomEvent.ParticipantMetadataChanged, bump);
+    room.on(RoomEvent.ParticipantConnected, bump);
+    room.on(RoomEvent.ParticipantDisconnected, bump);
+    room.on(RoomEvent.LocalTrackPublished, bump);
+    return () => {
+      room.off(RoomEvent.ParticipantMetadataChanged, bump);
+      room.off(RoomEvent.ParticipantConnected, bump);
+      room.off(RoomEvent.ParticipantDisconnected, bump);
+      room.off(RoomEvent.LocalTrackPublished, bump);
+    };
+  }, [room]);
 
   useEffect(() => {
     return () => {
@@ -1435,6 +1527,17 @@ export function ConferenceRoomContent({
       setRoomParticipants(data.room?.participants ?? []);
       const nextRole = (data.room?.myRole ?? null) as RoomRole | null;
       setRoomRole(nextRole);
+      // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
+      if (nextRole === "OWNER" || nextRole === "MODERATOR") {
+        try {
+          const blocked = await api.listBlocked(slug);
+          setBlockedUsers(blocked.blocked ?? []);
+        } catch {
+          // ignore
+        }
+      } else {
+        setBlockedUsers([]);
+      }
     } catch {
       // Room metadata is optional for the visual controls; LiveKit participants remain the source of truth.
     }
@@ -1728,11 +1831,24 @@ export function ConferenceRoomContent({
     );
   });
 
-  const orderedParticipants = [...participants].sort((left: any, right: any) => {
-    if (left.identity === localIdentity) return -1;
-    if (right.identity === localIdentity) return 1;
-    return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
-  });
+  void participantsMetaTick;
+  const allRoomParticipants = [...participants];
+  const pendingParticipants = allRoomParticipants.filter(
+    (participant: any) =>
+      participant.identity !== localIdentity &&
+      parseParticipantStatus(participant).status === "pending",
+  );
+  const orderedParticipants = allRoomParticipants
+    .filter(
+      (participant: any) =>
+        participant.identity === localIdentity ||
+        parseParticipantStatus(participant).status !== "pending",
+    )
+    .sort((left: any, right: any) => {
+      if (left.identity === localIdentity) return -1;
+      if (right.identity === localIdentity) return 1;
+      return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
+    });
   const participantMetaByUserId = new Map(
     roomParticipants.map((participant) => [participant.user.id, participant] as const),
   );
@@ -1753,10 +1869,99 @@ export function ConferenceRoomContent({
     : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
+  const expandedTileLeft = isParticipantsPanelOpen ? DESKTOP_PARTICIPANTS_PANEL_WIDTH : 0;
+  const expandedTileRight = isChatPanelOpen ? DESKTOP_CHAT_PANEL_WIDTH : 0;
+  const expandedTrackPublication = (visibleTracks[0] as any)?.publication;
+  const expandedTrack = expandedTrackPublication?.track;
+  const expandedTrackSid: string | undefined = expandedTrackPublication?.trackSid;
+  const expandedMediaRef = useRef<HTMLDivElement | null>(null);
+  const [expandedVideoAspect, setExpandedVideoAspect] = useState<number | null>(null);
+  const [expandedTrackDimsState, setExpandedTrackDimsState] = useState<
+    { width: number; height: number } | null
+  >(null);
+  useEffect(() => {
+    if (!expandedTrack) {
+      setExpandedTrackDimsState(null);
+      return;
+    }
+    const initial = expandedTrack.dimensions ?? expandedTrackPublication?.dimensions;
+    if (initial?.width && initial?.height) {
+      setExpandedTrackDimsState({ width: initial.width, height: initial.height });
+    }
+    const handle = (dims: { width: number; height: number } | undefined) => {
+      if (dims?.width && dims?.height) {
+        setExpandedTrackDimsState({ width: dims.width, height: dims.height });
+      }
+    };
+    expandedTrack.on?.("videoDimensionsChanged", handle);
+    return () => {
+      expandedTrack.off?.("videoDimensionsChanged", handle);
+    };
+  }, [expandedTrack, expandedTrackPublication]);
+  // Меряем aspect напрямую с <video>: videoWidth/Height у remote-трека
+  // обновляются надёжнее, чем publication.dimensions / videoDimensionsChanged.
+  useEffect(() => {
+    setExpandedVideoAspect(null);
+    const container = expandedMediaRef.current;
+    if (!container) return;
+
+    let activeVideo: HTMLVideoElement | null = null;
+    let detach: (() => void) | null = null;
+
+    const measure = () => {
+      if (activeVideo && activeVideo.videoWidth > 0 && activeVideo.videoHeight > 0) {
+        setExpandedVideoAspect(activeVideo.videoWidth / activeVideo.videoHeight);
+      }
+    };
+
+    const attach = (video: HTMLVideoElement) => {
+      if (video === activeVideo) return;
+      detach?.();
+      activeVideo = video;
+      video.addEventListener("loadedmetadata", measure);
+      video.addEventListener("resize", measure);
+      measure();
+      detach = () => {
+        video.removeEventListener("loadedmetadata", measure);
+        video.removeEventListener("resize", measure);
+      };
+    };
+
+    const initial = container.querySelector("video");
+    if (initial) attach(initial as HTMLVideoElement);
+
+    const observer = new MutationObserver(() => {
+      const next = container.querySelector("video");
+      if (next) {
+        attach(next as HTMLVideoElement);
+      } else {
+        detach?.();
+        detach = null;
+        activeVideo = null;
+        setExpandedVideoAspect(null);
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      detach?.();
+    };
+  }, [expandedTrackSid]);
+  const expandedTrackDims =
+    expandedTrackDimsState ?? expandedTrackPublication?.dimensions;
+  const expandedAspectRatio =
+    expandedVideoAspect ??
+    (expandedTrackDims?.width && expandedTrackDims?.height
+      ? expandedTrackDims.width / expandedTrackDims.height
+      : 16 / 9);
   const tileFrames = getStageTileFrames(
     visibleTracks.length,
     DESKTOP_TILE_GRID_LEFT,
     visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+    expandedTileLeft,
+    expandedTileRight,
+    expandedAspectRatio,
   );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
@@ -1945,7 +2150,87 @@ export function ConferenceRoomContent({
       };
     });
   }, [isCompactLayout]);
-  const toggleRaisedHand = () => setIsHandRaised((current) => !current);
+  const localIdentityForHand = localParticipant?.identity;
+  const isHandRaised = localIdentityForHand
+    ? Boolean(handRaisedMap[localIdentityForHand])
+    : false;
+
+  useEffect(() => {
+    if (!room) return;
+
+    const readFlag = (p: any): boolean => {
+      const raw = p?.attributes?.handRaised;
+      return raw === "true" || raw === true;
+    };
+
+    const snapshot = () => {
+      const next: Record<string, boolean> = {};
+      if (room.localParticipant?.identity) {
+        next[room.localParticipant.identity] = readFlag(room.localParticipant);
+      }
+      const remotes: Iterable<any> =
+        (room.remoteParticipants && typeof room.remoteParticipants.values === "function"
+          ? room.remoteParticipants.values()
+          : room.remoteParticipants) ?? [];
+      for (const p of remotes) {
+        if (p?.identity) next[p.identity] = readFlag(p);
+      }
+      return next;
+    };
+    setHandRaisedMap(snapshot());
+
+    const handleAttributes = (changed: Record<string, string>, participant: any) => {
+      if (!participant?.identity) return;
+      if (!changed || !("handRaised" in changed)) return;
+      setHandRaisedMap((prev) => ({
+        ...prev,
+        [participant.identity]: changed.handRaised === "true",
+      }));
+    };
+    const handleConnected = (participant: any) => {
+      if (!participant?.identity) return;
+      setHandRaisedMap((prev) => ({
+        ...prev,
+        [participant.identity]: readFlag(participant),
+      }));
+    };
+    const handleDisconnected = (participant: any) => {
+      if (!participant?.identity) return;
+      setHandRaisedMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+    };
+
+    room.on(RoomEvent.ParticipantAttributesChanged, handleAttributes);
+    room.on(RoomEvent.ParticipantConnected, handleConnected);
+    room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
+
+    return () => {
+      room.off(RoomEvent.ParticipantAttributesChanged, handleAttributes);
+      room.off(RoomEvent.ParticipantConnected, handleConnected);
+      room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
+    };
+  }, [room]);
+
+  const toggleRaisedHand = useCallback(() => {
+    if (!localParticipant) return;
+    const identity = localParticipant.identity;
+    const next = !(identity ? Boolean(handRaisedMap[identity]) : false);
+    if (identity) {
+      setHandRaisedMap((prev) => ({ ...prev, [identity]: next }));
+    }
+    void Promise.resolve(localParticipant.setAttributes({ handRaised: next ? "true" : "false" })).catch(
+      (err) => {
+        console.error("setAttributes(handRaised) failed", err);
+        if (identity) {
+          setHandRaisedMap((prev) => ({ ...prev, [identity]: !next }));
+        }
+      },
+    );
+  }, [localParticipant, handRaisedMap]);
   const toggleRecording = () => {
     setIsRecording((current) => {
       const next = !current;
@@ -2014,7 +2299,10 @@ export function ConferenceRoomContent({
   const renderParticipantMenu = (meta: RoomParticipantMeta, isLocal: boolean) => {
     const isOpen = openParticipantMenu === meta.user.id;
     const canManage = canManageTarget(meta, isLocal);
-    const canChangeRole = Boolean((isOwner || roomRole === "OWNER") && canManage && meta.role !== "OWNER");
+    const isGuest = typeof meta.user.id === "string" && meta.user.id.startsWith("guest_");
+    const canChangeRole = Boolean(
+      (isOwner || roomRole === "OWNER") && canManage && meta.role !== "OWNER" && !isGuest,
+    );
 
     if (!canManage && !canChangeRole) {
       return null;
@@ -2088,9 +2376,11 @@ export function ConferenceRoomContent({
                     >
                       Кикнуть
                     </button>
-                    <button type="button" role="menuitem">
-                      Забанить
-                    </button>
+                    {!isGuest ? (
+                      <button type="button" role="menuitem">
+                        Забанить
+                      </button>
+                    ) : null}
                   </>
                 ) : null}
               </div>,
@@ -2101,12 +2391,152 @@ export function ConferenceRoomContent({
     );
   };
 
+  const handleApprovePending = useCallback(
+    async (identity: string) => {
+      if (!slug) return;
+      setPendingActionFor(identity);
+      try {
+        await api.approveParticipant(slug, identity);
+      } catch (err) {
+        console.error("approve error", err);
+      } finally {
+        setPendingActionFor((current) => (current === identity ? null : current));
+      }
+    },
+    [slug],
+  );
+
+  const handleRejectPending = useCallback(
+    async (identity: string) => {
+      if (!slug) return;
+      setPendingActionFor(identity);
+      try {
+        await api.rejectParticipant(slug, identity);
+      } catch (err) {
+        console.error("reject error", err);
+      } finally {
+        setPendingActionFor((current) => (current === identity ? null : current));
+      }
+    },
+    [slug],
+  );
+
+  const handleUnblockUser = useCallback(
+    async (userId: string) => {
+      if (!slug) return;
+      try {
+        await api.unblockUser(slug, userId);
+        await refreshRoomState();
+      } catch (err) {
+        console.error("unblock error", err);
+      }
+    },
+    [slug, refreshRoomState],
+  );
+
+  const renderBlockedRows = () => {
+    if (!canModerateParticipants || blockedUsers.length === 0) return null;
+    return (
+      <div className={styles.blockedParticipantsBlock}>
+        <div className={styles.blockedParticipantsHeader}>Заблокированы</div>
+        {blockedUsers.map((entry) => (
+          <div className={styles.blockedParticipantRow} key={entry.id}>
+            <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
+            <span className={styles.stageParticipantText}>{entry.user.username}</span>
+            <button
+              type="button"
+              className={styles.unblockButton}
+              onClick={() => void handleUnblockUser(entry.user.id)}
+            >
+              Разблок
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderPendingParticipantRows = () => {
+    if (pendingParticipants.length === 0) return null;
+    if (!canModerateParticipants) return null;
+    return (
+      <div className={styles.pendingParticipantsBlock}>
+        <div className={styles.pendingParticipantsHeader}>Ожидают входа</div>
+        {pendingParticipants.map((participant: any) => {
+          const displayName = participant.name || participant.identity || "Гость";
+          const inProgress = pendingActionFor === participant.identity;
+          return (
+            <div className={styles.pendingParticipantRow} key={participant.identity}>
+              <ParticipantAvatar name={displayName} avatarUrl={null} />
+              <span className={styles.stageParticipantText}>{displayName}</span>
+              <span className={styles.pendingActions}>
+                  <button
+                    type="button"
+                    className={styles.pendingApproveButton}
+                    disabled={inProgress}
+                    onClick={() => void handleApprovePending(participant.identity)}
+                    aria-label="Одобрить"
+                  >
+                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="25" cy="25" r="25" fill="url(#voco-pending-approve-grad)" />
+                      <path d="M17 28.6667L22.7143 34L32 14" stroke="currentColor" strokeWidth="2" />
+                      <defs>
+                        <radialGradient
+                          id="voco-pending-approve-grad"
+                          cx="0"
+                          cy="0"
+                          r="1"
+                          gradientUnits="userSpaceOnUse"
+                          gradientTransform="translate(25 25) rotate(90) scale(29.4)"
+                        >
+                          <stop stopColor="#00FF00" />
+                          <stop offset="0.5" stopColor="#00FF00" stopOpacity="0.55" />
+                          <stop offset="0.85" stopColor="#00FF00" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.pendingRejectButton}
+                    disabled={inProgress}
+                    onClick={() => void handleRejectPending(participant.identity)}
+                    aria-label="Отклонить"
+                  >
+                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="25" cy="25" r="25" fill="url(#voco-pending-reject-grad)" />
+                      <path d="M18.0728 32.2139L32.2149 18.0717" stroke="currentColor" strokeWidth="2" />
+                      <path d="M18.0728 18.0713L32.2149 32.2134" stroke="currentColor" strokeWidth="2" />
+                      <defs>
+                        <radialGradient
+                          id="voco-pending-reject-grad"
+                          cx="0"
+                          cy="0"
+                          r="1"
+                          gradientUnits="userSpaceOnUse"
+                          gradientTransform="translate(25 25) rotate(90) scale(29.4)"
+                        >
+                          <stop stopColor="#FF3333" />
+                          <stop offset="0.5" stopColor="#FF3333" stopOpacity="0.55" />
+                          <stop offset="0.85" stopColor="#FF3333" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                    </svg>
+                  </button>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderStageParticipantRows = () =>
     orderedParticipants.map((participant: any) => {
       const isLocal = participant.identity === localIdentity;
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
-      const shouldShowRaisedHand = isLocal && isHandRaised;
+      const shouldShowRaisedHand = Boolean(handRaisedMap[participant.identity]);
 
       return (
         <div
@@ -2118,7 +2548,7 @@ export function ConferenceRoomContent({
           <ParticipantAvatar
             name={displayName}
             avatarUrl={meta.user.avatarUrl}
-            square={isLocal || meta.role === "MODERATOR"}
+            square={meta.role === "MODERATOR" || meta.role === "OWNER"}
           />
           <span className={styles.stageParticipantText}>
             {displayName}
@@ -2263,7 +2693,9 @@ export function ConferenceRoomContent({
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
               <div className={styles.participantsScroll}>
+                {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
+                {renderBlockedRows()}
               </div>
               <div className={styles.sideFooterFade} />
               <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -2502,7 +2934,9 @@ export function ConferenceRoomContent({
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
               <div className={styles.participantsScroll}>
+                {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
+                {renderBlockedRows()}
               </div>
               <div className={styles.sideFooterFade} />
               <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -2687,7 +3121,9 @@ export function ConferenceRoomContent({
             <div className={styles.sideHeaderFade} />
             <div className={styles.sideTitle}>Участники</div>
             <div className={styles.participantsScroll}>
+              {renderPendingParticipantRows()}
               {renderStageParticipantRows()}
+              {renderBlockedRows()}
             </div>
             <div className={styles.sideFooterFade} />
             <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -2713,6 +3149,8 @@ export function ConferenceRoomContent({
           const micEnabled = getTrackMicEnabled(trackRef);
           const displayName = getTrackDisplayName(trackRef, localIdentity);
           const speaking = isTrackSpeaking(trackRef);
+          const isExpandedSingleTile =
+            index === 0 && tileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
           return (
             <article
@@ -2722,7 +3160,12 @@ export function ConferenceRoomContent({
               style={frame.style}
               key={frame.id}
             >
-              <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+              <div
+                className={styles.tileMedia}
+                ref={isExpandedSingleTile ? expandedMediaRef : undefined}
+              >
+                {renderTrackMedia(trackRef)}
+              </div>
 
               <div className={styles.tileFooter}>
                 <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -2908,6 +3351,8 @@ export function RoomPage({ user }: Props) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
+    const [inQueue, setInQueue] = useState(false);
+    const [rejectionToast, setRejectionToast] = useState<string | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
     const [now, setNow] = useState(() => new Date());
@@ -3027,18 +3472,30 @@ export function RoomPage({ user }: Props) {
         void leaveRoomAndNavigate();
     }, [leaveRoomAndNavigate]);
 
-    const handleConferenceDisconnected = useCallback(() => {
-        if (!leaveRequestedRef.current) {
-            return;
-        }
+    const handleConferenceDisconnected = useCallback(
+        (reason?: DisconnectReason) => {
+            if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                setInQueue(false);
+                setConferenceReady(false);
+                setRejectionToast("Модератор отклонил ваш запрос на вход");
+                window.setTimeout(() => {
+                    navigate("/dashboard");
+                }, 2200);
+                return;
+            }
+            if (!leaveRequestedRef.current) {
+                return;
+            }
 
-        void leaveRoomAndNavigate();
-    }, [leaveRoomAndNavigate]);
+            void leaveRoomAndNavigate();
+        },
+        [leaveRoomAndNavigate, navigate],
+    );
 
     const [entering, setEntering] = useState(false);
 
     const handleEnterConference = useCallback(async () => {
-        if (!slug || !token || !livekitUrl || error || entering) return;
+        if (!slug || !token || !livekitUrl || error || entering || inQueue) return;
 
         const normalizedName = displayName.trim() || user?.username || user?.email || "";
         if (normalizedName) {
@@ -3049,20 +3506,40 @@ export function RoomPage({ user }: Props) {
         setEntering(true);
         try {
             const fallbackName = user?.username || user?.email || "";
+            let pendingFromJoin = false;
             if (normalizedName && normalizedName !== fallbackName) {
                 const data = await api.joinRoom(slug, normalizedName);
                 setToken(data.token);
                 setLivekitUrl(data.livekitUrl);
                 setRoomName(data.room.name);
+                pendingFromJoin = Boolean(data.pending);
+            } else {
+                // Перевыпускаем токен на случай, если первое join (на mount) было до того, как
+                // модератор создал/изменил настройки. Также узнаём актуальный pending-флаг.
+                const data = await api.joinRoom(slug);
+                setToken(data.token);
+                setLivekitUrl(data.livekitUrl);
+                setRoomName(data.room.name);
+                pendingFromJoin = Boolean(data.pending);
             }
             leaveRequestedRef.current = false;
-            setConferenceReady(true);
+            if (pendingFromJoin) {
+                setInQueue(true);
+            } else {
+                setConferenceReady(true);
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
             setEntering(false);
         }
-    }, [displayName, entering, error, livekitUrl, slug, token, user]);
+    }, [displayName, entering, error, inQueue, livekitUrl, slug, token, user]);
+
+    const handlePendingApproved = useCallback(() => {
+        setInQueue(false);
+        leaveRequestedRef.current = false;
+        setConferenceReady(true);
+    }, []);
 
     if (loading) {
         return (
@@ -3073,9 +3550,46 @@ export function RoomPage({ user }: Props) {
         );
     }
 
+    const liveKitConnection =
+        token && livekitUrl && (inQueue || conferenceReady) ? (
+            <div style={conferenceReady ? undefined : { display: "none" }}>
+                <LiveKitRoom
+                    serverUrl={livekitUrl}
+                    token={token}
+                    connect={true}
+                    onDisconnected={handleConferenceDisconnected}
+                    data-lk-theme="default"
+                    className={styles.livekitRoot}
+                >
+                    {!conferenceReady && (
+                        <PendingWatcher onApproved={handlePendingApproved} />
+                    )}
+                    {conferenceReady && (
+                        <ConferenceRoomContent
+                            roomName={roomName}
+                            slug={slug}
+                            isOwner={isOwner}
+                            canEndRoom={isOwner || myRole === "MODERATOR"}
+                            onExitIntent={handleConferenceLeaveIntent}
+                            onEndRoomIntent={handleEndRoomIntent}
+                            currentUserAvatarUrl={user?.avatarUrl ?? null}
+                        />
+                    )}
+                </LiveKitRoom>
+            </div>
+        ) : null;
+
+    const rejectionToastNode = rejectionToast ? (
+        <div className={styles.rejectionToast} role="status" aria-live="assertive">
+            {rejectionToast}
+        </div>
+    ) : null;
+
     if (!conferenceReady) {
         return (
             <div className={styles.waitingScreen}>
+                {rejectionToastNode}
+                {liveKitConnection}
                 <div className={styles.waitingStage}>
                     <div className={styles.waitingBackdrop} aria-hidden="true">
                         <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
@@ -3130,9 +3644,18 @@ export function RoomPage({ user }: Props) {
                             className={styles.waitingSubmit}
                             type="button"
                             onClick={handleEnterConference}
-                            disabled={!token || !livekitUrl || !!error || entering}
+                            disabled={!token || !livekitUrl || !!error || entering || inQueue}
                         >
-                            {entering ? "Вход..." : "Войти"}
+                            {inQueue ? (
+                                <>
+                                    Ожидание в очереди
+                                    <span className={styles.queueDots} aria-hidden="true" />
+                                </>
+                            ) : entering ? (
+                                "Вход..."
+                            ) : (
+                                "Войти"
+                            )}
                         </button>
                     </section>
 
@@ -3149,24 +3672,8 @@ export function RoomPage({ user }: Props) {
 
     return (
         <div className={styles.container}>
-            <LiveKitRoom
-                serverUrl={livekitUrl}
-                token={token}
-                connect={true}
-                onDisconnected={handleConferenceDisconnected}
-                data-lk-theme="default"
-                className={styles.livekitRoot}
-            >
-                <ConferenceRoomContent
-                    roomName={roomName}
-                    slug={slug}
-                    onExitIntent={handleConferenceLeaveIntent}
-                    onEndRoomIntent={handleEndRoomIntent}
-                    isOwner={isOwner}
-                    canEndRoom={isOwner || myRole === "MODERATOR"}
-                    currentUserAvatarUrl={user?.avatarUrl ?? null}
-                />
-            </LiveKitRoom>
+            {rejectionToastNode}
+            {liveKitConnection}
 
             {reportModalOpen ? (
                 <div

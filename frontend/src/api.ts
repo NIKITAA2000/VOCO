@@ -88,11 +88,34 @@ class ApiClient {
   // Rooms
   async createRoom(
     name: string,
-    options?: { maxUsers?: number; allowGuests?: boolean; requireRequest?: boolean },
+    options?: {
+      maxUsers?: number;
+      allowGuests?: boolean;
+      requireApproval?: boolean;
+    },
   ) {
+    const payload: Record<string, unknown> = { name };
+    if (options?.maxUsers !== undefined) payload.maxUsers = options.maxUsers;
+    if (options?.allowGuests !== undefined) payload.allowGuests = options.allowGuests;
+    if (options?.requireApproval !== undefined) payload.requireApproval = options.requireApproval;
     return this.request("/rooms", {
       method: "POST",
-      body: JSON.stringify({ name, ...options }),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateRoom(
+    slug: string,
+    payload: {
+      name?: string;
+      maxUsers?: number;
+      allowGuests?: boolean;
+      requireApproval?: boolean;
+    },
+  ) {
+    return this.request(`/rooms/${slug}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     });
   }
 
@@ -123,7 +146,36 @@ class ApiClient {
     return this.request(`/rooms/${slug}/report`);
   }
 
+  async approveParticipant(slug: string, identity: string) {
+    return this.request(
+      `/rooms/${slug}/approve/${encodeURIComponent(identity)}`,
+      { method: "POST" },
+    );
+  }
+
+  async rejectParticipant(slug: string, identity: string) {
+    return this.request(
+      `/rooms/${slug}/reject/${encodeURIComponent(identity)}`,
+      { method: "POST" },
+    );
+  }
+
   // Moderation
+  async listBlocked(slug: string) {
+    return this.request(`/rooms/${slug}/blocked`);
+  }
+
+  async blockUser(slug: string, userId: string, reason?: string) {
+    return this.request(`/rooms/${slug}/block`, {
+      method: "POST",
+      body: JSON.stringify(reason ? { userId, reason } : { userId }),
+    });
+  }
+
+  async unblockUser(slug: string, userId: string) {
+    return this.request(`/rooms/${slug}/block/${userId}`, { method: "DELETE" });
+  }
+
   async changeParticipantRole(
     slug: string,
     userId: string,

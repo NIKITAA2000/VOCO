@@ -1,40 +1,10 @@
-/* Group 138 */
+/* Rectangle 721 */
 
 position: absolute;
-width: 50px;
+width: 420px;
 height: 50px;
-left: 395px;
-top: 277px;
+left: 25px;
+top: 337px;
 
-
-
-/* Rectangle 725 */
-
-position: absolute;
-width: 50px;
-height: 50px;
-left: 395px;
-top: 277px;
-
+background: #EEDCFF;
 border-radius: 10px;
-
-
-/* Rectangle 742 */
-
-position: absolute;
-width: 30px;
-height: 30px;
-left: 405px;
-top: 287px;
-
-
-
-/* Vector 21 */
-
-position: absolute;
-width: 14px;
-height: 20px;
-left: 413px;
-top: 293px;
-
-border: 2px solid #000000;

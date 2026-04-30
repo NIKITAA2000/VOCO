@@ -514,7 +514,7 @@
 .participantActionMenu {
   z-index: 40;
   width: 173px;
-  height: 127px;
+  height: auto;
   box-sizing: border-box;
   padding: 10px;
   display: flex;
@@ -4274,7 +4274,15 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .participantRowModerator {
-  background: rgba(128, 0, 255, 0.24);
+  background: #280050;
+}
+
+:global(:root[data-theme="dark"]) .participantRowModerator .stageParticipantText {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .participantRowModerator .participantAvatar {
+  color: #280050;
 }
 
 :global(:root[data-theme="dark"]) .participantRowBlocked {
@@ -5268,4 +5276,203 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .mobileToolbarButton::before,
 :global(:root[data-theme="dark"]) .compactUtilityButton::before {
   background: var(--room-toolbar-glow, none) !important;
+}
+
+/* Pending: список запросов и тост-уведомление */
+.pendingParticipantsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 12px;
+  margin-bottom: 8px;
+}
+
+.pendingParticipantsHeader {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8000ff;
+  padding: 0 6px;
+}
+
+.pendingParticipantRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  height: 50px;
+  border-radius: 25px;
+  background: #DDFFDD;
+  overflow: hidden;
+}
+
+.pendingParticipantRow .stageParticipantText {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #000;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pendingActions {
+  display: inline-flex;
+  gap: 0;
+  margin-left: auto;
+  align-items: center;
+}
+
+.pendingApproveButton,
+.pendingRejectButton {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.pendingApproveButton,
+.pendingRejectButton {
+  background: transparent;
+  color: #000;
+}
+
+.pendingApproveButton svg,
+.pendingRejectButton svg {
+  display: block;
+  pointer-events: none;
+}
+
+.pendingApproveButton:disabled,
+.pendingRejectButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pendingBadge {
+  margin-left: auto;
+  margin-right: 16px;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(128, 0, 255, 0.18);
+  color: #8000ff;
+  font-weight: 500;
+}
+
+.rejectionToast {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 14px 22px;
+  border-radius: 14px;
+  background: #ff3333;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(255, 51, 51, 0.32);
+  z-index: 1000;
+  pointer-events: none;
+  animation: voco-toast-in 0.18s ease-out;
+}
+
+@keyframes voco-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.queueDots::after {
+  content: ".";
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: voco-queue-dots 1.2s steps(3, end) infinite;
+}
+
+@keyframes voco-queue-dots {
+  0%   { content: " ."; }
+  33%  { content: " .."; }
+  66%  { content: " ..."; }
+}
+
+/* Pending: тёмная тема */
+:global(:root[data-theme="dark"]) .pendingParticipantRow {
+  background: #005000;
+}
+
+:global(:root[data-theme="dark"]) .pendingParticipantRow .stageParticipantText {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .pendingParticipantRow .participantAvatar {
+  color: #280050;
+}
+
+:global(:root[data-theme="dark"]) .pendingApproveButton,
+:global(:root[data-theme="dark"]) .pendingRejectButton {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .pendingBadge {
+  background: rgba(238, 220, 255, 0.18);
+  color: #eedcff;
+}
+
+.blockedParticipantsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 51, 51, 0.18);
+}
+
+.blockedParticipantsHeader {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #ff3333;
+  padding: 0 6px;
+}
+
+.blockedParticipantRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px 0 0;
+  height: 50px;
+  border-radius: 25px;
+  background: rgba(255, 51, 51, 0.12);
+}
+
+.blockedParticipantRow .stageParticipantText {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #000;
+  font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:global(:root[data-theme="dark"]) .blockedParticipantRow {
+  background: rgba(255, 51, 51, 0.22);
+}
+
+:global(:root[data-theme="dark"]) .blockedParticipantRow .stageParticipantText {
+  color: #fff;
 }

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { DisconnectReason } from "livekit-client";
 import { api } from "../api";
-import { ConferenceRoomContent } from "./RoomPage";
+import { ConferenceRoomContent, PendingWatcher } from "./RoomPage";
 import styles from "./Room.module.css";
 
 interface Props {
@@ -21,6 +22,8 @@ export function InviteLandingPage({ user }: Props) {
   const [roomSlug, setRoomSlug] = useState("");
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
+  const [inQueue, setInQueue] = useState(false);
+  const [rejectionToast, setRejectionToast] = useState<string | null>(null);
   const [guestName, setGuestName] = useState("");
   const defaultAuthedName =
     (typeof localStorage !== "undefined" && localStorage.getItem("voco_room_display_name")) ||
@@ -44,7 +47,11 @@ export function InviteLandingPage({ user }: Props) {
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
-      setConferenceReady(true);
+      if (data.pending) {
+        setInQueue(true);
+      } else {
+        setConferenceReady(true);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -63,7 +70,11 @@ export function InviteLandingPage({ user }: Props) {
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
-      setConferenceReady(true);
+      if (data.pending) {
+        setInQueue(true);
+      } else {
+        setConferenceReady(true);
+      }
     } catch (err: any) {
       const message: string = err?.message ?? "";
       if (/гост/i.test(message)) {
@@ -103,15 +114,33 @@ export function InviteLandingPage({ user }: Props) {
     leaveRequestedRef.current = true;
   }, []);
 
-  const handleDisconnected = useCallback(() => {
-    if (!leaveRequestedRef.current) return;
-    if (isAuthed && roomSlug) {
-      api.leaveRoom(roomSlug).catch(() => undefined);
-      navigate("/dashboard");
-      return;
-    }
-    navigate("/login");
-  }, [isAuthed, navigate, roomSlug]);
+  const handleDisconnected = useCallback(
+    (reason?: DisconnectReason) => {
+      if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        setInQueue(false);
+        setConferenceReady(false);
+        setRejectionToast("Модератор отклонил ваш запрос на вход");
+        window.setTimeout(() => {
+          navigate(isAuthed ? "/dashboard" : "/login");
+        }, 2200);
+        return;
+      }
+      if (!leaveRequestedRef.current) return;
+      if (isAuthed && roomSlug) {
+        api.leaveRoom(roomSlug).catch(() => undefined);
+        navigate("/dashboard");
+        return;
+      }
+      navigate("/login");
+    },
+    [isAuthed, navigate, roomSlug],
+  );
+
+  const handlePendingApproved = useCallback(() => {
+    setInQueue(false);
+    leaveRequestedRef.current = false;
+    setConferenceReady(true);
+  }, []);
 
   useEffect(() => {
     if (!code) setError("Ссылка недействительна");
@@ -126,6 +155,24 @@ export function InviteLandingPage({ user }: Props) {
 
     return (
       <div className={styles.waitingScreen}>
+        {rejectionToast ? (
+          <div className={styles.rejectionToast} role="status" aria-live="assertive">
+            {rejectionToast}
+          </div>
+        ) : null}
+        {inQueue && token && livekitUrl ? (
+          <div style={{ display: "none" }}>
+            <LiveKitRoom
+              serverUrl={livekitUrl}
+              token={token}
+              connect={true}
+              onDisconnected={handleDisconnected}
+              data-lk-theme="default"
+            >
+              <PendingWatcher onApproved={handlePendingApproved} />
+            </LiveKitRoom>
+          </div>
+        ) : null}
         <div className={styles.waitingStage}>
           <section
             className={`${styles.waitingPanel} ${guestsDenied ? styles.waitingPanelTall : ""}`}
@@ -205,18 +252,36 @@ export function InviteLandingPage({ user }: Props) {
                 className={styles.waitingSubmit}
                 type="button"
                 onClick={handleAuthedSubmit}
-                disabled={submitting}
+                disabled={submitting || inQueue}
               >
-                {submitting ? "Подключение..." : "Войти в комнату"}
+                {inQueue ? (
+                  <>
+                    Ожидание в очереди
+                    <span className={styles.queueDots} aria-hidden="true" />
+                  </>
+                ) : submitting ? (
+                  "Подключение..."
+                ) : (
+                  "Войти в комнату"
+                )}
               </button>
             ) : (
               <button
                 className={styles.waitingSubmit}
                 type="button"
                 onClick={handleGuestSubmit}
-                disabled={submitting || !guestName.trim()}
+                disabled={submitting || !guestName.trim() || inQueue}
               >
-                {submitting ? "Вход..." : "Войти гостем"}
+                {inQueue ? (
+                  <>
+                    Ожидание в очереди
+                    <span className={styles.queueDots} aria-hidden="true" />
+                  </>
+                ) : submitting ? (
+                  "Вход..."
+                ) : (
+                  "Войти гостем"
+                )}
               </button>
             )}
           </section>

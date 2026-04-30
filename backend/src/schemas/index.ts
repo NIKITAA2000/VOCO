@@ -48,7 +48,29 @@ export const createRoomSchema = z.object({
     .min(1, "Название комнаты обязательно")
     .max(100, "Название — максимум 100 символов"),
   maxUsers: z.number().int().min(2).max(50).optional().default(10),
+  allowGuests: z.boolean().optional().default(true),
+  requireApproval: z.boolean().optional().default(false),
 });
+
+export const updateRoomSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, "Название комнаты обязательно")
+      .max(100, "Название — максимум 100 символов")
+      .optional(),
+    maxUsers: z.number().int().min(2).max(50).optional(),
+    allowGuests: z.boolean().optional(),
+    requireApproval: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.maxUsers !== undefined ||
+      data.allowGuests !== undefined ||
+      data.requireApproval !== undefined,
+    { message: "Нужно указать хотя бы одно поле" },
+  );
 
 export const createInviteSchema = z.object({
   expiresAt: z.string().datetime({ offset: true }).optional(),
