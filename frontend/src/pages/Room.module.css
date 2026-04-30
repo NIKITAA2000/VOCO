@@ -1542,7 +1542,7 @@ button.stageRoomCode:disabled {
 :global(:root[data-theme="light"]) .mobileHeaderExitDropdown .exitMenuDanger:hover,
 :global(:root[data-theme="light"]) .mobileHeaderExitDropdown .exitMenuDanger:focus-visible {
   background: transparent;
-  color: #000000;
+  color: rgba(0, 0, 0, 0.55);
   outline: none;
 }
 
@@ -1610,7 +1610,7 @@ button.stageRoomCode:disabled {
 :global(:root[data-theme="dark"]) .mobileHeaderExitDropdown .exitMenuDanger:hover,
 :global(:root[data-theme="dark"]) .mobileHeaderExitDropdown .exitMenuDanger:focus-visible {
   background: transparent;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.55);
   outline: none;
 }
 

@@ -1712,7 +1712,8 @@ export function ConferenceRoomContent({
   const handleExitMenuLeave = useCallback(() => {
     setExitMenuOpen(false);
     onExitIntent();
-  }, [onExitIntent]);
+    void room?.disconnect();
+  }, [onExitIntent, room]);
 
   const handleExitMenuEnd = useCallback(() => {
     setExitMenuOpen(false);
