@@ -5434,43 +5434,34 @@ button.stageRoomCode .roomCodeCopyHint {
 .blockedParticipantsBlock {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 0 8px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(255, 51, 51, 0.18);
-}
-
-.blockedParticipantsHeader {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: #ff3333;
-  padding: 0 6px;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 
 .blockedParticipantRow {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 14px 0 0;
+  gap: 10px;
+  padding: 0 10px 0 0;
   height: 50px;
-  border-radius: 25px;
-  background: rgba(255, 51, 51, 0.12);
+  border-radius: 100px;
+  background: #ffdddd;
 }
 
 .blockedParticipantRow .stageParticipantText {
   flex: 1 1 auto;
   min-width: 0;
   color: #000;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 23px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 :global(:root[data-theme="dark"]) .blockedParticipantRow {
-  background: rgba(255, 51, 51, 0.22);
+  background: #500000;
 }
 
 :global(:root[data-theme="dark"]) .blockedParticipantRow .stageParticipantText {

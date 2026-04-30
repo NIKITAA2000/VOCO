@@ -1609,6 +1609,20 @@ export function ConferenceRoomContent({
     [sendModerationCommand, closeParticipantMenu],
   );
 
+  const handleBanParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!slug || !meta.user.id) return;
+      try {
+        await api.blockUser(slug, meta.user.id);
+        await refreshRoomState();
+      } catch (error) {
+        console.error("Не удалось забанить участника", error);
+      }
+    },
+    [slug, refreshRoomState, closeParticipantMenu],
+  );
+
   useEffect(() => {
     if (!room) return;
     const handleData = (
@@ -2375,7 +2389,11 @@ export function ConferenceRoomContent({
                       Кикнуть
                     </button>
                     {!isGuest ? (
-                      <button type="button" role="menuitem">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void handleBanParticipant(meta)}
+                      >
                         Забанить
                       </button>
                     ) : null}
@@ -2436,7 +2454,6 @@ export function ConferenceRoomContent({
     if (!canModerateParticipants || blockedUsers.length === 0) return null;
     return (
       <div className={styles.blockedParticipantsBlock}>
-        <div className={styles.blockedParticipantsHeader}>Заблокированы</div>
         {blockedUsers.map((entry) => (
           <div className={styles.blockedParticipantRow} key={entry.id}>
             <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
@@ -2446,7 +2463,7 @@ export function ConferenceRoomContent({
               className={styles.unblockButton}
               onClick={() => void handleUnblockUser(entry.user.id)}
             >
-              Разблок
+              Разбанить
             </button>
           </div>
         ))}
@@ -3473,9 +3490,14 @@ export function RoomPage({ user }: Props) {
     const handleConferenceDisconnected = useCallback(
         (reason?: DisconnectReason) => {
             if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                const wasInConference = conferenceReady;
                 setInQueue(false);
                 setConferenceReady(false);
-                setRejectionToast("Модератор отклонил ваш запрос на вход");
+                setRejectionToast(
+                    wasInConference
+                        ? "Вы были забанены модератором встречи"
+                        : "Модератор отклонил ваш запрос на вход",
+                );
                 window.setTimeout(() => {
                     navigate("/dashboard");
                 }, 2200);
@@ -3487,7 +3509,7 @@ export function RoomPage({ user }: Props) {
 
             void leaveRoomAndNavigate();
         },
-        [leaveRoomAndNavigate, navigate],
+        [conferenceReady, leaveRoomAndNavigate, navigate],
     );
 
     const [entering, setEntering] = useState(false);

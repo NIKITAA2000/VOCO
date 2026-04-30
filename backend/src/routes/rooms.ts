@@ -516,6 +516,13 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
       [userId, room.id]
     );
 
+    // Принудительно отключаем от LiveKit (если активно подключён)
+    try {
+      await roomService.removeParticipant(req.params.slug as string, userId);
+    } catch {
+      // участник мог быть не подключён к LiveKit — это не ошибка
+    }
+
     res.json({ message: "Пользователь заблокирован" });
   } catch (error) {
     console.error("Block user error:", error);

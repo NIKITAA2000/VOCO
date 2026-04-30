@@ -117,9 +117,14 @@ export function InviteLandingPage({ user }: Props) {
   const handleDisconnected = useCallback(
     (reason?: DisconnectReason) => {
       if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        const wasInConference = conferenceReady;
         setInQueue(false);
         setConferenceReady(false);
-        setRejectionToast("Модератор отклонил ваш запрос на вход");
+        setRejectionToast(
+          wasInConference
+            ? "Вы были забанены модератором встречи"
+            : "Модератор отклонил ваш запрос на вход",
+        );
         window.setTimeout(() => {
           navigate(isAuthed ? "/dashboard" : "/login");
         }, 2200);
@@ -133,7 +138,7 @@ export function InviteLandingPage({ user }: Props) {
       }
       navigate("/login");
     },
-    [isAuthed, navigate, roomSlug],
+    [conferenceReady, isAuthed, navigate, roomSlug],
   );
 
   const handlePendingApproved = useCallback(() => {
