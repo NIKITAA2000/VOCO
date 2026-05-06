@@ -123,6 +123,13 @@
   height: 20px;
 }
 
+.settingsSvg {
+  width: 50px;
+  height: 50px;
+  color: #dddddd;
+  --settings-icon-color: #000000;
+}
+
 .raisedHandSvg {
   width: 20px;
   height: 25px;
@@ -3172,7 +3179,8 @@ button.stageRoomCode:disabled {
 }
 
 .mobileToolbarButton .userSvg,
-.mobileToolbarButton .chatSvg {
+.mobileToolbarButton .chatSvg,
+.mobileToolbarButton .recordingSvg {
   width: 20px;
   height: 20px;
 }
@@ -3224,6 +3232,15 @@ button.stageRoomCode:disabled {
 .mobileToolbarChatActive::before {
   opacity: 1;
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.mobileToolbarRecordingActive {
+  background: transparent;
+}
+
+.mobileToolbarRecordingActive::before {
+  opacity: 1;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .mobileToolbarMoreActive {
@@ -5474,12 +5491,12 @@ button.stageRoomCode .roomCodeCopyHint {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #ddd;
+  background: transparent;
   color: #000;
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: filter 0.15s ease;
 }
 
 .headerSettingsButton svg,
@@ -5492,17 +5509,18 @@ button.stageRoomCode .roomCodeCopyHint {
 .compactHeaderSettingsButton:hover,
 .compactHeaderSettingsButton:focus-visible {
   outline: none;
-  background: #cfcfcf;
+  background: transparent;
+  filter: brightness(0.96);
 }
 
 .headerSettingsButtonActive {
-  background: #8000ff;
-  color: #fff;
+  background: transparent;
+  color: #000;
 }
 
 .headerSettingsButtonActive:hover,
 .headerSettingsButtonActive:focus-visible {
-  background: #6a00d6;
+  background: transparent;
 }
 
 .compactHeaderSettingsButton {
@@ -5512,7 +5530,7 @@ button.stageRoomCode .roomCodeCopyHint {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #ddd;
+  background: transparent;
   color: #000;
   display: grid;
   place-items: center;
@@ -5540,24 +5558,36 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .headerSettingsButton,
 :global(:root[data-theme="dark"]) .compactHeaderSettingsButton {
-  background: #2a2a2a;
-  color: #fff;
+  background: transparent;
+  --settings-icon-color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .headerSettingsButton .settingsSvg,
+:global(:root[data-theme="dark"]) .compactHeaderSettingsButton .settingsSvg {
+  color: #444444;
+  --settings-icon-color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .headerSettingsButton:hover,
 :global(:root[data-theme="dark"]) .compactHeaderSettingsButton:hover {
-  background: #3a3a3a;
+  background: transparent;
 }
 
 :global(:root[data-theme="dark"]) .headerSettingsButtonActive {
-  background: #8000ff;
-  color: #fff;
+  background: transparent;
+  --settings-icon-color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .headerSettingsButtonActive .settingsSvg {
+  color: #444444;
+  --settings-icon-color: #ffffff;
 }
 
 /* ===== Панель настроек (всплывающая в углу) ===== */
 .settingsPanel {
   position: fixed;
   width: 320px;
+  height: 480px;
   max-height: calc(100vh - 120px);
   background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
   border-radius: 10px;
@@ -5570,11 +5600,25 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsPanel[data-tab="link"] {
+  height: 694px;
+  max-height: min(694px, calc(100vh - 32px));
   background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
 }
 
+.settingsPanel[data-tab="link"] .settingsBody {
+  padding: 0 10px 10px;
+  overflow: hidden;
+}
+
 .settingsPanel[data-tab="ban"] {
+  height: 480px;
+  max-height: min(480px, calc(100vh - 32px));
   background: linear-gradient(180deg, #ffdddd 0%, #ffffff 100%);
+}
+
+.settingsPanel[data-tab="ban"] .settingsBody {
+  padding: 30px 10px 10px;
+  overflow: hidden;
 }
 
 .desktopSettingsPanel,
@@ -6044,16 +6088,112 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsLinkTab {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  height: 100%;
+  gap: 10px;
+}
+
+.settingsPanel[data-tab="link"] .settingsForm {
+  position: relative;
+  flex: 0 0 340px;
+  height: 340px;
+  gap: 0;
+}
+
+.settingsPanel[data-tab="link"] .settingsField {
+  position: absolute;
+  left: 0;
+  width: 300px;
+  gap: 0;
+}
+
+.settingsPanel[data-tab="link"] .settingsLinkMaxUsesField {
+  top: 12px;
+}
+
+.settingsPanel[data-tab="link"] .settingsLinkExpiryField {
+  top: 92px;
+}
+
+.settingsPanel[data-tab="link"] .settingsLinkCustomExpiryField {
+  top: 172px;
+}
+
+.settingsPanel[data-tab="link"] .settingsForm:has(.settingsLinkCustomExpiryField) {
+  flex-basis: 420px;
+  height: 420px;
+}
+
+.settingsPanel[data-tab="link"] .settingsField > span {
+  height: 18px;
+  min-height: 18px;
+  padding-left: 20px;
+  line-height: 18px;
+}
+
+.settingsPanel[data-tab="link"] .settingsField input,
+.settingsPanel[data-tab="link"] .settingsFakeSelect {
+  height: 50px;
+}
+
+.settingsPanel[data-tab="link"] .settingsToggleRow {
+  position: absolute;
+  left: 0;
+  top: 190px;
+  width: 300px;
+}
+
+.settingsPanel[data-tab="link"] .settingsCreateLink {
+  position: absolute;
+  left: 0;
+  top: 270px;
+  margin-top: 0;
+}
+
+.settingsPanel[data-tab="link"] .settingsForm:has(.settingsLinkCustomExpiryField) .settingsToggleRow {
+  top: 270px;
+}
+
+.settingsPanel[data-tab="link"] .settingsForm:has(.settingsLinkCustomExpiryField) .settingsCreateLink {
+  top: 350px;
+}
+
+.settingsPanel[data-tab="link"] .settingsError {
+  position: absolute;
+  left: 0;
+  top: 242px;
+  width: 300px;
+  box-sizing: border-box;
+}
+
+.settingsPanel[data-tab="link"] .settingsForm:has(.settingsLinkCustomExpiryField) .settingsError {
+  top: 322px;
+}
+
+.settingsPanel[data-tab="link"] .settingsDropdown {
+  top: 60px;
+  right: 0;
+  width: 100px;
+  min-height: 155px;
+  padding: 10px;
+  gap: 5px;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.settingsPanel[data-tab="link"] .settingsDropdownItem {
+  min-height: 23px;
+  padding: 0;
 }
 
 .settingsLinkList {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 320px;
+  max-height: none;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 0;
 }
 
 .settingsLinkCard {
@@ -6168,46 +6308,253 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settingsBanTab::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .settingsBanRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 81px;
   align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.85);
+  gap: 0;
+  width: 300px;
+  height: 50px;
+  box-sizing: border-box;
+  background: #dddddd;
   border-radius: 100px;
-  padding: 6px 14px 6px 6px;
-  min-height: 50px;
+  padding: 0;
+  min-height: 0;
+}
+
+.settingsBanRow .participantAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
 }
 
 .settingsBanName {
-  flex: 1;
-  font-size: 14px;
-  line-height: 20px;
+  min-width: 0;
+  padding-left: 10px;
+  font-size: 16px;
+  line-height: 23px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #000;
 }
 
 .settingsBanUnblock {
+  width: 81px;
+  height: 50px;
+  padding: 0 10px 0 0;
   border: 0;
   background: transparent;
-  color: #0077ff;
+  color: #000;
   font-family: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
   cursor: pointer;
-  padding: 4px 6px;
 }
 
 .settingsBanUnblock:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 :global(:root[data-theme="dark"]) .settingsBanRow {
-  background: rgba(255, 255, 255, 0.08);
+  background: #dddddd;
 }
 
 :global(:root[data-theme="dark"]) .settingsBanUnblock {
-  color: #66aaff;
+  color: #000;
+}
+
+.settingsPanel[data-tab="link"] .settingsLinkCard {
+  flex: 0 0 127px;
+  min-height: 127px;
+}
+
+/* Макет вкладки "Настройки" в комнате */
+.settingsPanel[data-tab="settings"] {
+  height: 480px;
+  max-height: min(480px, calc(100vh - 32px));
+  overflow: hidden;
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  color: #000;
+}
+
+.settingsPanel[data-tab="settings"] .settingsHeader {
+  flex: 0 0 50px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsTabs {
+  width: 270px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsTab {
+  flex: 0 0 90px;
+  width: 90px;
+  color: #000;
+  background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="settings"] .settingsTabActive,
+.settingsPanel[data-tab="settings"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #00ff00 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="settings"] .settingsClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 255, 221, 0) 100%);
+  color: #000;
+}
+
+.settingsPanel[data-tab="settings"] .settingsBody {
+  height: 430px;
+  padding: 0 10px 30px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.settingsPanel[data-tab="settings"] .settingsForm {
+  position: relative;
+  height: 100%;
+  gap: 0;
+}
+
+.settingsPanel[data-tab="settings"] .settingsField {
+  position: absolute;
+  left: 0;
+  width: 300px;
+  gap: 0;
+  color: #000;
+}
+
+.settingsPanel[data-tab="settings"] .settingsField:nth-of-type(1) {
+  top: 12px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsField:nth-of-type(2) {
+  top: 92px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsField > span {
+  min-height: 18px;
+  padding-left: 20px;
+  line-height: 18px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsField input {
+  height: 50px;
+  background: #dddddd;
+  color: #000;
+  box-shadow: none;
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleRow {
+  position: absolute;
+  left: 0;
+  width: 300px;
+  height: 50px;
+  padding: 0 60px 0 20px;
+  background: #dddddd;
+  color: #000;
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleRow:nth-of-type(1) {
+  top: 190px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleRow:nth-of-type(2) {
+  top: 270px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleDot {
+  width: 50px;
+  height: 50px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleOn .settingsToggleDot {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="settings"] .settingsToggleOff .settingsToggleDot {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="settings"] .settingsError,
+.settingsPanel[data-tab="settings"] .settingsHint {
+  position: absolute;
+  left: 0;
+  bottom: 68px;
+  width: 300px;
+  min-height: 18px;
+  padding: 0 20px;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.settingsPanel[data-tab="settings"] .settingsSaveButton {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin-top: 0;
+  height: 50px;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+  color: #000;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"],
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField input,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleRow,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTab,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsClose,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsSaveButton {
+  color: #000;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField input,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleRow {
+  background: #dddddd;
+}
+
+.desktopSettingsPanel,
+.tabletSettingsPanel,
+.mobileSettingsPanel {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.settingsPanel {
+  z-index: 100;
+  box-shadow:
+    0 0 0 100vmax rgba(0, 0, 0, 0.38),
+    0 12px 40px rgba(0, 0, 0, 0.16);
+}
+
+.settingsPanel[data-tab="settings"] {
+  box-shadow:
+    0 0 0 100vmax rgba(0, 0, 0, 0.38),
+    0 12px 40px rgba(0, 0, 0, 0.14);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel {
+  box-shadow:
+    0 0 0 100vmax rgba(0, 0, 0, 0.52),
+    0 12px 40px rgba(0, 0, 0, 0.55);
 }

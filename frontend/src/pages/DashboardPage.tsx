@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { VocoLogo } from "../components/VocoLogo";
+import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import "./Dashboard.css";
 
 interface Props {
@@ -104,6 +105,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joinLoading, setJoinLoading] = useState(false);
+  const [closedRoomActionLoading, setClosedRoomActionLoading] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUsernameInput, setProfileUsernameInput] = useState("");
   const [profileEmailInput, setProfileEmailInput] = useState("");
@@ -306,6 +308,40 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   };
 
   const recentRooms = activeRooms;
+
+  const handleClosedRoomVideo = (room: any) => {
+    setJoinError(`Видеозапись комнаты «${room?.name ?? "Комната"}» недоступна`);
+  };
+
+  const handleClosedRoomReport = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    setJoinError("");
+    setClosedRoomActionLoading(`report:${room.slug}`);
+    try {
+      const data: any = await api.getRoomReport(room.slug);
+      await downloadRoomReportPdf(data.report as RoomReport);
+    } catch (err: any) {
+      setJoinError(err?.message || "Не удалось скачать отчёт");
+    } finally {
+      setClosedRoomActionLoading("");
+    }
+  };
+
+  const handleClosedRoomDelete = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    const confirmed = window.confirm(`Удалить комнату «${room.name}»?`);
+    if (!confirmed) return;
+    setJoinError("");
+    setClosedRoomActionLoading(`delete:${room.slug}`);
+    try {
+      await api.deleteRoom(room.slug);
+      setActiveRooms((rooms) => rooms.filter((item) => item.id !== room.id));
+    } catch (err: any) {
+      setJoinError(err?.message || "Не удалось удалить комнату");
+    } finally {
+      setClosedRoomActionLoading("");
+    }
+  };
 
   const handleProfile = () => {
     if (isGuestUser) {
@@ -737,30 +773,65 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                     ) : (
                       recentRooms.map((room) => {
                         const isClosed = room?.isActive === false;
+                        const closedRoomActions = isClosed ? (
+                          <span className="join-room-actions" aria-label="Действия закрытой комнаты">
+                            <button
+                              type="button"
+                              className="join-room-action join-room-action--video"
+                              aria-label="Видеозапись"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleClosedRoomVideo(room);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="join-room-action join-room-action--report"
+                              aria-label="Скачать отчёт"
+                              disabled={closedRoomActionLoading === `report:${room.slug}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleClosedRoomReport(room);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="join-room-action join-room-action--delete"
+                              aria-label="Удалить комнату"
+                              disabled={closedRoomActionLoading === `delete:${room.slug}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleClosedRoomDelete(room);
+                              }}
+                            />
+                          </span>
+                        ) : null;
                         return (
                           <li
                             key={room.id}
                             className={`join-room-item${isClosed ? " join-room-item--closed" : ""}`}
                           >
-                            <button
-                              type="button"
-                              className={`join-room-link${isClosed ? " is-closed" : ""}`}
-                              onClick={() => {
-                                if (isClosed) return;
-                                navigate(`/room/${room.slug}`);
-                                setJoinOpen(false);
-                              }}
-                              disabled={isClosed}
-                              aria-disabled={isClosed}
-                            >
-                              <span className="join-room-name">{room.name}</span>
-                              {!isClosed && <span className="join-room-code">{room.slug}</span>}
-                              {!isClosed && (
+                            {isClosed ? (
+                              <div className="join-room-link is-closed">
+                                <span className="join-room-name">{room.name}</span>
+                                {closedRoomActions}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="join-room-link"
+                                onClick={() => {
+                                  navigate(`/room/${room.slug}`);
+                                  setJoinOpen(false);
+                                }}
+                              >
+                                <span className="join-room-name">{room.name}</span>
+                                <span className="join-room-code">{room.slug}</span>
                                 <span className="join-room-count">
                                   {room?._count?.participants ?? 0}
                                 </span>
-                              )}
-                            </button>
+                              </button>
+                            )}
                           </li>
                         );
                       })
@@ -840,7 +911,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                 )}
               </p>
 
-              <p className="profile-edit-title">Редактирование профиля</p>
+                            <p className="profile-edit-title">Редактирование</p>
 
               <label className="profile-label profile-label-username" htmlFor="profile-username">
                 Имя пользователя

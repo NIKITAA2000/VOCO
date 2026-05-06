@@ -1088,6 +1088,7 @@ function formatDateTimeLocal(date: Date) {
 function SettingsPanel({
   slug,
   layoutClass,
+  initialTab = "settings",
   roomMeta,
   blockedUsers,
   canEditSettings,
@@ -1097,6 +1098,7 @@ function SettingsPanel({
 }: {
   slug: string;
   layoutClass?: string;
+  initialTab?: SettingsTab;
   roomMeta: RoomMeta | null;
   blockedUsers: BlockedUserEntry[];
   canEditSettings: boolean;
@@ -1104,7 +1106,11 @@ function SettingsPanel({
   onMetaSaved: () => void | Promise<void>;
   onUnblockUser: (userId: string) => void | Promise<void>;
 }) {
-  const [tab, setTab] = useState<SettingsTab>("settings");
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   // ===== Вкладка «Настройки» =====
   const [name, setName] = useState(roomMeta?.name ?? "");
@@ -1466,7 +1472,7 @@ function SettingsPanel({
         {tab === "link" ? (
           <div className={styles.settingsLinkTab}>
             <form className={styles.settingsForm} onSubmit={handleCreateInvite}>
-              <label className={styles.settingsField}>
+              <label className={`${styles.settingsField} ${styles.settingsLinkMaxUsesField}`}>
                 <span>Максимум использований</span>
                 <input
                   type="number"
@@ -1478,7 +1484,7 @@ function SettingsPanel({
                 />
               </label>
 
-              <div className={styles.settingsField}>
+              <div className={`${styles.settingsField} ${styles.settingsLinkExpiryField}`}>
                 <span>Срок действия</span>
                 <div className={styles.settingsSelectWrapper} ref={expirySelectRef}>
                   <button
@@ -1517,7 +1523,7 @@ function SettingsPanel({
               </div>
 
               {expiryPreset === "custom" ? (
-                <label className={styles.settingsField}>
+                <label className={`${styles.settingsField} ${styles.settingsLinkCustomExpiryField}`}>
                   <span>Дата истечения</span>
                   <input
                     type="datetime-local"
@@ -1630,16 +1636,17 @@ function SettingsIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       className={iconClassName(styles.roomIcon, styles.settingsSvg, className)}
-      viewBox="0 0 24 24"
+      viewBox="0 0 50 50"
       fill="none"
       aria-hidden="true"
       {...props}
     >
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <rect width="50" height="50" rx="25" fill="currentColor" />
+      <circle cx="25" cy="25" r="4" stroke="var(--settings-icon-color, #000)" strokeWidth="2" />
       <path
-        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15 1.65 1.65 0 0 0 3.09 14H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
+        d="M23.9834 16.5547C24.5334 15.9659 25.4666 15.9659 26.0166 16.5547C26.8137 17.4085 27.9949 17.7925 29.1416 17.5703C29.9328 17.4172 30.6884 17.9658 30.7871 18.7656C30.9302 19.9248 31.6595 20.9286 32.7178 21.4229C33.4479 21.7639 33.7368 22.6523 33.3467 23.3574C32.781 24.3793 32.781 25.6207 33.3467 26.6426C33.7368 27.3477 33.4479 28.2361 32.7178 28.5771C31.6595 29.0714 30.9302 30.0752 30.7871 31.2344C30.6884 32.0342 29.9328 32.5828 29.1416 32.4297C27.9949 32.2075 26.8137 32.5915 26.0166 33.4453C25.4666 34.0341 24.5334 34.0341 23.9834 33.4453C23.1863 32.5915 22.0051 32.2075 20.8584 32.4297C20.0672 32.5828 19.3116 32.0342 19.2129 31.2344C19.0698 30.0752 18.3405 29.0714 17.2822 28.5771C16.5521 28.2361 16.2632 27.3477 16.6533 26.6426C17.219 25.6207 17.219 24.3793 16.6533 23.3574C16.2632 22.6523 16.5521 21.7639 17.2822 21.4229C18.3405 20.9286 19.0698 19.9248 19.2129 18.7656C19.3116 17.9658 20.0672 17.4172 20.8584 17.5703C22.0051 17.7925 23.1863 17.4085 23.9834 16.5547Z"
+        stroke="var(--settings-icon-color, #000)"
+        strokeWidth="2"
       />
     </svg>
   );
@@ -1815,6 +1822,7 @@ export function ConferenceRoomContent({
     chat: false,
     settings: false,
   });
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("settings");
   const [roomMeta, setRoomMeta] = useState<RoomMeta | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
@@ -2524,6 +2532,23 @@ export function ConferenceRoomContent({
       };
     });
   }, [isCompactLayout]);
+
+  const openRoomPanel = useCallback((panel: RoomPanelKey) => {
+    setVisiblePanels((current) => {
+      if (isCompactLayout) {
+        return {
+          participants: panel === "participants",
+          chat: panel === "chat",
+          settings: panel === "settings",
+        };
+      }
+
+      return {
+        ...current,
+        [panel]: true,
+      };
+    });
+  }, [isCompactLayout]);
   const localIdentityForHand = localParticipant?.identity;
   const isHandRaised = localIdentityForHand
     ? Boolean(handRaisedMap[localIdentityForHand])
@@ -2988,7 +3013,10 @@ export function ConferenceRoomContent({
               }`
         }
         style={style}
-        onClick={() => toggleRoomPanel("settings")}
+        onClick={() => {
+          setSettingsInitialTab("settings");
+          toggleRoomPanel("settings");
+        }}
         aria-label="Настройки"
         aria-pressed={isSettingsPanelOpen}
       >
@@ -3001,6 +3029,7 @@ export function ConferenceRoomContent({
       <SettingsPanel
         slug={slug}
         layoutClass={layoutClass}
+        initialTab={settingsInitialTab}
         roomMeta={roomMeta}
         blockedUsers={blockedUsers}
         canEditSettings={Boolean(isOwner || roomRole === "OWNER")}
@@ -3391,13 +3420,17 @@ export function ConferenceRoomContent({
               <MobileToolbarControlContent active={isCameraEnabled} icon={<CameraIcon />} />
             </TrackToggle>
 
-            <TrackToggle
-              className={styles.mobileToolbarButton}
-              source={Track.Source.ScreenShare}
-              showIcon={false}
+            <button
+              className={`${styles.mobileToolbarButton} ${
+                isRecording ? styles.mobileToolbarRecordingActive : ""
+              }`}
+              type="button"
+              aria-label={isRecording ? "Остановить запись" : "Начать запись"}
+              aria-pressed={isRecording}
+              onClick={toggleRecording}
             >
-              <MobileToolbarControlContent active={isScreenShareEnabled} icon={<ScreenIcon />} />
-            </TrackToggle>
+              <RecordingIcon />
+            </button>
 
             <button
               className={`${styles.mobileToolbarButton} ${
@@ -3439,7 +3472,8 @@ export function ConferenceRoomContent({
                     type="button"
                     role="menuitem"
                     onClick={() => {
-                      setInviteManagerOpen(true);
+                      setSettingsInitialTab("link");
+                      openRoomPanel("settings");
                       setMobileMoreOpen(false);
                     }}
                   >
@@ -3460,11 +3494,11 @@ export function ConferenceRoomContent({
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    toggleRecording();
+                    void room?.localParticipant.setScreenShareEnabled(!isScreenShareEnabled);
                     setMobileMoreOpen(false);
                   }}
                 >
-                  {isRecording ? `Запись ${formatDuration(recordingSeconds)}` : "Начать запись"}
+                  {isScreenShareEnabled ? "Остановить демонстрацию" : "Демонстрация"}
                 </button>
               </div>
             ) : null}
