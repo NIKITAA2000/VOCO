@@ -159,8 +159,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
       : "";
   const profileTopIconSrc = isMobileViewport
     ? resolvedTheme === "dark"
-      ? "/profile-icons-mobile-dark.svg"
-      : "/profile-icons-mobile.svg"
+      ? "/profile-icons-mobile-top-dark.svg"
+      : "/profile-icons-mobile-top-light.svg"
     : isTabletViewport
       ? "/profile-icons-tablet.svg"
       : resolvedTheme === "dark"
@@ -168,8 +168,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
         : "/profile-icons-top.svg";
   const profileBottomIconSrc = isMobileViewport
     ? resolvedTheme === "dark"
-      ? "/profile-icons-mobile-dark.svg"
-      : "/profile-icons-mobile.svg"
+      ? "/profile-icons-mobile-bottom-dark.svg"
+      : "/profile-icons-mobile-bottom-light.svg"
     : isTabletViewport
       ? "/profile-icons-tablet.svg"
       : resolvedTheme === "dark"

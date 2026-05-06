@@ -3,8 +3,8 @@
 position: absolute;
 width: 300px;
 height: 300px;
-left: 37px;
-top: 970px;
+left: 45px;
+top: 1010px;
 
 
 
@@ -13,8 +13,8 @@ top: 970px;
 position: absolute;
 width: 200px;
 height: 200px;
-left: 37px;
-top: 1070px;
+left: 145px;
+top: 1010px;
 
 
 
@@ -23,11 +23,11 @@ top: 1070px;
 position: absolute;
 width: 100px;
 height: 100px;
-left: 137px;
-top: 1070px;
+left: 145px;
+top: 1110px;
 
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -35,11 +35,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 137px;
-top: 1070px;
+left: 145px;
+top: 1110px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -47,11 +47,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 200px;
 height: 200px;
-left: 137px;
-top: 970px;
+left: 45px;
+top: 1110px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -59,12 +59,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 200px;
 height: 200px;
-left: 187px;
-top: 1266px;
+left: -5px;
+top: 814px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -72,11 +72,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 137px;
-top: 1070px;
+left: 145px;
+top: 1110px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Intersect */
@@ -84,11 +84,10 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 37px;
-top: 1070px;
+left: 245px;
+top: 1110px;
 
-background: #0077FF;
-transform: rotate(180deg);
+background: #8000FF;
 
 
 /* Subtract */
@@ -96,11 +95,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 37px;
-top: 1070px;
+left: 245px;
+top: 1110px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Ellipse 2 */
@@ -108,11 +106,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 200px;
 height: 200px;
-left: -63px;
-top: 970px;
+left: 245px;
+top: 1110px;
 
 background: #00FF00;
-transform: rotate(-90deg);
+transform: rotate(90deg);
 
 
 /* Rectangle 40 */
@@ -120,12 +118,11 @@ transform: rotate(-90deg);
 position: absolute;
 width: 200px;
 height: 200px;
-left: -113px;
-top: 1266px;
+left: 295px;
+top: 814px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: rotate(180deg);
 
 
 /* Rectangle 41 */
@@ -133,11 +130,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 37px;
-top: 1070px;
+left: 245px;
+top: 1110px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Intersect */
@@ -145,72 +141,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 37px;
-top: 1170px;
+left: 245px;
+top: 1010px;
 
-background: #0077FF;
-transform: rotate(180deg);
-
-
-/* Subtract */
-
-position: absolute;
-width: 100px;
-height: 100px;
-left: 37px;
-top: 1170px;
-
-background: #00FF00;
-transform: rotate(180deg);
-
-
-/* Ellipse 2 */
-
-position: absolute;
-width: 200px;
-height: 200px;
-left: -63px;
-top: 1070px;
-
-background: #00FF00;
-transform: rotate(-90deg);
-
-
-/* Rectangle 40 */
-
-position: absolute;
-width: 200px;
-height: 200px;
-left: -113px;
-top: 1366px;
-
-background: #D9D9D9;
-border-radius: 0px;
-transform: rotate(180deg);
-
-
-/* Rectangle 41 */
-
-position: absolute;
-width: 100px;
-height: 100px;
-left: 37px;
-top: 1170px;
-
-background: #00FF00;
-transform: rotate(180deg);
-
-
-/* Intersect */
-
-position: absolute;
-width: 100px;
-height: 100px;
-left: 137px;
-top: 1170px;
-
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -218,11 +153,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 137px;
-top: 1170px;
+left: 245px;
+top: 1010px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -230,11 +165,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 200px;
 height: 200px;
-left: 137px;
-top: 1070px;
+left: 145px;
+top: 1010px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -242,12 +177,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 200px;
 height: 200px;
-left: 187px;
-top: 1366px;
+left: 95px;
+top: 714px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -255,11 +190,23 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 137px;
-top: 1170px;
+left: 245px;
+top: 1010px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 200px;
+height: 200px;
+left: 145px;
+top: 1010px;
+
+background: #8000FF;
+transform: rotate(90deg);
 
 
 /* значок */
@@ -267,8 +214,8 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 37px;
-top: 970px;
+left: 245px;
+top: 1210px;
 
 
 
@@ -277,11 +224,11 @@ top: 970px;
 position: absolute;
 width: 50px;
 height: 50px;
-left: 87px;
-top: 970px;
+left: 245px;
+top: 1260px;
 
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -289,11 +236,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 87px;
-top: 970px;
+left: 245px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -301,11 +248,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 87px;
-top: 920px;
+left: 195px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -313,12 +260,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 112px;
-top: 1068px;
+left: 170px;
+top: 1112px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -326,11 +273,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 87px;
-top: 970px;
+left: 245px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Intersect */
@@ -338,11 +285,10 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 37px;
-top: 970px;
+left: 295px;
+top: 1260px;
 
-background: #0077FF;
-transform: rotate(180deg);
+background: #8000FF;
 
 
 /* Subtract */
@@ -350,11 +296,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 37px;
-top: 970px;
+left: 295px;
+top: 1260px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Ellipse 2 */
@@ -362,11 +307,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: -13px;
-top: 920px;
+left: 295px;
+top: 1260px;
 
 background: #00FF00;
-transform: rotate(-90deg);
+transform: rotate(90deg);
 
 
 /* Rectangle 40 */
@@ -374,12 +319,11 @@ transform: rotate(-90deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: -38px;
-top: 1068px;
+left: 320px;
+top: 1112px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: rotate(180deg);
 
 
 /* Rectangle 41 */
@@ -387,11 +331,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 37px;
-top: 970px;
+left: 295px;
+top: 1260px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Intersect */
@@ -399,72 +342,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 37px;
-top: 1020px;
+left: 295px;
+top: 1210px;
 
-background: #0077FF;
-transform: rotate(180deg);
-
-
-/* Subtract */
-
-position: absolute;
-width: 50px;
-height: 50px;
-left: 37px;
-top: 1020px;
-
-background: #00FF00;
-transform: rotate(180deg);
-
-
-/* Ellipse 2 */
-
-position: absolute;
-width: 100px;
-height: 100px;
-left: -13px;
-top: 970px;
-
-background: #00FF00;
-transform: rotate(-90deg);
-
-
-/* Rectangle 40 */
-
-position: absolute;
-width: 100px;
-height: 100px;
-left: -38px;
-top: 1118px;
-
-background: #D9D9D9;
-border-radius: 0px;
-transform: rotate(180deg);
-
-
-/* Rectangle 41 */
-
-position: absolute;
-width: 50px;
-height: 50px;
-left: 37px;
-top: 1020px;
-
-background: #00FF00;
-transform: rotate(180deg);
-
-
-/* Intersect */
-
-position: absolute;
-width: 50px;
-height: 50px;
-left: 87px;
-top: 1020px;
-
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -472,11 +354,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 87px;
-top: 1020px;
+left: 295px;
+top: 1210px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -484,11 +366,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 87px;
-top: 970px;
+left: 245px;
+top: 1210px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -496,12 +378,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 112px;
-top: 1118px;
+left: 220px;
+top: 1062px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -509,11 +391,23 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 87px;
-top: 1020px;
+left: 295px;
+top: 1210px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 245px;
+top: 1210px;
+
+background: #8000FF;
+transform: rotate(90deg);
 
 
 /* значок */
@@ -521,8 +415,8 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 237px;
-top: 1070px;
+left: 45px;
+top: 1010px;
 
 
 
@@ -531,11 +425,11 @@ top: 1070px;
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1070px;
+left: 45px;
+top: 1060px;
 
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -543,11 +437,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1070px;
+left: 45px;
+top: 1060px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -555,11 +449,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 287px;
-top: 1020px;
+left: -5px;
+top: 1060px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -567,12 +461,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 312px;
-top: 1168px;
+left: -30px;
+top: 912px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -580,11 +474,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1070px;
+left: 45px;
+top: 1060px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Intersect */
@@ -592,11 +486,10 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1070px;
+left: 95px;
+top: 1060px;
 
-background: #0077FF;
-transform: rotate(180deg);
+background: #8000FF;
 
 
 /* Subtract */
@@ -604,11 +497,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1070px;
+left: 95px;
+top: 1060px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Ellipse 2 */
@@ -616,11 +508,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 187px;
-top: 1020px;
+left: 95px;
+top: 1060px;
 
 background: #00FF00;
-transform: rotate(-90deg);
+transform: rotate(90deg);
 
 
 /* Rectangle 40 */
@@ -628,12 +520,11 @@ transform: rotate(-90deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 162px;
-top: 1168px;
+left: 120px;
+top: 912px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: rotate(180deg);
 
 
 /* Rectangle 41 */
@@ -641,11 +532,10 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1070px;
+left: 95px;
+top: 1060px;
 
 background: #00FF00;
-transform: rotate(180deg);
 
 
 /* Intersect */
@@ -653,11 +543,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1120px;
+left: 95px;
+top: 1010px;
 
-background: #0077FF;
-transform: rotate(180deg);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -665,11 +555,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1120px;
+left: 95px;
+top: 1010px;
 
 background: #00FF00;
-transform: rotate(180deg);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -677,11 +567,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 187px;
-top: 1070px;
+left: 45px;
+top: 1010px;
 
 background: #00FF00;
-transform: rotate(-90deg);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -689,12 +579,12 @@ transform: rotate(-90deg);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 162px;
-top: 1218px;
+left: 20px;
+top: 862px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: rotate(180deg);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -702,11 +592,33 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 237px;
-top: 1120px;
+left: 95px;
+top: 1010px;
 
 background: #00FF00;
-transform: rotate(180deg);
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 45px;
+top: 1010px;
+
+background: #8000FF;
+transform: rotate(90deg);
+
+
+/* значок */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 45px;
+top: 1210px;
+
 
 
 /* Intersect */
@@ -714,11 +626,11 @@ transform: rotate(180deg);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1120px;
+left: 45px;
+top: 1260px;
 
-background: #0077FF;
-transform: matrix(1, 0, 0, -1, 0, 0);
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Subtract */
@@ -726,11 +638,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1120px;
+left: 45px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Ellipse 2 */
@@ -738,11 +650,11 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 287px;
-top: 1070px;
+left: -5px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(0, -1, -1, 0, 0, 0);
+transform: matrix(0, 1, 1, 0, 0, 0);
 
 
 /* Rectangle 40 */
@@ -750,12 +662,12 @@ transform: matrix(0, -1, -1, 0, 0, 0);
 position: absolute;
 width: 100px;
 height: 100px;
-left: 312px;
-top: 1218px;
+left: -30px;
+top: 1112px;
 
 background: #D9D9D9;
 border-radius: 0px;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
 
 
 /* Rectangle 41 */
@@ -763,8 +675,138 @@ transform: matrix(1, 0, 0, -1, 0, 0);
 position: absolute;
 width: 50px;
 height: 50px;
-left: 287px;
-top: 1120px;
+left: 45px;
+top: 1260px;
 
 background: #00FF00;
-transform: matrix(1, 0, 0, -1, 0, 0);
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1260px;
+
+background: #8000FF;
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1260px;
+
+background: #00FF00;
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 95px;
+top: 1260px;
+
+background: #00FF00;
+transform: rotate(90deg);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 120px;
+top: 1112px;
+
+background: #D9D9D9;
+border-radius: 0px;
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1260px;
+
+background: #00FF00;
+
+
+/* Intersect */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1210px;
+
+background: #8000FF;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Subtract */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1210px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 45px;
+top: 1210px;
+
+background: #00FF00;
+transform: matrix(0, 1, 1, 0, 0, 0);
+
+
+/* Rectangle 40 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 20px;
+top: 1062px;
+
+background: #D9D9D9;
+border-radius: 0px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Rectangle 41 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+left: 95px;
+top: 1210px;
+
+background: #00FF00;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 100px;
+height: 100px;
+left: 45px;
+top: 1210px;
+
+background: #8000FF;
+transform: rotate(90deg);
