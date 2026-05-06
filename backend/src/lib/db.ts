@@ -28,8 +28,13 @@ export async function initDatabase() {
         max_users INT DEFAULT 10,
         owner_id UUID NOT NULL REFERENCES users(id),
         created_at TIMESTAMP DEFAULT NOW(),
-        closed_at TIMESTAMP
+        closed_at TIMESTAMP,
+        allow_guests BOOLEAN DEFAULT true,
+        require_approval BOOLEAN DEFAULT false
       );
+
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS allow_guests BOOLEAN DEFAULT true;
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS require_approval BOOLEAN DEFAULT false;
 
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,8 +42,13 @@ export async function initDatabase() {
         room_id UUID NOT NULL REFERENCES rooms(id),
         role VARCHAR(20) DEFAULT 'PARTICIPANT',
         joined_at TIMESTAMP DEFAULT NOW(),
-        left_at TIMESTAMP
+        left_at TIMESTAMP,
+        approved BOOLEAN DEFAULT false
       );
+
+      ALTER TABLE participants ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT false;
+      UPDATE participants SET approved = true
+        WHERE role IN ('OWNER', 'MODERATOR') AND approved = false;
 
       CREATE TABLE IF NOT EXISTS blocked_users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

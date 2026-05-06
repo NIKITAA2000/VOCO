@@ -3,8 +3,19 @@ import { nanoid } from "nanoid";
 import { AccessToken } from "livekit-server-sdk";
 import { db } from "../lib/db.js";
 import { authenticate } from "../middleware/auth.js";
-import { createRoomSchema, createInviteSchema, blockUserSchema, changeRoleSchema } from "../schemas/index.js";
+import {
+  createRoomSchema,
+  updateRoomSchema,
+  createInviteSchema,
+  blockUserSchema,
+  changeRoleSchema,
+} from "../schemas/index.js";
 import { config } from "../config/index.js";
+import {
+  roomService,
+  buildMetadata,
+  PARTICIPANT_STATUS_ACTIVE,
+} from "../lib/livekit.js";
 
 const router = Router();
 
@@ -22,22 +33,23 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const { name, maxUsers } = parsed.data;
+    const { name, maxUsers, allowGuests, requireApproval } = parsed.data;
     const slug = nanoid(10);
 
     const result = await db.query(
-      `INSERT INTO rooms (name, slug, max_users, owner_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO rooms (name, slug, max_users, owner_id, allow_guests, require_approval)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
-                 owner_id AS "ownerId", created_at AS "createdAt"`,
-      [name, slug, maxUsers, req.user!.userId]
+                 owner_id AS "ownerId", created_at AS "createdAt",
+                 allow_guests AS "allowGuests", require_approval AS "requireApproval"`,
+      [name, slug, maxUsers, req.user!.userId, allowGuests, requireApproval]
     );
 
     const room = result.rows[0];
 
-    // Auto-add owner as participant
+    // Auto-add owner as participant (уже одобрен)
     await db.query(
-      "INSERT INTO participants (user_id, room_id, role) VALUES ($1, $2, 'OWNER')",
+      "INSERT INTO participants (user_id, room_id, role, approved) VALUES ($1, $2, 'OWNER', true)",
       [req.user!.userId, room.id]
     );
 
@@ -102,6 +114,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
       `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
               r.max_users AS "maxUsers", r.owner_id AS "ownerId",
               r.created_at AS "createdAt", r.closed_at AS "closedAt",
+              r.allow_guests AS "allowGuests", r.require_approval AS "requireApproval",
               u.id AS "owner_id", u.username AS "owner_username"
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
@@ -150,6 +163,8 @@ router.get("/:slug", async (req: Request, res: Response) => {
         ownerId: row.ownerId,
         createdAt: row.createdAt,
         closedAt: row.closedAt,
+        allowGuests: row.allowGuests,
+        requireApproval: row.requireApproval,
         owner: { id: row.owner_id, username: row.owner_username },
         myRole,
         participants: participantsResult.rows.map((p) => ({
@@ -170,7 +185,8 @@ router.get("/:slug", async (req: Request, res: Response) => {
 router.post("/:slug/join", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
-      `SELECT id, name, slug, is_active AS "isActive", max_users AS "maxUsers", owner_id AS "ownerId"
+      `SELECT id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
+              owner_id AS "ownerId", require_approval AS "requireApproval"
        FROM rooms WHERE slug = $1`,
       [req.params.slug]
     );
@@ -202,8 +218,9 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       "SELECT id FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
       [req.user!.userId, room.id]
     );
+    const alreadyInRoom = existingResult.rows.length > 0;
 
-    if (existingResult.rows.length === 0) {
+    if (!alreadyInRoom) {
       // Count active participants
       const countResult = await db.query(
         "SELECT COUNT(DISTINCT user_id) AS count FROM participants WHERE room_id = $1 AND left_at IS NULL",
@@ -241,34 +258,49 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
     const participantRole = roleResult.rows[0]?.role ?? "PARTICIPANT";
     const canPublishData = participantRole === "OWNER" || participantRole === "MODERATOR";
 
-    // Generate LiveKit token
+    // Pending: только для неprivileged участников, которые ранее не были одобрены
+    // в этой комнате. approved=true сохраняется между сессиями (даже после /leave),
+    // так что повторный вход одобренного юзера не требует нового approval.
+    // Сбрасывается только при reject модератором или при создании новой строки
+    // после жёсткого reject'а.
+    const isPrivileged = participantRole === "OWNER" || participantRole === "MODERATOR";
+    let wasApproved = false;
+    if (room.requireApproval && !isPrivileged) {
+      const approvedResult = await db.query(
+        "SELECT 1 FROM participants WHERE user_id = $1 AND room_id = $2 AND approved = true LIMIT 1",
+        [req.user!.userId, room.id],
+      );
+      wasApproved = approvedResult.rows.length > 0;
+    }
+    const isPending = room.requireApproval && !isPrivileged && !wasApproved;
+
     const { displayName } = req.body ?? {};
-    const at = new AccessToken(
-      config.livekit.apiKey,
-      config.livekit.apiSecret,
-      {
-        identity: req.user!.userId,
-        name: displayName || req.user!.username,
-      }
-    );
+    const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
+      identity: req.user!.userId,
+      name: displayName || req.user!.username,
+      metadata: buildMetadata({
+        status: isPending ? "pending" : PARTICIPANT_STATUS_ACTIVE,
+      }),
+    });
 
     at.addGrant({
       roomJoin: true,
       room: room.slug,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData,
+      canPublish: !isPending,
+      canSubscribe: !isPending,
+      canPublishData: isPending ? false : canPublishData,
+      canUpdateOwnMetadata: !isPending,
     });
 
     const livekitToken = await at.toJwt();
 
-    const livekitUrl =
-      config.livekit.publicUrl || config.livekit.url;
+    const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
     res.json({
-      message: "Присоединились к комнате",
+      message: isPending ? "Запрос отправлен модератору" : "Присоединились к комнате",
       token: livekitToken,
       livekitUrl,
+      pending: isPending,
       room: { id: room.id, name: room.name, slug: room.slug },
     });
   } catch (error) {
@@ -291,8 +323,16 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
     }
 
     await db.query(
-      `UPDATE participants SET left_at = NOW()
+      `UPDATE participants
+         SET left_at = NOW(), approved = false
        WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
+      [req.user!.userId, roomResult.rows[0].id]
+    );
+    // Сбрасываем все исторические approved=true — следующий вход потребует нового подтверждения
+    await db.query(
+      `UPDATE participants
+         SET approved = false
+       WHERE user_id = $1 AND room_id = $2 AND approved = true`,
       [req.user!.userId, roomResult.rows[0].id]
     );
 
@@ -476,6 +516,13 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
       [userId, room.id]
     );
 
+    // Принудительно отключаем от LiveKit (если активно подключён)
+    try {
+      await roomService.removeParticipant(req.params.slug as string, userId);
+    } catch {
+      // участник мог быть не подключён к LiveKit — это не ошибка
+    }
+
     res.json({ message: "Пользователь заблокирован" });
   } catch (error) {
     console.error("Block user error:", error);
@@ -602,7 +649,7 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
 
     const updateResult = await db.query(
       `UPDATE participants SET role = $1
-       WHERE user_id = $2 AND room_id = $3 AND left_at IS NULL
+       WHERE user_id = $2 AND room_id = $3
        RETURNING id`,
       [parsed.data.role, req.params.userId, room.id]
     );
@@ -764,6 +811,167 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Room report error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// PATCH /api/rooms/:slug — обновить настройки комнаты (только владелец)
+router.patch("/:slug", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      res.status(403).json({ error: "Только владелец может изменять настройки" });
+      return;
+    }
+
+    const parsed = updateRoomSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Ошибка валидации",
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+    if (parsed.data.name !== undefined) {
+      updates.push(`name = $${idx++}`);
+      values.push(parsed.data.name);
+    }
+    if (parsed.data.maxUsers !== undefined) {
+      updates.push(`max_users = $${idx++}`);
+      values.push(parsed.data.maxUsers);
+    }
+    if (parsed.data.allowGuests !== undefined) {
+      updates.push(`allow_guests = $${idx++}`);
+      values.push(parsed.data.allowGuests);
+    }
+    if (parsed.data.requireApproval !== undefined) {
+      updates.push(`require_approval = $${idx++}`);
+      values.push(parsed.data.requireApproval);
+    }
+
+    values.push(room.id);
+    const result = await db.query(
+      `UPDATE rooms SET ${updates.join(", ")}
+       WHERE id = $${idx}
+       RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
+                 owner_id AS "ownerId", created_at AS "createdAt", closed_at AS "closedAt",
+                 allow_guests AS "allowGuests", require_approval AS "requireApproval"`,
+      values
+    );
+
+    res.json({ room: result.rows[0] });
+  } catch (error) {
+    console.error("Update room error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
+// POST /api/rooms/:slug/approve/:identity — одобрить ожидающего (owner или moderator)
+router.post("/:slug/approve/:identity", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, slug, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const identity = String(req.params.identity);
+    const isGuest = identity.startsWith("guest_");
+    await roomService.updateParticipant(room.slug, identity, {
+      metadata: buildMetadata({ status: PARTICIPANT_STATUS_ACTIVE, isGuest }),
+      permission: {
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+        canUpdateMetadata: true,
+        hidden: false,
+      },
+    });
+
+    // Запоминаем approval в БД, чтобы повторный вход не требовал нового подтверждения
+    if (!isGuest) {
+      await db.query(
+        "UPDATE participants SET approved = true WHERE user_id = $1 AND room_id = $2",
+        [identity, room.id],
+      );
+    }
+
+    res.json({ message: "Участник одобрен" });
+  } catch (error) {
+    console.error("Approve participant error:", error);
+    res.status(500).json({ error: "Не удалось одобрить участника" });
+  }
+});
+
+// POST /api/rooms/:slug/reject/:identity — отклонить ожидающего (owner или moderator)
+router.post("/:slug/reject/:identity", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, slug, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const identity = String(req.params.identity);
+    // Снимаем активную запись и сбрасываем все исторические approved — отказ должен снять
+    // ранее выданное подтверждение, иначе rejected сможет вернуться без очереди
+    if (!identity.startsWith("guest_")) {
+      await db.query(
+        "UPDATE participants SET left_at = NOW() WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+        [identity, room.id]
+      );
+      await db.query(
+        "UPDATE participants SET approved = false WHERE user_id = $1 AND room_id = $2 AND approved = true",
+        [identity, room.id]
+      );
+    }
+
+    await roomService.removeParticipant(room.slug, identity);
+
+    res.json({ message: "Участнику отказано" });
+  } catch (error) {
+    console.error("Reject participant error:", error);
+    res.status(500).json({ error: "Не удалось отклонить участника" });
   }
 });
 

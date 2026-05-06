@@ -1,0 +1,16 @@
+- region "Вход" [ref=e4]:
+  - img "VOCO" [ref=e8]
+  - paragraph [ref=e9]: Видеоконференции без границ
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e12]: Введите почту
+      - textbox "your@email.ru" [ref=e13]
+    - generic [ref=e14]:
+      - paragraph [ref=e15]: Введите пароль
+      - textbox "password" [ref=e16]
+    - button "Войти" [disabled] [ref=e17]
+  - paragraph [ref=e18]:
+    - generic [ref=e19]: Нет аккаунта?
+    - button "Зарегистрироваться" [ref=e20] [cursor=pointer]
+    - generic [ref=e21]: Или зайдите
+    - button "гостем" [ref=e22] [cursor=pointer]

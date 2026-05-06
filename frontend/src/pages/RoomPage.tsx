@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   DisconnectButton,
@@ -20,10 +21,11 @@ import {
   useLocalParticipant,
   useMediaDeviceSelect,
   useParticipants,
+  useRoomContext,
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track } from "livekit-client";
+import { DisconnectReason, RoomEvent, Track } from "livekit-client";
 import { api } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
@@ -37,8 +39,9 @@ const ROOM_TILE_PAGE_SIZE = 4;
 const DESKTOP_TILE_COLUMN_WIDTH = 293;
 const DESKTOP_TILE_GRID_WIDTH = DESKTOP_TILE_COLUMN_WIDTH * 2;
 const DESKTOP_TILE_GRID_LEFT = (STAGE_WIDTH - DESKTOP_TILE_GRID_WIDTH) / 2;
-const DESKTOP_EXPANDED_MEDIA_TOP = 107;
-const DESKTOP_EXPANDED_MEDIA_HEIGHT = 810;
+const DESKTOP_PARTICIPANTS_PANEL_WIDTH = 470;
+const DESKTOP_CHAT_PANEL_WIDTH = 384;
+const TILE_FOOTER_HEIGHT = 50;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
 const COMPACT_ROOM_LAYOUT_MEDIA_QUERY = "(max-width: 640px)";
@@ -156,16 +159,41 @@ function mobileContentRect(row: number, rows: number, rowSpan = 1): CSSPropertie
   return contentRect(0, MOBILE_WIDTH, MOBILE_WIDTH, row, rows, rowSpan);
 }
 
-function getStageTileFrames(count: number, gridLeft = DESKTOP_TILE_GRID_LEFT, expandSingleTile = false) {
+function getStageTileFrames(
+  count: number,
+  gridLeft = DESKTOP_TILE_GRID_LEFT,
+  expandSingleTile = false,
+  expandedLeftPx = 0,
+  expandedRightPx = 0,
+  expandedAspectRatio = 16 / 9,
+) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
   if (normalizedCount === 1) {
     if (expandSingleTile) {
+      // Tile максимально занимает зону между viewport-fixed панелями и bar'ами,
+      // сохраняя aspect ratio демки — без обрезки и без боковых/верхних полос.
+      // Тайл = медиа (зона видео) + футер 50px снизу. При подгонке аспекта учитываем,
+      // что source aspect должен совпадать с медиа-зоной, а не со всем тайлом.
+      const safeAspect = expandedAspectRatio > 0 ? expandedAspectRatio : 16 / 9;
+      const horizontalReserved = expandedLeftPx + expandedRightPx;
+      const verticalReserved = ROOM_BAR_HEIGHT * 2;
+      const footer = TILE_FOOTER_HEIGHT;
+      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved}px - ${footer}px) * ${safeAspect}))`;
+      const heightCss = `min(calc(100vh - ${verticalReserved}px), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
       return [
         {
           id: "tile-1",
           accent: true,
-          style: stageRect(0, DESKTOP_EXPANDED_MEDIA_TOP, STAGE_WIDTH, DESKTOP_EXPANDED_MEDIA_HEIGHT),
+          style: {
+            position: "fixed" as const,
+            top: `calc(${ROOM_BAR_HEIGHT}px + (100vh - ${verticalReserved}px) / 2)`,
+            left: `calc((100vw + ${expandedLeftPx}px - ${expandedRightPx}px) / 2)`,
+            width: widthCss,
+            height: heightCss,
+            transform: "translate(-50%, -50%)",
+            zIndex: 1,
+          },
         },
       ];
     }
@@ -335,6 +363,25 @@ function isTrackSpeaking(trackRef: any) {
     getTrackSource(trackRef) !== Track.Source.ScreenShare &&
     Boolean(trackRef?.participant?.isSpeaking)
   );
+}
+
+function parseParticipantStatus(participant: any): {
+  status: "pending" | "active";
+  isGuest: boolean;
+} {
+  const raw = participant?.metadata;
+  if (!raw || typeof raw !== "string") {
+    return { status: "active", isGuest: false };
+  }
+  try {
+    const data = JSON.parse(raw);
+    return {
+      status: data?.status === "pending" ? "pending" : "active",
+      isGuest: Boolean(data?.isGuest),
+    };
+  } catch {
+    return { status: "active", isGuest: false };
+  }
 }
 
 function hasExpandedVideoMedia(trackRef: any) {
@@ -724,7 +771,7 @@ function SendIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 type DeviceMenuKey = "mic" | "speaker" | "cam";
 type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
-type RoomPanelKey = "participants" | "chat";
+type RoomPanelKey = "participants" | "chat" | "settings";
 
 function DeviceCheckIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
@@ -1011,7 +1058,22 @@ function PlaceholderLogo() {
   );
 }
 
-type ExpiryPreset = "none" | "1d" | "1w" | "1y" | "custom";
+type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
+
+type SettingsTab = "settings" | "link" | "ban";
+
+interface RoomMeta {
+  name: string;
+  maxUsers: number;
+  allowGuests: boolean;
+  requireApproval: boolean;
+}
+
+interface BlockedUserEntry {
+  id: string;
+  user: { id: string; username: string };
+  reason?: string | null;
+}
 
 function pad2(value: number) {
   return value.toString().padStart(2, "0");
@@ -1023,36 +1085,157 @@ function formatDateTimeLocal(date: Date) {
   )}:${pad2(date.getMinutes())}`;
 }
 
-function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => void }) {
+function SettingsPanel({
+  slug,
+  layoutClass,
+  roomMeta,
+  blockedUsers,
+  canEditSettings,
+  onClose,
+  onMetaSaved,
+  onUnblockUser,
+}: {
+  slug: string;
+  layoutClass?: string;
+  roomMeta: RoomMeta | null;
+  blockedUsers: BlockedUserEntry[];
+  canEditSettings: boolean;
+  onClose: () => void;
+  onMetaSaved: () => void | Promise<void>;
+  onUnblockUser: (userId: string) => void | Promise<void>;
+}) {
+  const [tab, setTab] = useState<SettingsTab>("settings");
+
+  // ===== Вкладка «Настройки» =====
+  const [name, setName] = useState(roomMeta?.name ?? "");
+  const [maxUsersInput, setMaxUsersInput] = useState(
+    roomMeta?.maxUsers != null ? String(roomMeta.maxUsers) : "",
+  );
+  const [allowGuestsSettings, setAllowGuestsSettings] = useState(
+    roomMeta?.allowGuests ?? true,
+  );
+  const [requireApprovalSettings, setRequireApprovalSettings] = useState(
+    roomMeta?.requireApproval ?? false,
+  );
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsJustSaved, setSettingsJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!roomMeta) return;
+    setName(roomMeta.name);
+    setMaxUsersInput(String(roomMeta.maxUsers));
+    setAllowGuestsSettings(roomMeta.allowGuests);
+    setRequireApprovalSettings(roomMeta.requireApproval);
+  }, [roomMeta]);
+
+  useEffect(() => {
+    if (!settingsJustSaved) return;
+    const id = window.setTimeout(() => setSettingsJustSaved(false), 1500);
+    return () => window.clearTimeout(id);
+  }, [settingsJustSaved]);
+
+  const handleSaveSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSettingsError(null);
+
+    const trimmedName = name.trim();
+    const parsedMax = Number.parseInt(maxUsersInput.trim(), 10);
+    const payload: {
+      name?: string;
+      maxUsers?: number;
+      allowGuests?: boolean;
+      requireApproval?: boolean;
+    } = {};
+
+    if (trimmedName && trimmedName !== roomMeta?.name) payload.name = trimmedName;
+    if (
+      Number.isFinite(parsedMax) &&
+      parsedMax >= 2 &&
+      parsedMax <= 50 &&
+      parsedMax !== roomMeta?.maxUsers
+    ) {
+      payload.maxUsers = parsedMax;
+    }
+    if (allowGuestsSettings !== roomMeta?.allowGuests) {
+      payload.allowGuests = allowGuestsSettings;
+    }
+    if (requireApprovalSettings !== roomMeta?.requireApproval) {
+      payload.requireApproval = requireApprovalSettings;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setSettingsJustSaved(true);
+      return;
+    }
+
+    setSavingSettings(true);
+    try {
+      await api.updateRoom(slug, payload);
+      setSettingsJustSaved(true);
+      await onMetaSaved();
+    } catch (err: any) {
+      setSettingsError(err?.message || "Не удалось сохранить");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  // ===== Вкладка «Ссылка» =====
   const [invites, setInvites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [invitesLoading, setInvitesLoading] = useState(true);
+  const [inviteError, setInviteError] = useState("");
   const [creating, setCreating] = useState(false);
   const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("none");
   const [customExpiresAt, setCustomExpiresAt] = useState(() => formatDateTimeLocal(new Date()));
   const [maxUses, setMaxUses] = useState("");
-  const [allowGuests, setAllowGuests] = useState(true);
+  const [allowGuestsInvite, setAllowGuestsInvite] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
+  const [expiryDropdownOpen, setExpiryDropdownOpen] = useState(false);
+  const expirySelectRef = useRef<HTMLDivElement>(null);
+
+  const expiryOptions: { value: ExpiryPreset; label: string }[] = [
+    { value: "none", label: "Без лимита" },
+    { value: "1d", label: "1 день" },
+    { value: "1w", label: "1 неделя" },
+    { value: "1m", label: "1 месяц" },
+    { value: "1y", label: "1 год" },
+    { value: "custom", label: "Своё время" },
+  ];
+
+  const expiryLabel =
+    expiryOptions.find((o) => o.value === expiryPreset)?.label ?? "Без лимита";
+
+  useEffect(() => {
+    if (!expiryDropdownOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (expirySelectRef.current?.contains(event.target as Node)) return;
+      setExpiryDropdownOpen(false);
+    };
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [expiryDropdownOpen]);
 
   const nowLocal = formatDateTimeLocal(new Date());
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const reloadInvites = useCallback(async () => {
+    setInvitesLoading(true);
+    setInviteError("");
     try {
       const data = await api.listInvites(slug);
       const activeOnly = (data.invites ?? []).filter((invite: any) => invite.isActive);
       setInvites(activeOnly);
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось загрузить ссылки");
     } finally {
-      setLoading(false);
+      setInvitesLoading(false);
     }
   }, [slug]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (tab !== "link") return;
+    void reloadInvites();
+  }, [tab, reloadInvites]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -1075,6 +1258,11 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
       d.setDate(d.getDate() + 7);
       return d;
     }
+    if (expiryPreset === "1m") {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() + 1);
+      return d;
+    }
     if (expiryPreset === "1y") {
       const d = new Date(now);
       d.setFullYear(d.getFullYear() + 1);
@@ -1086,22 +1274,22 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
     return parsed;
   };
 
-  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateInvite = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
+    setInviteError("");
 
     const expiresDate = resolveExpiresAt();
     if (expiryPreset === "custom") {
       if (!expiresDate) {
-        setError("Укажите корректную дату истечения");
+        setInviteError("Укажите корректную дату истечения");
         return;
       }
       if (expiresDate.getTime() <= Date.now()) {
-        setError("Дата истечения не может быть в прошлом");
+        setInviteError("Дата истечения не может быть в прошлом");
         return;
       }
       if (expiresDate.getFullYear() > 9999) {
-        setError("Год должен содержать не более 4 цифр");
+        setInviteError("Год должен содержать не более 4 цифр");
         return;
       }
     }
@@ -1109,11 +1297,9 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
     setCreating(true);
     try {
       const options: { expiresAt?: string; maxUses?: number; allowGuests?: boolean } = {
-        allowGuests,
+        allowGuests: allowGuestsInvite,
       };
-      if (expiresDate) {
-        options.expiresAt = expiresDate.toISOString();
-      }
+      if (expiresDate) options.expiresAt = expiresDate.toISOString();
       if (maxUses) {
         const parsedUses = parseInt(maxUses, 10);
         if (Number.isFinite(parsedUses) && parsedUses >= 1) {
@@ -1124,178 +1310,406 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
       setExpiryPreset("none");
       setCustomExpiresAt(formatDateTimeLocal(new Date()));
       setMaxUses("");
-      setAllowGuests(true);
-      await reload();
+      setAllowGuestsInvite(true);
+      await reloadInvites();
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось создать ссылку");
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeactivate = async (code: string) => {
-    setError("");
+    setInviteError("");
     try {
       await api.deactivateInvite(slug, code);
       setInvites((current) => current.filter((invite: any) => invite.code !== code));
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось удалить ссылку");
     }
   };
 
-  const copyUrl = async (code: string) => {
+  const copyInviteUrl = async (code: string) => {
     const url = `${window.location.origin}/invite/${code}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(code);
       setTimeout(() => setCopied((current) => (current === code ? null : current)), 1500);
     } catch {
-      setError("Не удалось скопировать ссылку");
+      setInviteError("Не удалось скопировать ссылку");
     }
   };
 
+  const formatInviteUrl = (code: string) => {
+    const full = `${window.location.origin}/invite/${code}`;
+    return full.length > 28 ? `${full.slice(0, 25)}...` : full;
+  };
+
   return (
-    <div
-      className={styles.inviteOverlay}
+    <aside
+      className={`${styles.settingsPanel} ${layoutClass ?? ""}`}
+      data-tab={tab}
       role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-modal-title"
-      onClick={onClose}
+      aria-label="Настройки конференции"
+      onClick={(event) => event.stopPropagation()}
     >
-      <div className={styles.inviteModal} onClick={(event) => event.stopPropagation()}>
-        <header className={styles.inviteHeader}>
-          <h2 id="invite-modal-title">Ссылки-приглашения</h2>
+      <div className={styles.settingsHeader}>
+        <div className={styles.settingsTabs} role="tablist">
           <button
             type="button"
-            className={styles.inviteClose}
-            onClick={onClose}
-            aria-label="Закрыть"
+            role="tab"
+            aria-selected={tab === "settings"}
+            className={`${styles.settingsTab} ${tab === "settings" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("settings")}
           >
-            ×
+            Настройки
           </button>
-        </header>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "link"}
+            className={`${styles.settingsTab} ${tab === "link" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("link")}
+          >
+            Ссылка
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "ban"}
+            className={`${styles.settingsTab} ${tab === "ban" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("ban")}
+          >
+            Бан
+          </button>
+        </div>
+        <button
+          type="button"
+          className={styles.settingsClose}
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
+          <CloseCrossIcon />
+        </button>
+      </div>
 
-        <form className={styles.inviteForm} onSubmit={handleCreate}>
-          <label className={styles.inviteField}>
-            <span>Максимум использований</span>
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={maxUses}
-              onChange={(event) => setMaxUses(event.target.value)}
-              placeholder="Без лимита"
-            />
-          </label>
-
-          <label className={styles.inviteField}>
-            <span>Истекает</span>
-            <div className={styles.inviteSelectWrapper}>
-              <select
-                className={styles.inviteSelect}
-                value={expiryPreset}
-                onChange={(event) => setExpiryPreset(event.target.value as ExpiryPreset)}
-              >
-                <option value="none">Без лимита</option>
-                <option value="1d">1 день</option>
-                <option value="1w">1 неделя</option>
-                <option value="1y">1 год</option>
-                <option value="custom">Своё время</option>
-              </select>
-              <span className={styles.inviteSelectChevron} aria-hidden="true">
-                <ChevronDownIcon />
-              </span>
-            </div>
-          </label>
-
-          {expiryPreset === "custom" ? (
-            <label className={styles.inviteField}>
-              <span>Дата истечения</span>
+      <div className={styles.settingsBody}>
+        {tab === "settings" ? (
+          <form className={styles.settingsForm} onSubmit={handleSaveSettings}>
+            <label className={styles.settingsField}>
+              <span>Название комнаты</span>
               <input
-                type="datetime-local"
-                value={customExpiresAt}
-                min={nowLocal}
-                max="9999-12-31T23:59"
-                onChange={(event) => setCustomExpiresAt(event.target.value)}
+                type="text"
+                value={name}
+                placeholder="Название"
+                onChange={(event) => setName(event.target.value)}
+                maxLength={100}
+                disabled={!canEditSettings}
               />
             </label>
-          ) : null}
 
-          <label className={styles.inviteCheckbox}>
-            <input
-              type="checkbox"
-              checked={allowGuests}
-              onChange={(event) => setAllowGuests(event.target.checked)}
-            />
-            <span>Разрешить вход гостям</span>
-          </label>
+            <label className={styles.settingsField}>
+              <span>Макс. количество участников</span>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                value={maxUsersInput}
+                placeholder="Количество"
+                onChange={(event) => setMaxUsersInput(event.target.value)}
+                disabled={!canEditSettings}
+              />
+            </label>
 
-          <button type="submit" className={styles.inviteCreate} disabled={creating}>
-            {creating ? "Создание..." : "Создать ссылку"}
-          </button>
-        </form>
+            <button
+              type="button"
+              className={`${styles.settingsToggleRow} ${
+                allowGuestsSettings ? styles.settingsToggleOn : styles.settingsToggleOff
+              }`}
+              aria-pressed={allowGuestsSettings}
+              onClick={() => setAllowGuestsSettings((v) => !v)}
+              disabled={!canEditSettings}
+            >
+              <span className={styles.settingsToggleText}>Разрешить вход гостям</span>
+              <span className={styles.settingsToggleDot} aria-hidden="true" />
+            </button>
 
-        {error ? <div className={styles.inviteError}>{error}</div> : null}
+            <button
+              type="button"
+              className={`${styles.settingsToggleRow} ${
+                requireApprovalSettings ? styles.settingsToggleOn : styles.settingsToggleOff
+              }`}
+              aria-pressed={requireApprovalSettings}
+              onClick={() => setRequireApprovalSettings((v) => !v)}
+              disabled={!canEditSettings}
+            >
+              <span className={styles.settingsToggleText}>Вход по запросу</span>
+              <span className={styles.settingsToggleDot} aria-hidden="true" />
+            </button>
 
-        <div className={styles.inviteList}>
-          {loading ? (
-            <div className={styles.inviteEmpty}>Загрузка...</div>
-          ) : invites.length === 0 ? (
-            <div className={styles.inviteEmpty}>Ссылок ещё нет</div>
-          ) : (
-            invites.map((invite: any) => {
-              const url = `${window.location.origin}/invite/${invite.code}`;
-              const usesLabel = invite.maxUses
-                ? `${invite.usesCount}/${invite.maxUses}`
-                : `${invite.usesCount}/∞`;
-              return (
-                <div key={invite.id} className={styles.inviteItem}>
-                  <div className={styles.inviteItemUrl} title={url}>
-                    {url}
-                  </div>
-                  <div className={styles.inviteItemMeta}>
-                    <span>Использований: {usesLabel}</span>
-                    {invite.expiresAt ? (
-                      <span>До: {new Date(invite.expiresAt).toLocaleString("ru-RU")}</span>
-                    ) : (
-                      <span>Бессрочно</span>
-                    )}
-                    <span>{invite.allowGuests ? "Гости: да" : "Гости: нет"}</span>
-                  </div>
-                  <div className={styles.inviteItemActions}>
-                    <button type="button" onClick={() => copyUrl(invite.code)}>
-                      {copied === invite.code ? "Скопировано" : "Копировать"}
-                    </button>
-                    <button type="button" onClick={() => handleDeactivate(invite.code)}>
-                      Отключить
-                    </button>
-                  </div>
+            {settingsError ? (
+              <div className={styles.settingsError}>{settingsError}</div>
+            ) : settingsJustSaved ? (
+              <div className={styles.settingsHint}>Сохранено</div>
+            ) : null}
+
+            <button
+              type="submit"
+              className={styles.settingsSaveButton}
+              disabled={savingSettings || !canEditSettings}
+            >
+              {savingSettings ? "Сохранение..." : "Сохранить"}
+            </button>
+          </form>
+        ) : null}
+
+        {tab === "link" ? (
+          <div className={styles.settingsLinkTab}>
+            <form className={styles.settingsForm} onSubmit={handleCreateInvite}>
+              <label className={styles.settingsField}>
+                <span>Максимум использований</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={maxUses}
+                  onChange={(event) => setMaxUses(event.target.value)}
+                  placeholder="Без лимита"
+                />
+              </label>
+
+              <div className={styles.settingsField}>
+                <span>Срок действия</span>
+                <div className={styles.settingsSelectWrapper} ref={expirySelectRef}>
+                  <button
+                    type="button"
+                    className={styles.settingsFakeSelect}
+                    onClick={() => setExpiryDropdownOpen((o) => !o)}
+                    aria-haspopup="listbox"
+                    aria-expanded={expiryDropdownOpen}
+                  >
+                    <span className={styles.settingsFakeSelectValue}>{expiryLabel}</span>
+                  </button>
+                  <span className={styles.settingsSelectChevron} aria-hidden="true">
+                    <ChevronDownIcon />
+                  </span>
+                  {expiryDropdownOpen ? (
+                    <ul className={styles.settingsDropdown} role="listbox">
+                      {expiryOptions.map((opt) => (
+                        <li
+                          key={opt.value}
+                          role="option"
+                          aria-selected={expiryPreset === opt.value}
+                          className={`${styles.settingsDropdownItem} ${
+                            expiryPreset === opt.value ? styles.settingsDropdownItemActive : ""
+                          }`}
+                          onClick={() => {
+                            setExpiryPreset(opt.value);
+                            setExpiryDropdownOpen(false);
+                          }}
+                        >
+                          {opt.label}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
-              );
-            })
-          )}
-        </div>
+              </div>
+
+              {expiryPreset === "custom" ? (
+                <label className={styles.settingsField}>
+                  <span>Дата истечения</span>
+                  <input
+                    type="datetime-local"
+                    value={customExpiresAt}
+                    min={nowLocal}
+                    max="9999-12-31T23:59"
+                    onChange={(event) => setCustomExpiresAt(event.target.value)}
+                  />
+                </label>
+              ) : null}
+
+              <button
+                type="button"
+                className={`${styles.settingsToggleRow} ${
+                  allowGuestsInvite ? styles.settingsToggleOn : styles.settingsToggleOff
+                }`}
+                aria-pressed={allowGuestsInvite}
+                onClick={() => setAllowGuestsInvite((v) => !v)}
+              >
+                <span className={styles.settingsToggleText}>Разрешить вход гостям</span>
+                <span className={styles.settingsToggleDot} aria-hidden="true" />
+              </button>
+
+              {inviteError ? <div className={styles.settingsError}>{inviteError}</div> : null}
+
+              <button
+                type="submit"
+                className={styles.settingsCreateLink}
+                disabled={creating}
+              >
+                {creating ? "Создание..." : "Создать ссылку"}
+              </button>
+            </form>
+
+            <div className={styles.settingsLinkList}>
+              {invitesLoading ? (
+                <div className={styles.settingsEmpty}>Загрузка...</div>
+              ) : invites.length === 0 ? (
+                <div className={styles.settingsEmpty}>Ссылок ещё нет</div>
+              ) : (
+                invites.map((invite: any) => {
+                  const usesLabel = invite.maxUses
+                    ? `${invite.usesCount}/${invite.maxUses}`
+                    : `${invite.usesCount}/без лимита`;
+                  const expiresLabel = invite.expiresAt
+                    ? `Срок действия: ${new Date(invite.expiresAt).toLocaleDateString("ru-RU")}`
+                    : "Срок действия: без лимита";
+                  return (
+                    <div key={invite.id} className={styles.settingsLinkCard}>
+                      <span className={styles.settingsLinkUrl}>
+                        {formatInviteUrl(invite.code)}
+                      </span>
+                      <div className={styles.settingsLinkMeta}>
+                        <div>Использований: {usesLabel}</div>
+                        <div>{expiresLabel}</div>
+                        <div>
+                          Вход гостей: {invite.allowGuests ? "разрешено" : "запрещено"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.settingsLinkIconBtn}
+                        onClick={() => copyInviteUrl(invite.code)}
+                        aria-label={copied === invite.code ? "Скопировано" : "Копировать"}
+                      >
+                        <CopyIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.settingsLinkDeleteBtn}
+                        onClick={() => handleDeactivate(invite.code)}
+                        aria-label="Удалить"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {tab === "ban" ? (
+          <div className={styles.settingsBanTab}>
+            {blockedUsers.length === 0 ? (
+              <div className={styles.settingsEmpty}>Заблокированных нет</div>
+            ) : (
+              blockedUsers.map((entry) => (
+                <div key={entry.id} className={styles.settingsBanRow}>
+                  <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
+                  <span className={styles.settingsBanName}>{entry.user.username}</span>
+                  <button
+                    type="button"
+                    className={styles.settingsBanUnblock}
+                    onClick={() => void onUnblockUser(entry.user.id)}
+                  >
+                    Разбанить
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
-    </div>
+    </aside>
+  );
+}
+function SettingsIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.settingsSvg, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15 1.65 1.65 0 0 0 3.09 14H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
   );
 }
 
-function InviteIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+function CopyIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      className={iconClassName(styles.roomIcon, styles.inviteSvg, className)}
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M4 7h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M10 11v7M14 11v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CloseCrossIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function OwnerCrownIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.ownerCrownSvg, className)}
       viewBox="0 0 50 50"
       fill="none"
       aria-hidden="true"
       {...props}
     >
       <path
-        d="M23.0332 18L16.8256 24.1026C11.8599 28.9846 18.067 35.0872 23.0329 30.2052L29 24.1026"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M26.9668 32L33.1744 25.8974C38.1401 21.0154 31.933 14.9128 26.9671 19.7948L21 25.8974"
+        d="M18 36V16L22 23L25 17L28 23L32 16V36H18Z"
         stroke="currentColor"
         strokeWidth="2"
       />
@@ -1339,6 +1753,33 @@ function ParticipantAvatar({
   );
 }
 
+interface PendingWatcherProps {
+  onApproved: () => void;
+}
+
+export function PendingWatcher({ onApproved }: PendingWatcherProps) {
+  const room = useRoomContext();
+  useEffect(() => {
+    if (!room) return;
+    // Слушаем РЕАЛЬНОЕ событие смены permissions у локального участника.
+    // Initial check не делаем — он ловит дефолтные значения до первого heartbeat
+    // от LiveKit и ошибочно триггерит approved.
+    const handle = (_prev: unknown, participant: any) => {
+      const localIdentity = room.localParticipant?.identity;
+      if (!participant || !localIdentity || participant.identity !== localIdentity) return;
+      const perms = participant.permissions;
+      if (perms?.canSubscribe === true) {
+        onApproved();
+      }
+    };
+    room.on(RoomEvent.ParticipantPermissionsChanged, handle);
+    return () => {
+      room.off(RoomEvent.ParticipantPermissionsChanged, handle);
+    };
+  }, [room, onApproved]);
+  return null;
+}
+
 export function ConferenceRoomContent({
   roomName,
   slug,
@@ -1348,6 +1789,7 @@ export function ConferenceRoomContent({
   canEndRoom,
   currentUserAvatarUrl,
 }: ConferenceRoomContentProps) {
+  const room = useRoomContext();
   const participants = useParticipants();
   const {
     localParticipant,
@@ -1365,24 +1807,46 @@ export function ConferenceRoomContent({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [emojiScrollThumbTop, setEmojiScrollThumbTop] = useState(10);
   const [outputEnabled, setOutputEnabled] = useState(true);
-  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [handRaisedMap, setHandRaisedMap] = useState<Record<string, boolean>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
-  const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
     participants: false,
     chat: false,
+    settings: false,
   });
+  const [roomMeta, setRoomMeta] = useState<RoomMeta | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
+  const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
   const [roomParticipants, setRoomParticipants] = useState<RoomParticipantMeta[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<
+    Array<{ id: string; user: { id: string; username: string }; reason?: string | null }>
+  >([]);
   const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingNow, setRecordingNow] = useState(Date.now());
   const [codeCopyStatus, setCodeCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const [tilePage, setTilePage] = useState(0);
+  const [participantsMetaTick, setParticipantsMetaTick] = useState(0);
+  const [pendingActionFor, setPendingActionFor] = useState<string | null>(null);
   const codeCopyResetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!room) return;
+    const bump = () => setParticipantsMetaTick((tick) => tick + 1);
+    room.on(RoomEvent.ParticipantMetadataChanged, bump);
+    room.on(RoomEvent.ParticipantConnected, bump);
+    room.on(RoomEvent.ParticipantDisconnected, bump);
+    room.on(RoomEvent.LocalTrackPublished, bump);
+    return () => {
+      room.off(RoomEvent.ParticipantMetadataChanged, bump);
+      room.off(RoomEvent.ParticipantConnected, bump);
+      room.off(RoomEvent.ParticipantDisconnected, bump);
+      room.off(RoomEvent.LocalTrackPublished, bump);
+    };
+  }, [room]);
 
   useEffect(() => {
     return () => {
@@ -1413,6 +1877,26 @@ export function ConferenceRoomContent({
       setRoomParticipants(data.room?.participants ?? []);
       const nextRole = (data.room?.myRole ?? null) as RoomRole | null;
       setRoomRole(nextRole);
+      const r = data.room;
+      if (r) {
+        setRoomMeta({
+          name: r.name ?? "",
+          maxUsers: typeof r.maxUsers === "number" ? r.maxUsers : 10,
+          allowGuests: r.allowGuests ?? true,
+          requireApproval: r.requireApproval ?? false,
+        });
+      }
+      // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
+      if (nextRole === "OWNER" || nextRole === "MODERATOR") {
+        try {
+          const blocked = await api.listBlocked(slug);
+          setBlockedUsers(blocked.blocked ?? []);
+        } catch {
+          // ignore
+        }
+      } else {
+        setBlockedUsers([]);
+      }
     } catch {
       // Room metadata is optional for the visual controls; LiveKit participants remain the source of truth.
     }
@@ -1427,6 +1911,106 @@ export function ConferenceRoomContent({
     return () => window.clearInterval(timer);
   }, [refreshRoomState]);
 
+  const closeParticipantMenu = useCallback(() => {
+    setParticipantMenuRect(null);
+    setOpenParticipantMenu(null);
+  }, []);
+
+  const sendModerationCommand = useCallback(
+    async (type: "mute" | "kick", targetIdentity: string) => {
+      if (!localParticipant || !targetIdentity) return;
+      const payload = new TextEncoder().encode(
+        JSON.stringify({ type, target: targetIdentity }),
+      );
+      try {
+        await localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "voco-moderation",
+          destinationIdentities: [targetIdentity],
+        });
+      } catch (error) {
+        console.error("Не удалось отправить команду модерации", error);
+      }
+    },
+    [localParticipant],
+  );
+
+  const handleToggleModerator = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!slug || !meta.user.id) return;
+      const nextRole = meta.role === "MODERATOR" ? "PARTICIPANT" : "MODERATOR";
+      try {
+        await api.changeParticipantRole(slug, meta.user.id, nextRole);
+        await refreshRoomState();
+      } catch (error) {
+        console.error("Не удалось изменить роль", error);
+      }
+    },
+    [slug, refreshRoomState, closeParticipantMenu],
+  );
+
+  const handleMuteParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!meta.user.id) return;
+      await sendModerationCommand("mute", meta.user.id);
+    },
+    [sendModerationCommand, closeParticipantMenu],
+  );
+
+  const handleKickParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!meta.user.id) return;
+      await sendModerationCommand("kick", meta.user.id);
+    },
+    [sendModerationCommand, closeParticipantMenu],
+  );
+
+  const handleBanParticipant = useCallback(
+    async (meta: RoomParticipantMeta) => {
+      closeParticipantMenu();
+      if (!slug || !meta.user.id) return;
+      try {
+        await api.blockUser(slug, meta.user.id);
+        await refreshRoomState();
+      } catch (error) {
+        console.error("Не удалось забанить участника", error);
+      }
+    },
+    [slug, refreshRoomState, closeParticipantMenu],
+  );
+
+  useEffect(() => {
+    if (!room) return;
+    const handleData = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic && topic !== "voco-moderation") return;
+      let message: { type?: string; target?: string } | null = null;
+      try {
+        message = JSON.parse(new TextDecoder().decode(payload));
+      } catch {
+        return;
+      }
+      if (!message || message.target !== localParticipant?.identity) return;
+      if (message.type === "mute") {
+        void localParticipant?.setMicrophoneEnabled(false);
+      } else if (message.type === "kick") {
+        onExitIntent();
+        void room.disconnect();
+      }
+    };
+    room.on(RoomEvent.DataReceived, handleData);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleData);
+    };
+  }, [room, localParticipant, onExitIntent]);
+
   useEffect(() => {
     if (!openParticipantMenu) return;
 
@@ -1434,17 +2018,26 @@ export function ConferenceRoomContent({
       const target = event.target as HTMLElement | null;
       if (!target) return;
       if (target.closest("[data-participant-menu-root]")) return;
-      setOpenParticipantMenu(null);
+      { setParticipantMenuRect(null); setOpenParticipantMenu(null); };
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenParticipantMenu(null);
+      if (event.key === "Escape") { setParticipantMenuRect(null); setOpenParticipantMenu(null); };
+    };
+
+    const handleViewportChange = () => {
+      setParticipantMenuRect(null);
+      setOpenParticipantMenu(null);
     };
 
     window.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleKey);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
     };
   }, [openParticipantMenu]);
 
@@ -1478,7 +2071,8 @@ export function ConferenceRoomContent({
   const handleExitMenuLeave = useCallback(() => {
     setExitMenuOpen(false);
     onExitIntent();
-  }, [onExitIntent]);
+    void room?.disconnect();
+  }, [onExitIntent, room]);
 
   const handleExitMenuEnd = useCallback(() => {
     setExitMenuOpen(false);
@@ -1525,12 +2119,10 @@ export function ConferenceRoomContent({
     ) : null;
 
   const handleCopyRoomCode = useCallback(async () => {
-    if (!slug || !isOwner || codeCopyStatus === "copying") return;
+    if (!slug || codeCopyStatus === "copying") return;
     setCodeCopyStatus("copying");
     try {
-      const data = await api.createInvite(slug, { maxUses: 1 });
-      const url = `${window.location.origin}/invite/${data.invite.code}`;
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(slug);
       setCodeCopyStatus("copied");
     } catch {
       setCodeCopyStatus("error");
@@ -1543,7 +2135,7 @@ export function ConferenceRoomContent({
         codeCopyResetRef.current = null;
       }, 1800);
     }
-  }, [slug, isOwner, codeCopyStatus]);
+  }, [slug, codeCopyStatus]);
 
   const closeDeviceMenu = useCallback(() => setOpenDeviceMenu(null), []);
   const toggleDeviceMenu = useCallback(
@@ -1611,17 +2203,29 @@ export function ConferenceRoomContent({
     );
   });
 
-  const orderedParticipants = [...participants].sort((left: any, right: any) => {
-    if (left.identity === localIdentity) return -1;
-    if (right.identity === localIdentity) return 1;
-    return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
-  });
+  void participantsMetaTick;
+  const allRoomParticipants = [...participants];
+  const pendingParticipants = allRoomParticipants.filter(
+    (participant: any) =>
+      participant.identity !== localIdentity &&
+      parseParticipantStatus(participant).status === "pending",
+  );
+  const orderedParticipants = allRoomParticipants
+    .filter(
+      (participant: any) =>
+        participant.identity === localIdentity ||
+        parseParticipantStatus(participant).status !== "pending",
+    )
+    .sort((left: any, right: any) => {
+      if (left.identity === localIdentity) return -1;
+      if (right.identity === localIdentity) return 1;
+      return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
+    });
   const participantMetaByUserId = new Map(
     roomParticipants.map((participant) => [participant.user.id, participant] as const),
   );
-  const localParticipantRole = participantMetaByUserId.get(localIdentity ?? "")?.role;
   const canModerateParticipants = Boolean(
-    canEndRoom || localParticipantRole === "OWNER" || localParticipantRole === "MODERATOR" || roomRole === "OWNER" || roomRole === "MODERATOR",
+    isOwner || roomRole === "OWNER" || roomRole === "MODERATOR",
   );
   const recordingSeconds =
     isRecording && recordingStartedAt ? Math.floor((recordingNow - recordingStartedAt) / 1000) : 0;
@@ -1637,10 +2241,100 @@ export function ConferenceRoomContent({
     : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
+  const isSettingsPanelOpen = visiblePanels.settings;
+  const expandedTileLeft = isParticipantsPanelOpen ? DESKTOP_PARTICIPANTS_PANEL_WIDTH : 0;
+  const expandedTileRight = isChatPanelOpen ? DESKTOP_CHAT_PANEL_WIDTH : 0;
+  const expandedTrackPublication = (visibleTracks[0] as any)?.publication;
+  const expandedTrack = expandedTrackPublication?.track;
+  const expandedTrackSid: string | undefined = expandedTrackPublication?.trackSid;
+  const expandedMediaRef = useRef<HTMLDivElement | null>(null);
+  const [expandedVideoAspect, setExpandedVideoAspect] = useState<number | null>(null);
+  const [expandedTrackDimsState, setExpandedTrackDimsState] = useState<
+    { width: number; height: number } | null
+  >(null);
+  useEffect(() => {
+    if (!expandedTrack) {
+      setExpandedTrackDimsState(null);
+      return;
+    }
+    const initial = expandedTrack.dimensions ?? expandedTrackPublication?.dimensions;
+    if (initial?.width && initial?.height) {
+      setExpandedTrackDimsState({ width: initial.width, height: initial.height });
+    }
+    const handle = (dims: { width: number; height: number } | undefined) => {
+      if (dims?.width && dims?.height) {
+        setExpandedTrackDimsState({ width: dims.width, height: dims.height });
+      }
+    };
+    expandedTrack.on?.("videoDimensionsChanged", handle);
+    return () => {
+      expandedTrack.off?.("videoDimensionsChanged", handle);
+    };
+  }, [expandedTrack, expandedTrackPublication]);
+  // Меряем aspect напрямую с <video>: videoWidth/Height у remote-трека
+  // обновляются надёжнее, чем publication.dimensions / videoDimensionsChanged.
+  useEffect(() => {
+    setExpandedVideoAspect(null);
+    const container = expandedMediaRef.current;
+    if (!container) return;
+
+    let activeVideo: HTMLVideoElement | null = null;
+    let detach: (() => void) | null = null;
+
+    const measure = () => {
+      if (activeVideo && activeVideo.videoWidth > 0 && activeVideo.videoHeight > 0) {
+        setExpandedVideoAspect(activeVideo.videoWidth / activeVideo.videoHeight);
+      }
+    };
+
+    const attach = (video: HTMLVideoElement) => {
+      if (video === activeVideo) return;
+      detach?.();
+      activeVideo = video;
+      video.addEventListener("loadedmetadata", measure);
+      video.addEventListener("resize", measure);
+      measure();
+      detach = () => {
+        video.removeEventListener("loadedmetadata", measure);
+        video.removeEventListener("resize", measure);
+      };
+    };
+
+    const initial = container.querySelector("video");
+    if (initial) attach(initial as HTMLVideoElement);
+
+    const observer = new MutationObserver(() => {
+      const next = container.querySelector("video");
+      if (next) {
+        attach(next as HTMLVideoElement);
+      } else {
+        detach?.();
+        detach = null;
+        activeVideo = null;
+        setExpandedVideoAspect(null);
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      detach?.();
+    };
+  }, [expandedTrackSid]);
+  const expandedTrackDims =
+    expandedTrackDimsState ?? expandedTrackPublication?.dimensions;
+  const expandedAspectRatio =
+    expandedVideoAspect ??
+    (expandedTrackDims?.width && expandedTrackDims?.height
+      ? expandedTrackDims.width / expandedTrackDims.height
+      : 16 / 9);
   const tileFrames = getStageTileFrames(
     visibleTracks.length,
     DESKTOP_TILE_GRID_LEFT,
     visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+    expandedTileLeft,
+    expandedTileRight,
+    expandedAspectRatio,
   );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
@@ -1684,13 +2378,13 @@ export function ConferenceRoomContent({
   const roomCodeBase = slug ? `Код комнаты: ${slug}` : "Код комнаты";
   const roomCodeLabel =
     codeCopyStatus === "copied"
-      ? "Ссылка скопирована"
+      ? "Код скопирован"
       : codeCopyStatus === "copying"
-        ? "Создаём ссылку..."
+        ? "Копируем..."
         : codeCopyStatus === "error"
           ? "Не удалось скопировать"
           : roomCodeBase;
-  const roomCodeTitle = isOwner && slug ? "Скопировать одноразовую ссылку" : undefined;
+  const roomCodeTitle = slug ? "Скопировать код комнаты" : undefined;
 
   const renderOwnerCopyButton = (className: string, style?: CSSProperties) => (
     <button
@@ -1703,7 +2397,7 @@ export function ConferenceRoomContent({
       data-copy-status={codeCopyStatus}
     >
       <span className={styles.roomCodeCopyLabel}>{roomCodeLabel}</span>
-      <span className={styles.roomCodeCopyHint}>Скопировать одноразовую ссылку</span>
+      <span className={styles.roomCodeCopyHint}>Скопировать код комнаты</span>
     </button>
   );
 
@@ -1820,6 +2514,7 @@ export function ConferenceRoomContent({
         return {
           participants: panel === "participants" ? !current.participants : false,
           chat: panel === "chat" ? !current.chat : false,
+          settings: panel === "settings" ? !current.settings : false,
         };
       }
 
@@ -1829,7 +2524,87 @@ export function ConferenceRoomContent({
       };
     });
   }, [isCompactLayout]);
-  const toggleRaisedHand = () => setIsHandRaised((current) => !current);
+  const localIdentityForHand = localParticipant?.identity;
+  const isHandRaised = localIdentityForHand
+    ? Boolean(handRaisedMap[localIdentityForHand])
+    : false;
+
+  useEffect(() => {
+    if (!room) return;
+
+    const readFlag = (p: any): boolean => {
+      const raw = p?.attributes?.handRaised;
+      return raw === "true" || raw === true;
+    };
+
+    const snapshot = () => {
+      const next: Record<string, boolean> = {};
+      if (room.localParticipant?.identity) {
+        next[room.localParticipant.identity] = readFlag(room.localParticipant);
+      }
+      const remotes: Iterable<any> =
+        (room.remoteParticipants && typeof room.remoteParticipants.values === "function"
+          ? room.remoteParticipants.values()
+          : room.remoteParticipants) ?? [];
+      for (const p of remotes) {
+        if (p?.identity) next[p.identity] = readFlag(p);
+      }
+      return next;
+    };
+    setHandRaisedMap(snapshot());
+
+    const handleAttributes = (changed: Record<string, string>, participant: any) => {
+      if (!participant?.identity) return;
+      if (!changed || !("handRaised" in changed)) return;
+      setHandRaisedMap((prev) => ({
+        ...prev,
+        [participant.identity]: changed.handRaised === "true",
+      }));
+    };
+    const handleConnected = (participant: any) => {
+      if (!participant?.identity) return;
+      setHandRaisedMap((prev) => ({
+        ...prev,
+        [participant.identity]: readFlag(participant),
+      }));
+    };
+    const handleDisconnected = (participant: any) => {
+      if (!participant?.identity) return;
+      setHandRaisedMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+    };
+
+    room.on(RoomEvent.ParticipantAttributesChanged, handleAttributes);
+    room.on(RoomEvent.ParticipantConnected, handleConnected);
+    room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
+
+    return () => {
+      room.off(RoomEvent.ParticipantAttributesChanged, handleAttributes);
+      room.off(RoomEvent.ParticipantConnected, handleConnected);
+      room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
+    };
+  }, [room]);
+
+  const toggleRaisedHand = useCallback(() => {
+    if (!localParticipant) return;
+    const identity = localParticipant.identity;
+    const next = !(identity ? Boolean(handRaisedMap[identity]) : false);
+    if (identity) {
+      setHandRaisedMap((prev) => ({ ...prev, [identity]: next }));
+    }
+    void Promise.resolve(localParticipant.setAttributes({ handRaised: next ? "true" : "false" })).catch(
+      (err) => {
+        console.error("setAttributes(handRaised) failed", err);
+        if (identity) {
+          setHandRaisedMap((prev) => ({ ...prev, [identity]: !next }));
+        }
+      },
+    );
+  }, [localParticipant, handRaisedMap]);
   const toggleRecording = () => {
     setIsRecording((current) => {
       const next = !current;
@@ -1898,7 +2673,10 @@ export function ConferenceRoomContent({
   const renderParticipantMenu = (meta: RoomParticipantMeta, isLocal: boolean) => {
     const isOpen = openParticipantMenu === meta.user.id;
     const canManage = canManageTarget(meta, isLocal);
-    const canChangeRole = Boolean((isOwner || roomRole === "OWNER") && canManage && meta.role !== "OWNER");
+    const isGuest = typeof meta.user.id === "string" && meta.user.id.startsWith("guest_");
+    const canChangeRole = Boolean(
+      (isOwner || roomRole === "OWNER") && canManage && meta.role !== "OWNER" && !isGuest,
+    );
 
     if (!canManage && !canChangeRole) {
       return null;
@@ -1914,51 +2692,197 @@ export function ConferenceRoomContent({
           aria-expanded={isOpen}
           onClick={(event) => {
             event.stopPropagation();
-            setOpenParticipantMenu((current) => (current === meta.user.id ? null : meta.user.id));
+            const button = event.currentTarget;
+            setOpenParticipantMenu((current) => {
+              if (current === meta.user.id) {
+                setParticipantMenuRect(null);
+                return null;
+              }
+              const rect = button.getBoundingClientRect();
+              const menuWidth = 173;
+              const top = isCompactLayout ? rect.bottom + 4 : rect.top;
+              const left = isCompactLayout
+                ? Math.max(8, rect.right - menuWidth)
+                : rect.right + 8;
+              setParticipantMenuRect({ top, left });
+              return meta.user.id;
+            });
           }}
         >
           <MoreVerticalIcon />
         </button>
 
-        {isOpen ? (
-          <div className={styles.participantActionMenu} role="menu">
-            {canChangeRole ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setOpenParticipantMenu(null)}
+        {isOpen && participantMenuRect
+          ? createPortal(
+              <div
+                className={styles.participantActionMenu}
+                role="menu"
+                data-participant-menu-root
+                style={{
+                  position: "fixed",
+                  top: participantMenuRect.top,
+                  left: participantMenuRect.left,
+                  right: "auto",
+                }}
               >
-                {meta.role === "MODERATOR" ? "Снять права модера" : "Выдать права модера"}
-              </button>
-            ) : null}
-            {canManage ? (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Замутить
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Кикнуть
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.participantDangerAction}
-                  onClick={() => setOpenParticipantMenu(null)}
-                >
-                  Забанить
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+                {canChangeRole ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void handleToggleModerator(meta)}
+                  >
+                    {meta.role === "MODERATOR" ? "Снять права модера" : "Выдать права модера"}
+                  </button>
+                ) : null}
+                {canManage ? (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleMuteParticipant(meta)}
+                    >
+                      Замутить
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleKickParticipant(meta)}
+                    >
+                      Кикнуть
+                    </button>
+                    {!isGuest ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void handleBanParticipant(meta)}
+                      >
+                        Забанить
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>,
+              document.body,
+            )
+          : null}
+      </div>
+    );
+  };
+
+  const handleApprovePending = useCallback(
+    async (identity: string) => {
+      if (!slug) return;
+      setPendingActionFor(identity);
+      try {
+        await api.approveParticipant(slug, identity);
+      } catch (err) {
+        console.error("approve error", err);
+      } finally {
+        setPendingActionFor((current) => (current === identity ? null : current));
+      }
+    },
+    [slug],
+  );
+
+  const handleRejectPending = useCallback(
+    async (identity: string) => {
+      if (!slug) return;
+      setPendingActionFor(identity);
+      try {
+        await api.rejectParticipant(slug, identity);
+      } catch (err) {
+        console.error("reject error", err);
+      } finally {
+        setPendingActionFor((current) => (current === identity ? null : current));
+      }
+    },
+    [slug],
+  );
+
+  const handleUnblockUser = useCallback(
+    async (userId: string) => {
+      if (!slug) return;
+      try {
+        await api.unblockUser(slug, userId);
+        await refreshRoomState();
+      } catch (err) {
+        console.error("unblock error", err);
+      }
+    },
+    [slug, refreshRoomState],
+  );
+
+  const renderPendingParticipantRows = () => {
+    if (pendingParticipants.length === 0) return null;
+    if (!canModerateParticipants) return null;
+    return (
+      <div className={styles.pendingParticipantsBlock}>
+        <div className={styles.pendingParticipantsHeader}>Ожидают входа</div>
+        {pendingParticipants.map((participant: any) => {
+          const displayName = participant.name || participant.identity || "Гость";
+          const inProgress = pendingActionFor === participant.identity;
+          return (
+            <div className={styles.pendingParticipantRow} key={participant.identity}>
+              <ParticipantAvatar name={displayName} avatarUrl={null} />
+              <span className={styles.stageParticipantText}>{displayName}</span>
+              <span className={styles.pendingActions}>
+                  <button
+                    type="button"
+                    className={styles.pendingApproveButton}
+                    disabled={inProgress}
+                    onClick={() => void handleApprovePending(participant.identity)}
+                    aria-label="Одобрить"
+                  >
+                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="25" cy="25" r="25" fill="url(#voco-pending-approve-grad)" />
+                      <path d="M17 28.6667L22.7143 34L32 14" stroke="currentColor" strokeWidth="2" />
+                      <defs>
+                        <radialGradient
+                          id="voco-pending-approve-grad"
+                          cx="0"
+                          cy="0"
+                          r="1"
+                          gradientUnits="userSpaceOnUse"
+                          gradientTransform="translate(25 25) rotate(90) scale(29.4)"
+                        >
+                          <stop stopColor="#00FF00" />
+                          <stop offset="0.5" stopColor="#00FF00" stopOpacity="0.55" />
+                          <stop offset="0.85" stopColor="#00FF00" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.pendingRejectButton}
+                    disabled={inProgress}
+                    onClick={() => void handleRejectPending(participant.identity)}
+                    aria-label="Отклонить"
+                  >
+                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="25" cy="25" r="25" fill="url(#voco-pending-reject-grad)" />
+                      <path d="M18.0728 32.2139L32.2149 18.0717" stroke="currentColor" strokeWidth="2" />
+                      <path d="M18.0728 18.0713L32.2149 32.2134" stroke="currentColor" strokeWidth="2" />
+                      <defs>
+                        <radialGradient
+                          id="voco-pending-reject-grad"
+                          cx="0"
+                          cy="0"
+                          r="1"
+                          gradientUnits="userSpaceOnUse"
+                          gradientTransform="translate(25 25) rotate(90) scale(29.4)"
+                        >
+                          <stop stopColor="#FF3333" />
+                          <stop offset="0.5" stopColor="#FF3333" stopOpacity="0.55" />
+                          <stop offset="0.85" stopColor="#FF3333" stopOpacity="0" />
+                        </radialGradient>
+                      </defs>
+                    </svg>
+                  </button>
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -1968,20 +2892,19 @@ export function ConferenceRoomContent({
       const isLocal = participant.identity === localIdentity;
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
-      const shouldShowRaisedHand = isLocal && isHandRaised;
-      const canManage = canManageTarget(meta, isLocal);
+      const shouldShowRaisedHand = Boolean(handRaisedMap[participant.identity]);
 
       return (
         <div
-          className={`${styles.stageParticipantRow} ${isLocal ? styles.participantRowLocal : ""} ${
-            meta.role === "MODERATOR" && !isLocal ? styles.participantRowModerator : ""
-          } ${canManage ? styles.participantRowManaged : ""}`}
+          className={`${styles.stageParticipantRow} ${
+            meta.role === "MODERATOR" || meta.role === "OWNER" ? styles.participantRowModerator : ""
+          }`}
           key={participant.identity}
         >
           <ParticipantAvatar
             name={displayName}
             avatarUrl={meta.user.avatarUrl}
-            square={isLocal || meta.role === "MODERATOR"}
+            square={meta.role === "MODERATOR" || meta.role === "OWNER"}
           />
           <span className={styles.stageParticipantText}>
             {displayName}
@@ -1992,7 +2915,13 @@ export function ConferenceRoomContent({
               <RaisedHandIcon />
             </span>
           ) : null}
-          {renderParticipantMenu(meta, isLocal)}
+          {meta.role === "OWNER" ? (
+            <span className={styles.participantOwnerCrown} aria-label="Владелец комнаты">
+              <OwnerCrownIcon />
+            </span>
+          ) : (
+            renderParticipantMenu(meta, isLocal)
+          )}
         </div>
       );
     });
@@ -2029,14 +2958,7 @@ export function ConferenceRoomContent({
       })
     );
 
-  const sharedLiveKitUi = (
-    <>
-      <RoomAudioRenderer muted={!outputEnabled} />
-      {isOwner && slug && inviteManagerOpen ? (
-        <InviteManagerModal slug={slug} onClose={() => setInviteManagerOpen(false)} />
-      ) : null}
-    </>
-  );
+  const sharedLiveKitUi = <RoomAudioRenderer muted={!outputEnabled} />;
 
   const renderRecordingIndicator = (style?: CSSProperties, className?: string) =>
     isRecording ? (
@@ -2054,21 +2976,38 @@ export function ConferenceRoomContent({
       </div>
     ) : null;
 
-  const renderHeaderInviteButton = (style?: CSSProperties, compact = false, className?: string) =>
-    isOwner && slug ? (
+  const renderHeaderSettingsButton = (style?: CSSProperties, compact = false, className?: string) =>
+    canModerateParticipants && slug ? (
       <button
         type="button"
         className={
           compact
-            ? styles.compactHeaderInviteButton
-            : `${styles.headerInviteButton} ${className ?? ""}`
+            ? styles.compactHeaderSettingsButton
+            : `${styles.headerSettingsButton} ${className ?? ""} ${
+                isSettingsPanelOpen ? styles.headerSettingsButtonActive : ""
+              }`
         }
         style={style}
-        onClick={() => setInviteManagerOpen(true)}
-        aria-label="Пригласить"
+        onClick={() => toggleRoomPanel("settings")}
+        aria-label="Настройки"
+        aria-pressed={isSettingsPanelOpen}
       >
-        <InviteIcon />
+        <SettingsIcon />
       </button>
+    ) : null;
+
+  const renderSettingsPanel = (layoutClass: string) =>
+    isSettingsPanelOpen && slug ? (
+      <SettingsPanel
+        slug={slug}
+        layoutClass={layoutClass}
+        roomMeta={roomMeta}
+        blockedUsers={blockedUsers}
+        canEditSettings={Boolean(isOwner || roomRole === "OWNER")}
+        onClose={() => toggleRoomPanel("settings")}
+        onMetaSaved={refreshRoomState}
+        onUnblockUser={handleUnblockUser}
+      />
     ) : null;
 
   const renderViewIndicator = (className: string) => (
@@ -2120,6 +3059,7 @@ export function ConferenceRoomContent({
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
               <div className={styles.participantsScroll}>
+                {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
               </div>
               <div className={styles.sideFooterFade} />
@@ -2144,12 +3084,13 @@ export function ConferenceRoomContent({
             </aside>
           ) : null}
 
-          {renderHeaderInviteButton(undefined, false, styles.tabletHeaderInviteButton)}
+          {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
+          {renderSettingsPanel(styles.tabletSettingsPanel)}
 
           <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
             {roomTitle}
           </h1>
-          {isOwner && slug ? (
+          {slug ? (
             renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode}`)
           ) : (
             <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode}`}>
@@ -2359,6 +3300,7 @@ export function ConferenceRoomContent({
               <div className={styles.sideHeaderFade} />
               <div className={styles.sideTitle}>Участники</div>
               <div className={styles.participantsScroll}>
+                {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
               </div>
               <div className={styles.sideFooterFade} />
@@ -2386,7 +3328,7 @@ export function ConferenceRoomContent({
           <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName}`}>
             {roomTitle}
           </h1>
-          {isOwner && slug ? (
+          {slug ? (
             renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode}`)
           ) : (
             <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode}`}>
@@ -2394,7 +3336,8 @@ export function ConferenceRoomContent({
             </div>
           )}
 
-          {renderHeaderInviteButton(undefined, false, styles.mobileHeaderInviteButton)}
+          {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
+          {renderSettingsPanel(styles.mobileSettingsPanel)}
 
           {canEndRoom ? (
             <button
@@ -2544,6 +3487,7 @@ export function ConferenceRoomContent({
             <div className={styles.sideHeaderFade} />
             <div className={styles.sideTitle}>Участники</div>
             <div className={styles.participantsScroll}>
+              {renderPendingParticipantRows()}
               {renderStageParticipantRows()}
             </div>
             <div className={styles.sideFooterFade} />
@@ -2570,6 +3514,8 @@ export function ConferenceRoomContent({
           const micEnabled = getTrackMicEnabled(trackRef);
           const displayName = getTrackDisplayName(trackRef, localIdentity);
           const speaking = isTrackSpeaking(trackRef);
+          const isExpandedSingleTile =
+            index === 0 && tileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
           return (
             <article
@@ -2579,7 +3525,12 @@ export function ConferenceRoomContent({
               style={frame.style}
               key={frame.id}
             >
-              <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+              <div
+                className={styles.tileMedia}
+                ref={isExpandedSingleTile ? expandedMediaRef : undefined}
+              >
+                {renderTrackMedia(trackRef)}
+              </div>
 
               <div className={styles.tileFooter}>
                 <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -2589,12 +3540,13 @@ export function ConferenceRoomContent({
           );
         })}
 
-        {renderHeaderInviteButton(undefined, false, styles.desktopHeaderInviteButton)}
+        {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
+        {renderSettingsPanel(styles.desktopSettingsPanel)}
 
         <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
           {roomTitle}
         </h1>
-        {isOwner && slug ? (
+        {slug ? (
           renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode}`)
         ) : (
           <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode}`}>
@@ -2765,6 +3717,8 @@ export function RoomPage({ user }: Props) {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
+    const [inQueue, setInQueue] = useState(false);
+    const [rejectionToast, setRejectionToast] = useState<string | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
     const [now, setNow] = useState(() => new Date());
@@ -2884,18 +3838,35 @@ export function RoomPage({ user }: Props) {
         void leaveRoomAndNavigate();
     }, [leaveRoomAndNavigate]);
 
-    const handleConferenceDisconnected = useCallback(() => {
-        if (!leaveRequestedRef.current) {
-            return;
-        }
+    const handleConferenceDisconnected = useCallback(
+        (reason?: DisconnectReason) => {
+            if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+                const wasInConference = conferenceReady;
+                setInQueue(false);
+                setConferenceReady(false);
+                setRejectionToast(
+                    wasInConference
+                        ? "Вы были забанены модератором встречи"
+                        : "Модератор отклонил ваш запрос на вход",
+                );
+                window.setTimeout(() => {
+                    navigate("/dashboard");
+                }, 2200);
+                return;
+            }
+            if (!leaveRequestedRef.current) {
+                return;
+            }
 
-        void leaveRoomAndNavigate();
-    }, [leaveRoomAndNavigate]);
+            void leaveRoomAndNavigate();
+        },
+        [conferenceReady, leaveRoomAndNavigate, navigate],
+    );
 
     const [entering, setEntering] = useState(false);
 
     const handleEnterConference = useCallback(async () => {
-        if (!slug || !token || !livekitUrl || error || entering) return;
+        if (!slug || !token || !livekitUrl || error || entering || inQueue) return;
 
         const normalizedName = displayName.trim() || user?.username || user?.email || "";
         if (normalizedName) {
@@ -2906,20 +3877,40 @@ export function RoomPage({ user }: Props) {
         setEntering(true);
         try {
             const fallbackName = user?.username || user?.email || "";
+            let pendingFromJoin = false;
             if (normalizedName && normalizedName !== fallbackName) {
                 const data = await api.joinRoom(slug, normalizedName);
                 setToken(data.token);
                 setLivekitUrl(data.livekitUrl);
                 setRoomName(data.room.name);
+                pendingFromJoin = Boolean(data.pending);
+            } else {
+                // Перевыпускаем токен на случай, если первое join (на mount) было до того, как
+                // модератор создал/изменил настройки. Также узнаём актуальный pending-флаг.
+                const data = await api.joinRoom(slug);
+                setToken(data.token);
+                setLivekitUrl(data.livekitUrl);
+                setRoomName(data.room.name);
+                pendingFromJoin = Boolean(data.pending);
             }
             leaveRequestedRef.current = false;
-            setConferenceReady(true);
+            if (pendingFromJoin) {
+                setInQueue(true);
+            } else {
+                setConferenceReady(true);
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
             setEntering(false);
         }
-    }, [displayName, entering, error, livekitUrl, slug, token, user]);
+    }, [displayName, entering, error, inQueue, livekitUrl, slug, token, user]);
+
+    const handlePendingApproved = useCallback(() => {
+        setInQueue(false);
+        leaveRequestedRef.current = false;
+        setConferenceReady(true);
+    }, []);
 
     if (loading) {
         return (
@@ -2930,9 +3921,46 @@ export function RoomPage({ user }: Props) {
         );
     }
 
-    if (!conferenceReady) {
-        return (
-            <div className={styles.waitingScreen}>
+    const liveKitConnection =
+        token && livekitUrl && (inQueue || conferenceReady) ? (
+            <div style={conferenceReady ? undefined : { display: "none" }}>
+                <LiveKitRoom
+                    serverUrl={livekitUrl}
+                    token={token}
+                    connect={true}
+                    onDisconnected={handleConferenceDisconnected}
+                    data-lk-theme="default"
+                    className={styles.livekitRoot}
+                >
+                    {!conferenceReady && (
+                        <PendingWatcher onApproved={handlePendingApproved} />
+                    )}
+                    {conferenceReady && (
+                        <ConferenceRoomContent
+                            roomName={roomName}
+                            slug={slug}
+                            isOwner={isOwner}
+                            canEndRoom={isOwner || myRole === "MODERATOR"}
+                            onExitIntent={handleConferenceLeaveIntent}
+                            onEndRoomIntent={handleEndRoomIntent}
+                            currentUserAvatarUrl={user?.avatarUrl ?? null}
+                        />
+                    )}
+                </LiveKitRoom>
+            </div>
+        ) : null;
+
+    const rejectionToastNode = rejectionToast ? (
+        <div className={styles.rejectionToast} role="status" aria-live="assertive">
+            {rejectionToast}
+        </div>
+    ) : null;
+
+    return (
+        <div className={conferenceReady ? styles.container : styles.waitingScreen}>
+            {rejectionToastNode}
+            {liveKitConnection}
+            {!conferenceReady ? (
                 <div className={styles.waitingStage}>
                     <div className={styles.waitingBackdrop} aria-hidden="true">
                         <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
@@ -2987,9 +4015,18 @@ export function RoomPage({ user }: Props) {
                             className={styles.waitingSubmit}
                             type="button"
                             onClick={handleEnterConference}
-                            disabled={!token || !livekitUrl || !!error || entering}
+                            disabled={!token || !livekitUrl || !!error || entering || inQueue}
                         >
-                            {entering ? "Вход..." : "Войти"}
+                            {inQueue ? (
+                                <>
+                                    Ожидание в очереди
+                                    <span className={styles.queueDots} aria-hidden="true" />
+                                </>
+                            ) : entering ? (
+                                "Вход..."
+                            ) : (
+                                "Войти"
+                            )}
                         </button>
                     </section>
 
@@ -3000,32 +4037,7 @@ export function RoomPage({ user }: Props) {
                         </div>
                     )}
                 </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className={styles.container}>
-            <LiveKitRoom
-                serverUrl={livekitUrl}
-                token={token}
-                connect={true}
-                onDisconnected={handleConferenceDisconnected}
-                data-lk-theme="default"
-                className={styles.livekitRoot}
-            >
-                <ConferenceRoomContent
-                    roomName={roomName}
-                    slug={slug}
-                    onExitIntent={handleConferenceLeaveIntent}
-                    onEndRoomIntent={handleEndRoomIntent}
-                    isOwner={isOwner}
-                    canEndRoom={isOwner || myRole === "MODERATOR"}
-                    currentUserAvatarUrl={user?.avatarUrl ?? null}
-                />
-            </LiveKitRoom>
-
-            {reportModalOpen ? (
+            ) : reportModalOpen ? (
                 <div
                     className={styles.reportModalOverlay}
                     role="dialog"

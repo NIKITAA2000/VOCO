@@ -99,7 +99,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [roomNameInput, setRoomNameInput] = useState("");
   const [maxUsersInput, setMaxUsersInput] = useState("");
   const [allowGuests, setAllowGuests] = useState(true);
-  const [requireRequest, setRequireRequest] = useState(false);
+  const [requireApproval, setRequireRequest] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -159,8 +159,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
       : "";
   const profileTopIconSrc = isMobileViewport
     ? resolvedTheme === "dark"
-      ? "/profile-icons-mobile-dark.svg"
-      : "/profile-icons-mobile.svg"
+      ? "/profile-icons-mobile-top-dark.svg"
+      : "/profile-icons-mobile-top-light.svg"
     : isTabletViewport
       ? "/profile-icons-tablet.svg"
       : resolvedTheme === "dark"
@@ -168,8 +168,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
         : "/profile-icons-top.svg";
   const profileBottomIconSrc = isMobileViewport
     ? resolvedTheme === "dark"
-      ? "/profile-icons-mobile-dark.svg"
-      : "/profile-icons-mobile.svg"
+      ? "/profile-icons-mobile-bottom-dark.svg"
+      : "/profile-icons-mobile-bottom-light.svg"
     : isTabletViewport
       ? "/profile-icons-tablet.svg"
       : resolvedTheme === "dark"
@@ -262,9 +262,9 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     setLoading(true);
 
     const parsedMax = Number.parseInt(maxUsersInput.trim(), 10);
-    const options: { maxUsers?: number; allowGuests?: boolean; requireRequest?: boolean } = {
+    const options: { maxUsers?: number; allowGuests?: boolean; requireApproval?: boolean } = {
       allowGuests,
-      requireRequest,
+      requireApproval,
     };
     if (Number.isFinite(parsedMax) && parsedMax >= 2) {
       options.maxUsers = parsedMax;
@@ -647,9 +647,9 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
 
               <button
                 type="button"
-                className={`create-toggle-row create-toggle-request ${requireRequest ? "is-on" : "is-off"}`}
+                className={`create-toggle-row create-toggle-request ${requireApproval ? "is-on" : "is-off"}`}
                 onClick={() => setRequireRequest((v) => !v)}
-                aria-pressed={requireRequest}
+                aria-pressed={requireApproval}
               >
                 <span className="create-toggle-text">Вход по запросу</span>
                 <span className="create-toggle-dot" aria-hidden="true" />
