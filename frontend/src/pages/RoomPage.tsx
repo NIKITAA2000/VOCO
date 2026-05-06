@@ -771,7 +771,7 @@ function SendIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 type DeviceMenuKey = "mic" | "speaker" | "cam";
 type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
-type RoomPanelKey = "participants" | "chat";
+type RoomPanelKey = "participants" | "chat" | "settings";
 
 function DeviceCheckIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
@@ -1058,7 +1058,22 @@ function PlaceholderLogo() {
   );
 }
 
-type ExpiryPreset = "none" | "1d" | "1w" | "1y" | "custom";
+type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
+
+type SettingsTab = "settings" | "link" | "ban";
+
+interface RoomMeta {
+  name: string;
+  maxUsers: number;
+  allowGuests: boolean;
+  requireApproval: boolean;
+}
+
+interface BlockedUserEntry {
+  id: string;
+  user: { id: string; username: string };
+  reason?: string | null;
+}
 
 function pad2(value: number) {
   return value.toString().padStart(2, "0");
@@ -1070,36 +1085,157 @@ function formatDateTimeLocal(date: Date) {
   )}:${pad2(date.getMinutes())}`;
 }
 
-function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => void }) {
+function SettingsPanel({
+  slug,
+  layoutClass,
+  roomMeta,
+  blockedUsers,
+  canEditSettings,
+  onClose,
+  onMetaSaved,
+  onUnblockUser,
+}: {
+  slug: string;
+  layoutClass?: string;
+  roomMeta: RoomMeta | null;
+  blockedUsers: BlockedUserEntry[];
+  canEditSettings: boolean;
+  onClose: () => void;
+  onMetaSaved: () => void | Promise<void>;
+  onUnblockUser: (userId: string) => void | Promise<void>;
+}) {
+  const [tab, setTab] = useState<SettingsTab>("settings");
+
+  // ===== Вкладка «Настройки» =====
+  const [name, setName] = useState(roomMeta?.name ?? "");
+  const [maxUsersInput, setMaxUsersInput] = useState(
+    roomMeta?.maxUsers != null ? String(roomMeta.maxUsers) : "",
+  );
+  const [allowGuestsSettings, setAllowGuestsSettings] = useState(
+    roomMeta?.allowGuests ?? true,
+  );
+  const [requireApprovalSettings, setRequireApprovalSettings] = useState(
+    roomMeta?.requireApproval ?? false,
+  );
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsJustSaved, setSettingsJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!roomMeta) return;
+    setName(roomMeta.name);
+    setMaxUsersInput(String(roomMeta.maxUsers));
+    setAllowGuestsSettings(roomMeta.allowGuests);
+    setRequireApprovalSettings(roomMeta.requireApproval);
+  }, [roomMeta]);
+
+  useEffect(() => {
+    if (!settingsJustSaved) return;
+    const id = window.setTimeout(() => setSettingsJustSaved(false), 1500);
+    return () => window.clearTimeout(id);
+  }, [settingsJustSaved]);
+
+  const handleSaveSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSettingsError(null);
+
+    const trimmedName = name.trim();
+    const parsedMax = Number.parseInt(maxUsersInput.trim(), 10);
+    const payload: {
+      name?: string;
+      maxUsers?: number;
+      allowGuests?: boolean;
+      requireApproval?: boolean;
+    } = {};
+
+    if (trimmedName && trimmedName !== roomMeta?.name) payload.name = trimmedName;
+    if (
+      Number.isFinite(parsedMax) &&
+      parsedMax >= 2 &&
+      parsedMax <= 50 &&
+      parsedMax !== roomMeta?.maxUsers
+    ) {
+      payload.maxUsers = parsedMax;
+    }
+    if (allowGuestsSettings !== roomMeta?.allowGuests) {
+      payload.allowGuests = allowGuestsSettings;
+    }
+    if (requireApprovalSettings !== roomMeta?.requireApproval) {
+      payload.requireApproval = requireApprovalSettings;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setSettingsJustSaved(true);
+      return;
+    }
+
+    setSavingSettings(true);
+    try {
+      await api.updateRoom(slug, payload);
+      setSettingsJustSaved(true);
+      await onMetaSaved();
+    } catch (err: any) {
+      setSettingsError(err?.message || "Не удалось сохранить");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  // ===== Вкладка «Ссылка» =====
   const [invites, setInvites] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [invitesLoading, setInvitesLoading] = useState(true);
+  const [inviteError, setInviteError] = useState("");
   const [creating, setCreating] = useState(false);
   const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("none");
   const [customExpiresAt, setCustomExpiresAt] = useState(() => formatDateTimeLocal(new Date()));
   const [maxUses, setMaxUses] = useState("");
-  const [allowGuests, setAllowGuests] = useState(true);
+  const [allowGuestsInvite, setAllowGuestsInvite] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
+  const [expiryDropdownOpen, setExpiryDropdownOpen] = useState(false);
+  const expirySelectRef = useRef<HTMLDivElement>(null);
+
+  const expiryOptions: { value: ExpiryPreset; label: string }[] = [
+    { value: "none", label: "Без лимита" },
+    { value: "1d", label: "1 день" },
+    { value: "1w", label: "1 неделя" },
+    { value: "1m", label: "1 месяц" },
+    { value: "1y", label: "1 год" },
+    { value: "custom", label: "Своё время" },
+  ];
+
+  const expiryLabel =
+    expiryOptions.find((o) => o.value === expiryPreset)?.label ?? "Без лимита";
+
+  useEffect(() => {
+    if (!expiryDropdownOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (expirySelectRef.current?.contains(event.target as Node)) return;
+      setExpiryDropdownOpen(false);
+    };
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [expiryDropdownOpen]);
 
   const nowLocal = formatDateTimeLocal(new Date());
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const reloadInvites = useCallback(async () => {
+    setInvitesLoading(true);
+    setInviteError("");
     try {
       const data = await api.listInvites(slug);
       const activeOnly = (data.invites ?? []).filter((invite: any) => invite.isActive);
       setInvites(activeOnly);
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось загрузить ссылки");
     } finally {
-      setLoading(false);
+      setInvitesLoading(false);
     }
   }, [slug]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (tab !== "link") return;
+    void reloadInvites();
+  }, [tab, reloadInvites]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -1122,6 +1258,11 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
       d.setDate(d.getDate() + 7);
       return d;
     }
+    if (expiryPreset === "1m") {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() + 1);
+      return d;
+    }
     if (expiryPreset === "1y") {
       const d = new Date(now);
       d.setFullYear(d.getFullYear() + 1);
@@ -1133,22 +1274,22 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
     return parsed;
   };
 
-  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateInvite = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError("");
+    setInviteError("");
 
     const expiresDate = resolveExpiresAt();
     if (expiryPreset === "custom") {
       if (!expiresDate) {
-        setError("Укажите корректную дату истечения");
+        setInviteError("Укажите корректную дату истечения");
         return;
       }
       if (expiresDate.getTime() <= Date.now()) {
-        setError("Дата истечения не может быть в прошлом");
+        setInviteError("Дата истечения не может быть в прошлом");
         return;
       }
       if (expiresDate.getFullYear() > 9999) {
-        setError("Год должен содержать не более 4 цифр");
+        setInviteError("Год должен содержать не более 4 цифр");
         return;
       }
     }
@@ -1156,11 +1297,9 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
     setCreating(true);
     try {
       const options: { expiresAt?: string; maxUses?: number; allowGuests?: boolean } = {
-        allowGuests,
+        allowGuests: allowGuestsInvite,
       };
-      if (expiresDate) {
-        options.expiresAt = expiresDate.toISOString();
-      }
+      if (expiresDate) options.expiresAt = expiresDate.toISOString();
       if (maxUses) {
         const parsedUses = parseInt(maxUses, 10);
         if (Number.isFinite(parsedUses) && parsedUses >= 1) {
@@ -1171,181 +1310,391 @@ function InviteManagerModal({ slug, onClose }: { slug: string; onClose: () => vo
       setExpiryPreset("none");
       setCustomExpiresAt(formatDateTimeLocal(new Date()));
       setMaxUses("");
-      setAllowGuests(true);
-      await reload();
+      setAllowGuestsInvite(true);
+      await reloadInvites();
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось создать ссылку");
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeactivate = async (code: string) => {
-    setError("");
+    setInviteError("");
     try {
       await api.deactivateInvite(slug, code);
       setInvites((current) => current.filter((invite: any) => invite.code !== code));
     } catch (err: any) {
-      setError(err.message);
+      setInviteError(err?.message || "Не удалось удалить ссылку");
     }
   };
 
-  const copyUrl = async (code: string) => {
+  const copyInviteUrl = async (code: string) => {
     const url = `${window.location.origin}/invite/${code}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(code);
       setTimeout(() => setCopied((current) => (current === code ? null : current)), 1500);
     } catch {
-      setError("Не удалось скопировать ссылку");
+      setInviteError("Не удалось скопировать ссылку");
     }
   };
 
+  const formatInviteUrl = (code: string) => {
+    const full = `${window.location.origin}/invite/${code}`;
+    return full.length > 28 ? `${full.slice(0, 25)}...` : full;
+  };
+
   return (
-    <div
-      className={styles.inviteOverlay}
+    <aside
+      className={`${styles.settingsPanel} ${layoutClass ?? ""}`}
+      data-tab={tab}
       role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-modal-title"
-      onClick={onClose}
+      aria-label="Настройки конференции"
+      onClick={(event) => event.stopPropagation()}
     >
-      <div className={styles.inviteModal} onClick={(event) => event.stopPropagation()}>
-        <header className={styles.inviteHeader}>
-          <h2 id="invite-modal-title">Ссылки-приглашения</h2>
+      <div className={styles.settingsHeader}>
+        <div className={styles.settingsTabs} role="tablist">
           <button
             type="button"
-            className={styles.inviteClose}
-            onClick={onClose}
-            aria-label="Закрыть"
+            role="tab"
+            aria-selected={tab === "settings"}
+            className={`${styles.settingsTab} ${tab === "settings" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("settings")}
           >
-            ×
+            Настройки
           </button>
-        </header>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "link"}
+            className={`${styles.settingsTab} ${tab === "link" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("link")}
+          >
+            Ссылка
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "ban"}
+            className={`${styles.settingsTab} ${tab === "ban" ? styles.settingsTabActive : ""}`}
+            onClick={() => setTab("ban")}
+          >
+            Бан
+          </button>
+        </div>
+        <button
+          type="button"
+          className={styles.settingsClose}
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
+          <CloseCrossIcon />
+        </button>
+      </div>
 
-        <form className={styles.inviteForm} onSubmit={handleCreate}>
-          <label className={styles.inviteField}>
-            <span>Максимум использований</span>
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={maxUses}
-              onChange={(event) => setMaxUses(event.target.value)}
-              placeholder="Без лимита"
-            />
-          </label>
-
-          <label className={styles.inviteField}>
-            <span>Истекает</span>
-            <div className={styles.inviteSelectWrapper}>
-              <select
-                className={styles.inviteSelect}
-                value={expiryPreset}
-                onChange={(event) => setExpiryPreset(event.target.value as ExpiryPreset)}
-              >
-                <option value="none">Без лимита</option>
-                <option value="1d">1 день</option>
-                <option value="1w">1 неделя</option>
-                <option value="1y">1 год</option>
-                <option value="custom">Своё время</option>
-              </select>
-              <span className={styles.inviteSelectChevron} aria-hidden="true">
-                <ChevronDownIcon />
-              </span>
-            </div>
-          </label>
-
-          {expiryPreset === "custom" ? (
-            <label className={styles.inviteField}>
-              <span>Дата истечения</span>
+      <div className={styles.settingsBody}>
+        {tab === "settings" ? (
+          <form className={styles.settingsForm} onSubmit={handleSaveSettings}>
+            <label className={styles.settingsField}>
+              <span>Название комнаты</span>
               <input
-                type="datetime-local"
-                value={customExpiresAt}
-                min={nowLocal}
-                max="9999-12-31T23:59"
-                onChange={(event) => setCustomExpiresAt(event.target.value)}
+                type="text"
+                value={name}
+                placeholder="Название"
+                onChange={(event) => setName(event.target.value)}
+                maxLength={100}
+                disabled={!canEditSettings}
               />
             </label>
-          ) : null}
 
-          <label className={styles.inviteCheckbox}>
-            <input
-              type="checkbox"
-              checked={allowGuests}
-              onChange={(event) => setAllowGuests(event.target.checked)}
-            />
-            <span>Разрешить вход гостям</span>
-          </label>
+            <label className={styles.settingsField}>
+              <span>Макс. количество участников</span>
+              <input
+                type="number"
+                min={2}
+                max={50}
+                value={maxUsersInput}
+                placeholder="Количество"
+                onChange={(event) => setMaxUsersInput(event.target.value)}
+                disabled={!canEditSettings}
+              />
+            </label>
 
-          <button type="submit" className={styles.inviteCreate} disabled={creating}>
-            {creating ? "Создание..." : "Создать ссылку"}
-          </button>
-        </form>
+            <button
+              type="button"
+              className={`${styles.settingsToggleRow} ${
+                allowGuestsSettings ? styles.settingsToggleOn : styles.settingsToggleOff
+              }`}
+              aria-pressed={allowGuestsSettings}
+              onClick={() => setAllowGuestsSettings((v) => !v)}
+              disabled={!canEditSettings}
+            >
+              <span className={styles.settingsToggleText}>Разрешить вход гостям</span>
+              <span className={styles.settingsToggleDot} aria-hidden="true" />
+            </button>
 
-        {error ? <div className={styles.inviteError}>{error}</div> : null}
+            <button
+              type="button"
+              className={`${styles.settingsToggleRow} ${
+                requireApprovalSettings ? styles.settingsToggleOn : styles.settingsToggleOff
+              }`}
+              aria-pressed={requireApprovalSettings}
+              onClick={() => setRequireApprovalSettings((v) => !v)}
+              disabled={!canEditSettings}
+            >
+              <span className={styles.settingsToggleText}>Вход по запросу</span>
+              <span className={styles.settingsToggleDot} aria-hidden="true" />
+            </button>
 
-        <div className={styles.inviteList}>
-          {loading ? (
-            <div className={styles.inviteEmpty}>Загрузка...</div>
-          ) : invites.length === 0 ? (
-            <div className={styles.inviteEmpty}>Ссылок ещё нет</div>
-          ) : (
-            invites.map((invite: any) => {
-              const url = `${window.location.origin}/invite/${invite.code}`;
-              const usesLabel = invite.maxUses
-                ? `${invite.usesCount}/${invite.maxUses}`
-                : `${invite.usesCount}/∞`;
-              return (
-                <div key={invite.id} className={styles.inviteItem}>
-                  <div className={styles.inviteItemUrl} title={url}>
-                    {url}
-                  </div>
-                  <div className={styles.inviteItemMeta}>
-                    <span>Использований: {usesLabel}</span>
-                    {invite.expiresAt ? (
-                      <span>До: {new Date(invite.expiresAt).toLocaleString("ru-RU")}</span>
-                    ) : (
-                      <span>Бессрочно</span>
-                    )}
-                    <span>{invite.allowGuests ? "Гости: да" : "Гости: нет"}</span>
-                  </div>
-                  <div className={styles.inviteItemActions}>
-                    <button type="button" onClick={() => copyUrl(invite.code)}>
-                      {copied === invite.code ? "Скопировано" : "Копировать"}
-                    </button>
-                    <button type="button" onClick={() => handleDeactivate(invite.code)}>
-                      Отключить
-                    </button>
-                  </div>
+            {settingsError ? (
+              <div className={styles.settingsError}>{settingsError}</div>
+            ) : settingsJustSaved ? (
+              <div className={styles.settingsHint}>Сохранено</div>
+            ) : null}
+
+            <button
+              type="submit"
+              className={styles.settingsSaveButton}
+              disabled={savingSettings || !canEditSettings}
+            >
+              {savingSettings ? "Сохранение..." : "Сохранить"}
+            </button>
+          </form>
+        ) : null}
+
+        {tab === "link" ? (
+          <div className={styles.settingsLinkTab}>
+            <form className={styles.settingsForm} onSubmit={handleCreateInvite}>
+              <label className={styles.settingsField}>
+                <span>Максимум использований</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={maxUses}
+                  onChange={(event) => setMaxUses(event.target.value)}
+                  placeholder="Без лимита"
+                />
+              </label>
+
+              <div className={styles.settingsField}>
+                <span>Срок действия</span>
+                <div className={styles.settingsSelectWrapper} ref={expirySelectRef}>
+                  <button
+                    type="button"
+                    className={styles.settingsFakeSelect}
+                    onClick={() => setExpiryDropdownOpen((o) => !o)}
+                    aria-haspopup="listbox"
+                    aria-expanded={expiryDropdownOpen}
+                  >
+                    <span className={styles.settingsFakeSelectValue}>{expiryLabel}</span>
+                  </button>
+                  <span className={styles.settingsSelectChevron} aria-hidden="true">
+                    <ChevronDownIcon />
+                  </span>
+                  {expiryDropdownOpen ? (
+                    <ul className={styles.settingsDropdown} role="listbox">
+                      {expiryOptions.map((opt) => (
+                        <li
+                          key={opt.value}
+                          role="option"
+                          aria-selected={expiryPreset === opt.value}
+                          className={`${styles.settingsDropdownItem} ${
+                            expiryPreset === opt.value ? styles.settingsDropdownItemActive : ""
+                          }`}
+                          onClick={() => {
+                            setExpiryPreset(opt.value);
+                            setExpiryDropdownOpen(false);
+                          }}
+                        >
+                          {opt.label}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
-              );
-            })
-          )}
-        </div>
+              </div>
+
+              {expiryPreset === "custom" ? (
+                <label className={styles.settingsField}>
+                  <span>Дата истечения</span>
+                  <input
+                    type="datetime-local"
+                    value={customExpiresAt}
+                    min={nowLocal}
+                    max="9999-12-31T23:59"
+                    onChange={(event) => setCustomExpiresAt(event.target.value)}
+                  />
+                </label>
+              ) : null}
+
+              <button
+                type="button"
+                className={`${styles.settingsToggleRow} ${
+                  allowGuestsInvite ? styles.settingsToggleOn : styles.settingsToggleOff
+                }`}
+                aria-pressed={allowGuestsInvite}
+                onClick={() => setAllowGuestsInvite((v) => !v)}
+              >
+                <span className={styles.settingsToggleText}>Разрешить вход гостям</span>
+                <span className={styles.settingsToggleDot} aria-hidden="true" />
+              </button>
+
+              {inviteError ? <div className={styles.settingsError}>{inviteError}</div> : null}
+
+              <button
+                type="submit"
+                className={styles.settingsCreateLink}
+                disabled={creating}
+              >
+                {creating ? "Создание..." : "Создать ссылку"}
+              </button>
+            </form>
+
+            <div className={styles.settingsLinkList}>
+              {invitesLoading ? (
+                <div className={styles.settingsEmpty}>Загрузка...</div>
+              ) : invites.length === 0 ? (
+                <div className={styles.settingsEmpty}>Ссылок ещё нет</div>
+              ) : (
+                invites.map((invite: any) => {
+                  const usesLabel = invite.maxUses
+                    ? `${invite.usesCount}/${invite.maxUses}`
+                    : `${invite.usesCount}/без лимита`;
+                  const expiresLabel = invite.expiresAt
+                    ? `Срок действия: ${new Date(invite.expiresAt).toLocaleDateString("ru-RU")}`
+                    : "Срок действия: без лимита";
+                  return (
+                    <div key={invite.id} className={styles.settingsLinkCard}>
+                      <span className={styles.settingsLinkUrl}>
+                        {formatInviteUrl(invite.code)}
+                      </span>
+                      <div className={styles.settingsLinkMeta}>
+                        <div>Использований: {usesLabel}</div>
+                        <div>{expiresLabel}</div>
+                        <div>
+                          Вход гостей: {invite.allowGuests ? "разрешено" : "запрещено"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.settingsLinkIconBtn}
+                        onClick={() => copyInviteUrl(invite.code)}
+                        aria-label={copied === invite.code ? "Скопировано" : "Копировать"}
+                      >
+                        <CopyIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.settingsLinkDeleteBtn}
+                        onClick={() => handleDeactivate(invite.code)}
+                        aria-label="Удалить"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {tab === "ban" ? (
+          <div className={styles.settingsBanTab}>
+            {blockedUsers.length === 0 ? (
+              <div className={styles.settingsEmpty}>Заблокированных нет</div>
+            ) : (
+              blockedUsers.map((entry) => (
+                <div key={entry.id} className={styles.settingsBanRow}>
+                  <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
+                  <span className={styles.settingsBanName}>{entry.user.username}</span>
+                  <button
+                    type="button"
+                    className={styles.settingsBanUnblock}
+                    onClick={() => void onUnblockUser(entry.user.id)}
+                  >
+                    Разбанить
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
-    </div>
+    </aside>
   );
 }
-
-function InviteIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+function SettingsIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      className={iconClassName(styles.roomIcon, styles.inviteSvg, className)}
-      viewBox="0 0 50 50"
+      className={iconClassName(styles.roomIcon, styles.settingsSvg, className)}
+      viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
       {...props}
     >
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
       <path
-        d="M23.0332 18L16.8256 24.1026C11.8599 28.9846 18.067 35.0872 23.0329 30.2052L29 24.1026"
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15 1.65 1.65 0 0 0 3.09 14H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
+}
+
+function CopyIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M4 7h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"
+        stroke="currentColor"
+        strokeWidth="1.6"
       />
       <path
-        d="M26.9668 32L33.1744 25.8974C38.1401 21.0154 31.933 14.9128 26.9671 19.7948L21 25.8974"
+        d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.6"
       />
+      <path d="M10 11v7M14 11v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CloseCrossIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -1460,12 +1809,13 @@ export function ConferenceRoomContent({
   const [outputEnabled, setOutputEnabled] = useState(true);
   const [handRaisedMap, setHandRaisedMap] = useState<Record<string, boolean>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
-  const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
     participants: false,
     chat: false,
+    settings: false,
   });
+  const [roomMeta, setRoomMeta] = useState<RoomMeta | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
   const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
@@ -1527,6 +1877,15 @@ export function ConferenceRoomContent({
       setRoomParticipants(data.room?.participants ?? []);
       const nextRole = (data.room?.myRole ?? null) as RoomRole | null;
       setRoomRole(nextRole);
+      const r = data.room;
+      if (r) {
+        setRoomMeta({
+          name: r.name ?? "",
+          maxUsers: typeof r.maxUsers === "number" ? r.maxUsers : 10,
+          allowGuests: r.allowGuests ?? true,
+          requireApproval: r.requireApproval ?? false,
+        });
+      }
       // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
       if (nextRole === "OWNER" || nextRole === "MODERATOR") {
         try {
@@ -1882,6 +2241,7 @@ export function ConferenceRoomContent({
     : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
+  const isSettingsPanelOpen = visiblePanels.settings;
   const expandedTileLeft = isParticipantsPanelOpen ? DESKTOP_PARTICIPANTS_PANEL_WIDTH : 0;
   const expandedTileRight = isChatPanelOpen ? DESKTOP_CHAT_PANEL_WIDTH : 0;
   const expandedTrackPublication = (visibleTracks[0] as any)?.publication;
@@ -2154,6 +2514,7 @@ export function ConferenceRoomContent({
         return {
           participants: panel === "participants" ? !current.participants : false,
           chat: panel === "chat" ? !current.chat : false,
+          settings: panel === "settings" ? !current.settings : false,
         };
       }
 
@@ -2451,27 +2812,6 @@ export function ConferenceRoomContent({
     [slug, refreshRoomState],
   );
 
-  const renderBlockedRows = () => {
-    if (!canModerateParticipants || blockedUsers.length === 0) return null;
-    return (
-      <div className={styles.blockedParticipantsBlock}>
-        {blockedUsers.map((entry) => (
-          <div className={styles.blockedParticipantRow} key={entry.id}>
-            <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
-            <span className={styles.stageParticipantText}>{entry.user.username}</span>
-            <button
-              type="button"
-              className={styles.unblockButton}
-              onClick={() => void handleUnblockUser(entry.user.id)}
-            >
-              Разбанить
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const renderPendingParticipantRows = () => {
     if (pendingParticipants.length === 0) return null;
     if (!canModerateParticipants) return null;
@@ -2618,14 +2958,7 @@ export function ConferenceRoomContent({
       })
     );
 
-  const sharedLiveKitUi = (
-    <>
-      <RoomAudioRenderer muted={!outputEnabled} />
-      {isOwner && slug && inviteManagerOpen ? (
-        <InviteManagerModal slug={slug} onClose={() => setInviteManagerOpen(false)} />
-      ) : null}
-    </>
-  );
+  const sharedLiveKitUi = <RoomAudioRenderer muted={!outputEnabled} />;
 
   const renderRecordingIndicator = (style?: CSSProperties, className?: string) =>
     isRecording ? (
@@ -2643,21 +2976,38 @@ export function ConferenceRoomContent({
       </div>
     ) : null;
 
-  const renderHeaderInviteButton = (style?: CSSProperties, compact = false, className?: string) =>
-    isOwner && slug ? (
+  const renderHeaderSettingsButton = (style?: CSSProperties, compact = false, className?: string) =>
+    canModerateParticipants && slug ? (
       <button
         type="button"
         className={
           compact
-            ? styles.compactHeaderInviteButton
-            : `${styles.headerInviteButton} ${className ?? ""}`
+            ? styles.compactHeaderSettingsButton
+            : `${styles.headerSettingsButton} ${className ?? ""} ${
+                isSettingsPanelOpen ? styles.headerSettingsButtonActive : ""
+              }`
         }
         style={style}
-        onClick={() => setInviteManagerOpen(true)}
-        aria-label="Пригласить"
+        onClick={() => toggleRoomPanel("settings")}
+        aria-label="Настройки"
+        aria-pressed={isSettingsPanelOpen}
       >
-        <InviteIcon />
+        <SettingsIcon />
       </button>
+    ) : null;
+
+  const renderSettingsPanel = (layoutClass: string) =>
+    isSettingsPanelOpen && slug ? (
+      <SettingsPanel
+        slug={slug}
+        layoutClass={layoutClass}
+        roomMeta={roomMeta}
+        blockedUsers={blockedUsers}
+        canEditSettings={Boolean(isOwner || roomRole === "OWNER")}
+        onClose={() => toggleRoomPanel("settings")}
+        onMetaSaved={refreshRoomState}
+        onUnblockUser={handleUnblockUser}
+      />
     ) : null;
 
   const renderViewIndicator = (className: string) => (
@@ -2711,7 +3061,6 @@ export function ConferenceRoomContent({
               <div className={styles.participantsScroll}>
                 {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
-                {renderBlockedRows()}
               </div>
               <div className={styles.sideFooterFade} />
               <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -2735,7 +3084,8 @@ export function ConferenceRoomContent({
             </aside>
           ) : null}
 
-          {renderHeaderInviteButton(undefined, false, styles.tabletHeaderInviteButton)}
+          {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
+          {renderSettingsPanel(styles.tabletSettingsPanel)}
 
           <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
             {roomTitle}
@@ -2952,7 +3302,6 @@ export function ConferenceRoomContent({
               <div className={styles.participantsScroll}>
                 {renderPendingParticipantRows()}
                 {renderStageParticipantRows()}
-                {renderBlockedRows()}
               </div>
               <div className={styles.sideFooterFade} />
               <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -2987,7 +3336,8 @@ export function ConferenceRoomContent({
             </div>
           )}
 
-          {renderHeaderInviteButton(undefined, false, styles.mobileHeaderInviteButton)}
+          {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
+          {renderSettingsPanel(styles.mobileSettingsPanel)}
 
           {canEndRoom ? (
             <button
@@ -3139,7 +3489,6 @@ export function ConferenceRoomContent({
             <div className={styles.participantsScroll}>
               {renderPendingParticipantRows()}
               {renderStageParticipantRows()}
-              {renderBlockedRows()}
             </div>
             <div className={styles.sideFooterFade} />
             <div className={styles.sideFooterText}>Всего участников: {orderedParticipants.length}</div>
@@ -3191,7 +3540,8 @@ export function ConferenceRoomContent({
           );
         })}
 
-        {renderHeaderInviteButton(undefined, false, styles.desktopHeaderInviteButton)}
+        {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
+        {renderSettingsPanel(styles.desktopSettingsPanel)}
 
         <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
           {roomTitle}

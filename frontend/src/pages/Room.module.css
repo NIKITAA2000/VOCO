@@ -5467,3 +5467,747 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .blockedParticipantRow .stageParticipantText {
   color: #fff;
 }
+
+/* ===== Кнопка-шестерёнка в шапке (триггер настроек) ===== */
+.headerSettingsButton {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ddd;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.headerSettingsButton svg,
+.compactHeaderSettingsButton svg {
+  display: block;
+}
+
+.headerSettingsButton:hover,
+.headerSettingsButton:focus-visible,
+.compactHeaderSettingsButton:hover,
+.compactHeaderSettingsButton:focus-visible {
+  outline: none;
+  background: #cfcfcf;
+}
+
+.headerSettingsButtonActive {
+  background: #8000ff;
+  color: #fff;
+}
+
+.headerSettingsButtonActive:hover,
+.headerSettingsButtonActive:focus-visible {
+  background: #6a00d6;
+}
+
+.compactHeaderSettingsButton {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ddd;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.desktopHeaderSettingsButton,
+.tabletHeaderSettingsButton {
+  position: fixed;
+  left: 28px;
+  top: 25px;
+  width: 50px;
+  height: 50px;
+  z-index: 4;
+}
+
+.mobileHeaderSettingsButton {
+  position: fixed;
+  left: calc(50% - 185px);
+  top: 27px;
+  width: 50px;
+  height: 50px;
+  z-index: 4;
+}
+
+:global(:root[data-theme="dark"]) .headerSettingsButton,
+:global(:root[data-theme="dark"]) .compactHeaderSettingsButton {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .headerSettingsButton:hover,
+:global(:root[data-theme="dark"]) .compactHeaderSettingsButton:hover {
+  background: #3a3a3a;
+}
+
+:global(:root[data-theme="dark"]) .headerSettingsButtonActive {
+  background: #8000ff;
+  color: #fff;
+}
+
+/* ===== Панель настроек (всплывающая в углу) ===== */
+.settingsPanel {
+  position: fixed;
+  width: 320px;
+  max-height: calc(100vh - 120px);
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  font-family: 'Jost', sans-serif;
+  color: #000;
+}
+
+.settingsPanel[data-tab="link"] {
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+}
+
+.settingsPanel[data-tab="ban"] {
+  background: linear-gradient(180deg, #ffdddd 0%, #ffffff 100%);
+}
+
+.desktopSettingsPanel,
+.tabletSettingsPanel {
+  left: 28px;
+  top: 90px;
+}
+
+.mobileSettingsPanel {
+  left: 50%;
+  transform: translateX(-50%);
+  top: 90px;
+  width: min(320px, calc(100vw - 32px));
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel {
+  background: linear-gradient(180deg, #1a3a1a 0%, #1a1a1a 100%);
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* ----- Шапка с вкладками ----- */
+.settingsHeader {
+  position: relative;
+  flex: 0 0 50px;
+  height: 50px;
+  padding: 0;
+}
+
+.settingsTabs {
+  display: flex;
+  width: calc(100% - 50px);
+  height: 50px;
+}
+
+.settingsTab {
+  flex: 1;
+  height: 50px;
+  border: 0;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
+  color: #000;
+  font-family: inherit;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.settingsTab:hover {
+  background: linear-gradient(180deg, #cccccc 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.settingsTabActive,
+.settingsTabActive:hover {
+  background: linear-gradient(180deg, #00ff00 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="link"] .settingsTab {
+  background: linear-gradient(180deg, #dddddd 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="link"] .settingsTab:hover {
+  background: linear-gradient(180deg, #cccccc 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="link"] .settingsTabActive,
+.settingsPanel[data-tab="link"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="ban"] .settingsTab {
+  background: linear-gradient(180deg, #dddddd 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="ban"] .settingsTab:hover {
+  background: linear-gradient(180deg, #cccccc 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+.settingsPanel[data-tab="ban"] .settingsTabActive,
+.settingsPanel[data-tab="ban"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsTab {
+  color: #eee;
+  background: linear-gradient(180deg, #2a2a2a 0%, rgba(26, 58, 26, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsTab:hover {
+  background: linear-gradient(180deg, #3a3a3a 0%, rgba(26, 58, 26, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsTabActive:hover {
+  background: linear-gradient(180deg, #00aa00 0%, rgba(26, 58, 26, 0) 100%);
+}
+
+.settingsClose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 255, 221, 0) 100%);
+  color: #000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: filter 0.15s ease;
+}
+
+.settingsClose:hover {
+  filter: brightness(1.1);
+}
+
+.settingsClose svg {
+  width: 20px;
+  height: 20px;
+}
+
+:global(:root[data-theme="dark"]) .settingsClose {
+  color: #fff;
+}
+
+/* ----- Тело панели ----- */
+.settingsBody {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px 10px 20px;
+}
+
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settingsField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+}
+
+.settingsField > span {
+  padding-left: 6px;
+  color: inherit;
+}
+
+.settingsField input,
+.settingsField select {
+  width: 100%;
+  height: 50px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 100px;
+  background: #dddddd;
+  color: #000;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 23px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.settingsField input::placeholder {
+  color: #999999;
+}
+
+.settingsField input:focus-visible,
+.settingsField select:focus-visible,
+.settingsFakeSelect:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #00aa00;
+}
+
+.settingsPanel[data-tab="link"] .settingsField input:focus-visible,
+.settingsPanel[data-tab="link"] .settingsField select:focus-visible,
+.settingsPanel[data-tab="link"] .settingsFakeSelect:focus-visible {
+  box-shadow: inset 0 0 0 2px #0077ff;
+}
+
+.settingsPanel[data-tab="ban"] .settingsField input:focus-visible,
+.settingsPanel[data-tab="ban"] .settingsField select:focus-visible,
+.settingsPanel[data-tab="ban"] .settingsFakeSelect:focus-visible {
+  box-shadow: inset 0 0 0 2px #ff3333;
+}
+
+.settingsField input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:global(:root[data-theme="dark"]) .settingsField {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsField input,
+:global(:root[data-theme="dark"]) .settingsField select {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsField input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.settingsSelectWrapper {
+  position: relative;
+}
+
+.settingsSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 60px !important;
+  cursor: pointer;
+}
+
+.settingsSelectChevron {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+  display: grid;
+  place-items: center;
+  color: #000;
+}
+
+.settingsSelectChevron svg {
+  width: 18px;
+  height: 18px;
+}
+
+:global(:root[data-theme="dark"]) .settingsSelectChevron {
+  color: #fff;
+}
+
+/* Кастомный fake-select (вместо native) */
+.settingsFakeSelect {
+  width: 100%;
+  height: 50px;
+  padding: 0 60px 0 20px;
+  border: 0;
+  border-radius: 100px;
+  background: #dddddd;
+  color: #000;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.settingsFakeSelectValue {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(:root[data-theme="dark"]) .settingsFakeSelect {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+/* Выпадающий список */
+.settingsDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 150px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsDropdownItem {
+  min-height: 26px;
+  padding: 2px 14px;
+  display: flex;
+  align-items: center;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.settingsDropdownItem:hover,
+.settingsDropdownItemActive {
+  color: rgba(0, 0, 0, 0.5);
+  background: rgba(128, 0, 255, 0.08);
+}
+
+:global(:root[data-theme="dark"]) .settingsDropdown {
+  background: linear-gradient(180deg, #3a1a5c 0%, #1a1a1a 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsDropdownItem {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsDropdownItem:hover,
+:global(:root[data-theme="dark"]) .settingsDropdownItemActive {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(128, 0, 255, 0.2);
+}
+
+/* ----- Тоггл-строка (общая для разных вкладок) ----- */
+.settingsToggleRow {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  border: 0;
+  padding: 0 60px 0 20px;
+  background: #dddddd;
+  color: #000;
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.settingsToggleRow:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settingsToggleText {
+  flex: 1;
+  pointer-events: none;
+}
+
+.settingsToggleDot {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.settingsToggleOn .settingsToggleDot {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.settingsToggleOff .settingsToggleDot {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsToggleRow {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+/* ----- Сохранить (зелёный градиент) ----- */
+.settingsSaveButton {
+  margin-top: 4px;
+  width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+  color: #000;
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  cursor: pointer;
+}
+
+.settingsSaveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ----- Создать ссылку (синий градиент) ----- */
+.settingsCreateLink {
+  margin-top: 4px;
+  width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #deeeff 0%, #0077ff 50%, #deeeff 100%) border-box;
+  color: #000;
+  font-family: 'Jost', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  cursor: pointer;
+}
+
+.settingsCreateLink:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ----- Сообщения ----- */
+.settingsError {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 51, 85, 0.12);
+  color: #c0143a;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.settingsHint {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(0, 200, 0, 0.12);
+  color: #1f8a1f;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.settingsEmpty {
+  padding: 20px 8px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+}
+
+:global(:root[data-theme="dark"]) .settingsEmpty {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ----- Вкладка «Ссылка» ----- */
+.settingsLinkTab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settingsLinkList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.settingsLinkCard {
+  position: relative;
+  background: #dddddd;
+  border-radius: 25px;
+  min-height: 127px;
+  padding: 18px 70px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+}
+
+.settingsLinkCardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settingsLinkUrl {
+  flex: 1;
+  font-size: 16px;
+  line-height: 23px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settingsLinkIconBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 50px;
+  height: 50px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.settingsLinkIconBtn:hover {
+  filter: brightness(1.1);
+}
+
+.settingsLinkIconBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.settingsLinkMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  color: #000;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.settingsLinkDeleteBtn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 50px;
+  height: 50px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.settingsLinkDeleteBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.settingsLinkDeleteBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkCard {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkMeta {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkIconBtn,
+:global(:root[data-theme="dark"]) .settingsLinkDeleteBtn {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkDeleteBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ----- Вкладка «Бан» ----- */
+.settingsBanTab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settingsBanRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 100px;
+  padding: 6px 14px 6px 6px;
+  min-height: 50px;
+}
+
+.settingsBanName {
+  flex: 1;
+  font-size: 14px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settingsBanUnblock {
+  border: 0;
+  background: transparent;
+  color: #0077ff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.settingsBanUnblock:hover {
+  text-decoration: underline;
+}
+
+:global(:root[data-theme="dark"]) .settingsBanRow {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:global(:root[data-theme="dark"]) .settingsBanUnblock {
+  color: #66aaff;
+}
