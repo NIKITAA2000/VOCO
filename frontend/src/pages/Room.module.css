@@ -5730,7 +5730,7 @@ button.stageRoomCode .roomCodeCopyHint {
   height: 50px;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 255, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
   color: #000;
   cursor: pointer;
   display: grid;
@@ -5857,7 +5857,7 @@ button.stageRoomCode .roomCodeCopyHint {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
   display: grid;
   place-items: center;
   color: #000;
@@ -5996,16 +5996,24 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsToggleOn .settingsToggleDot {
-  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .settingsToggleOff .settingsToggleDot {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 :global(:root[data-theme="dark"]) .settingsToggleRow {
   background: #2a2a2a;
   color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsToggleOn .settingsToggleDot {
+  background: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsToggleOff .settingsToggleDot {
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 /* ----- Сохранить (зелёный градиент) ----- */
@@ -6264,7 +6272,7 @@ button.stageRoomCode .roomCodeCopyHint {
   height: 50px;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
   color: #000;
   display: grid;
   place-items: center;
@@ -6298,7 +6306,7 @@ button.stageRoomCode .roomCodeCopyHint {
   height: 50px;
   border: 0;
   border-radius: 50%;
-  background: transparent;
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
   color: #000;
   display: grid;
   place-items: center;
@@ -6307,7 +6315,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsLinkDeleteBtn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  filter: brightness(1.1);
 }
 
 .settingsLinkDeleteBtn svg {
@@ -6329,8 +6337,16 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #fff;
 }
 
+:global(:root[data-theme="dark"]) .settingsLinkIconBtn {
+  background: radial-gradient(circle 20px at 50% 50%, #8000ff 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkDeleteBtn {
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .settingsLinkDeleteBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  filter: brightness(1.1);
 }
 
 /* ----- Вкладка «Бан» ----- */
@@ -6420,7 +6436,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsClose {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(128, 0, 0, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   color: #fff;
 }
 
@@ -6472,7 +6488,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsPanel[data-tab="settings"] .settingsClose {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 255, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
   color: #000;
 }
 
@@ -6542,11 +6558,19 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsPanel[data-tab="settings"] .settingsToggleOn .settingsToggleDot {
-  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
 }
 
 .settingsPanel[data-tab="settings"] .settingsToggleOff .settingsToggleDot {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleOn .settingsToggleDot {
+  background: radial-gradient(circle 20px at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleOff .settingsToggleDot {
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
 .settingsPanel[data-tab="settings"] .settingsError,
@@ -6613,7 +6637,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsClose {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 80, 0, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   color: #fff;
 }
 
@@ -6646,7 +6670,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsClose {
-  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(128, 0, 0, 0) 100%);
+  background: radial-gradient(circle 20px at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
   color: #fff;
 }
 
