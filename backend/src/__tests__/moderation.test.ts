@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import app from "../app.js";
-import { initDatabase } from "../lib/db.js";
+import { initDatabase, db } from "../lib/db.js";
 
 const testId = Date.now().toString(36);
 
@@ -512,3 +512,85 @@ describe("LiveKit гранты по роли", () => {
 function res200(res: any): boolean {
   return res.status === 200;
 }
+
+// ==========================================
+// Регрессия: блок → разблок не должен пропускать без очереди
+// ==========================================
+describe("require_approval: после блока и разблока вход снова в pending", () => {
+  it("одобренный участник после block→unblock→join снова попадает в pending", async () => {
+    // Отдельные пользователи и комната, чтобы не зависеть от состояния выше
+    const owner = {
+      email: `appr_owner_${testId}@voco.test`,
+      username: `appr_owner_${testId}`,
+      password: "TestPass123",
+    };
+    const visitor = {
+      email: `appr_visitor_${testId}@voco.test`,
+      username: `appr_visitor_${testId}`,
+      password: "TestPass123",
+    };
+
+    const ownerReg = await request(app).post("/api/auth/register").send(owner);
+    const ownerTok = ownerReg.body.token;
+
+    const visitorReg = await request(app)
+      .post("/api/auth/register")
+      .send(visitor);
+    const visitorTok = visitorReg.body.token;
+    const visitorId = visitorReg.body.user.id;
+
+    // Комната с требованием подтверждения
+    const roomRes = await request(app)
+      .post("/api/rooms")
+      .set("Authorization", `Bearer ${ownerTok}`)
+      .send({ name: "Approval Bypass Test", requireApproval: true });
+    const slug = roomRes.body.room.slug;
+
+    // Первый вход: visitor должен попасть в pending
+    const join1 = await request(app)
+      .post(`/api/rooms/${slug}/join`)
+      .set("Authorization", `Bearer ${visitorTok}`);
+    expect(join1.status).toBe(200);
+    expect(join1.body.pending).toBe(true);
+
+    // Симулируем одобрение: /approve в тесте упадёт на вызове LiveKit, поэтому
+    // напрямую помечаем строку approved=true — точно так же, как это делает
+    // /approve после успешного roomService.updateParticipant.
+    await db.query(
+      `UPDATE participants SET approved = true
+         FROM rooms
+        WHERE participants.room_id = rooms.id
+          AND rooms.slug = $1
+          AND participants.user_id = $2`,
+      [slug, visitorId],
+    );
+
+    // Контроль: одобренный visitor при повторном /join больше не pending
+    const joinAfterApprove = await request(app)
+      .post(`/api/rooms/${slug}/join`)
+      .set("Authorization", `Bearer ${visitorTok}`);
+    expect(joinAfterApprove.status).toBe(200);
+    expect(joinAfterApprove.body.pending).toBe(false);
+
+    // Owner блокирует visitor — это сразу кикает И должно сбросить approved
+    const blockRes = await request(app)
+      .post(`/api/rooms/${slug}/block`)
+      .set("Authorization", `Bearer ${ownerTok}`)
+      .send({ userId: visitorId });
+    expect(blockRes.status).toBe(200);
+
+    // Owner разбанивает
+    const unblockRes = await request(app)
+      .delete(`/api/rooms/${slug}/block/${visitorId}`)
+      .set("Authorization", `Bearer ${ownerTok}`);
+    expect(unblockRes.status).toBe(200);
+
+    // Регрессия: visitor возвращается — должен снова попасть в pending,
+    // потому что блок аннулирует ранее выданное approved=true
+    const joinAfterUnblock = await request(app)
+      .post(`/api/rooms/${slug}/join`)
+      .set("Authorization", `Bearer ${visitorTok}`);
+    expect(joinAfterUnblock.status).toBe(200);
+    expect(joinAfterUnblock.body.pending).toBe(true);
+  });
+});

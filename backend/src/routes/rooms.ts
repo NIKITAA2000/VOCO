@@ -510,9 +510,19 @@ router.post("/:slug/block", async (req: Request, res: Response) => {
       [room.id, userId, req.user!.userId, reason ?? null]
     );
 
-    // Выкидываем из комнаты если сейчас внутри
+    // Выкидываем из комнаты если сейчас внутри и сбрасываем все исторические
+    // approved=true — после разбана участник должен заново пройти подтверждение
+    // в комнатах с require_approval=true (см. /leave и /reject — та же логика).
     await db.query(
-      "UPDATE participants SET left_at = NOW() WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      `UPDATE participants
+         SET left_at = NOW(), approved = false
+       WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL`,
+      [userId, room.id]
+    );
+    await db.query(
+      `UPDATE participants
+         SET approved = false
+       WHERE user_id = $1 AND room_id = $2 AND approved = true`,
       [userId, room.id]
     );
 

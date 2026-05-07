@@ -1348,8 +1348,13 @@ function SettingsPanel({
 
   const formatInviteUrl = (code: string) => {
     const full = `${window.location.origin}/invite/${code}`;
-    return full.length > 28 ? `${full.slice(0, 25)}...` : full;
+    if (full.length <= 28) return full;
+    const startLen = 15;
+    const endLen = 10;
+    return `${full.slice(0, startLen)}...${full.slice(-endLen)}`;
   };
+
+  const fullInviteUrl = (code: string) => `${window.location.origin}/invite/${code}`;
 
   return (
     <aside
@@ -1455,8 +1460,6 @@ function SettingsPanel({
 
             {settingsError ? (
               <div className={styles.settingsError}>{settingsError}</div>
-            ) : settingsJustSaved ? (
-              <div className={styles.settingsHint}>Сохранено</div>
             ) : null}
 
             <button
@@ -1464,7 +1467,11 @@ function SettingsPanel({
               className={styles.settingsSaveButton}
               disabled={savingSettings || !canEditSettings}
             >
-              {savingSettings ? "Сохранение..." : "Сохранить"}
+              {savingSettings
+                ? "Сохранение..."
+                : settingsJustSaved
+                  ? "Сохранено"
+                  : "Сохранить"}
             </button>
           </form>
         ) : null}
@@ -1571,10 +1578,15 @@ function SettingsPanel({
                   const expiresLabel = invite.expiresAt
                     ? `Срок действия: ${new Date(invite.expiresAt).toLocaleDateString("ru-RU")}`
                     : "Срок действия: без лимита";
+                  const isCopied = copied === invite.code;
                   return (
                     <div key={invite.id} className={styles.settingsLinkCard}>
-                      <span className={styles.settingsLinkUrl}>
-                        {formatInviteUrl(invite.code)}
+                      <span
+                        className={`${styles.settingsLinkUrl} ${isCopied ? styles.settingsLinkUrlCopied : ""}`}
+                        aria-live="polite"
+                        title={isCopied ? undefined : fullInviteUrl(invite.code)}
+                      >
+                        {isCopied ? "Скопировано!" : formatInviteUrl(invite.code)}
                       </span>
                       <div className={styles.settingsLinkMeta}>
                         <div>Использований: {usesLabel}</div>
@@ -1587,7 +1599,7 @@ function SettingsPanel({
                         type="button"
                         className={styles.settingsLinkIconBtn}
                         onClick={() => copyInviteUrl(invite.code)}
-                        aria-label={copied === invite.code ? "Скопировано" : "Копировать"}
+                        aria-label={isCopied ? "Скопировано" : "Копировать"}
                       >
                         <CopyIcon />
                       </button>

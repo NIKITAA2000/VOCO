@@ -1,25 +1,220 @@
-/* Group 207 */
+/* Group 213 */
 
 position: absolute;
-width: 100px;
-height: 155px;
+width: 320px;
+height: 480px;
 
 
 
-/* Rectangle 728 */
+/* Rectangle 755 */
 
 position: absolute;
-width: 100px;
-height: 155px;
+width: 320px;
+height: 480px;
 
-background: linear-gradient(180deg, #EEDCFF 0%, #FFFFFF 100%);
+background: linear-gradient(180deg, #800000 0%, #222222 100%);
 border-radius: 10px;
 
 
-/* 1 год */
+/* Rectangle 756 */
 
 position: absolute;
-width: 80px;
+width: 90px;
+height: 50px;
+
+background: linear-gradient(180deg, #444444 0%, rgba(128, 0, 0, 0) 100%);
+border-radius: 10px 10px 0px 0px;
+
+
+/* Rectangle 757 */
+
+position: absolute;
+width: 90px;
+height: 50px;
+
+background: linear-gradient(180deg, #444444 0%, rgba(128, 0, 0, 0) 100%);
+border-radius: 10px 10px 0px 0px;
+
+
+/* Rectangle 758 */
+
+position: absolute;
+width: 90px;
+height: 50px;
+
+background: linear-gradient(180deg, #FF3333 0%, rgba(128, 0, 0, 0) 100%);
+border-radius: 10px 10px 0px 0px;
+
+
+/* Бан */
+
+position: absolute;
+width: 90px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: italic;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Ссылка */
+
+position: absolute;
+width: 90px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: italic;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Настройки */
+
+position: absolute;
+width: 90px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: italic;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Ellipse 7 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+
+background: radial-gradient(50% 50% at 50% 50%, #FF3333 0%, rgba(128, 0, 0, 0) 100%);
+
+
+/* Group 206 */
+
+position: absolute;
+width: 30px;
+height: 30px;
+
+
+
+/* Rectangle 735 */
+
+position: absolute;
+width: 30px;
+height: 30px;
+
+
+
+/* Group 57 */
+
+position: absolute;
+width: 20px;
+height: 20px;
+
+transform: rotate(-45deg);
+
+
+/* Line 7 */
+
+position: absolute;
+width: 20px;
+height: 0px;
+
+border: 2px solid #FFFFFF;
+transform: rotate(-45deg);
+
+
+/* Line 8 */
+
+position: absolute;
+width: 20px;
+height: 0px;
+
+border: 2px solid #FFFFFF;
+transform: rotate(45deg);
+
+
+/* Group 128 */
+
+position: absolute;
+width: 300px;
+height: 50px;
+
+
+
+/* Rectangle 721 */
+
+position: absolute;
+width: 300px;
+height: 50px;
+
+background: #444444;
+border-radius: 100px;
+
+
+/* Group 40 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+
+
+
+/* Ellipse 13 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+
+background: #8000FF;
+
+
+/* АА */
+
+position: absolute;
+width: 31px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 900;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #280050;
+
+
+
+/* Алексей Алексеев */
+
+position: absolute;
+width: 160px;
 height: 23px;
 
 font-family: 'Jost';
@@ -30,14 +225,87 @@ line-height: 23px;
 display: flex;
 align-items: center;
 
-color: #000000;
+color: #FFFFFF;
 
 
 
-/* 1 месяц */
+/* Разбанить */
 
 position: absolute;
-width: 80px;
+width: 71px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Group 128 */
+
+position: absolute;
+width: 300px;
+height: 50px;
+
+
+
+/* Rectangle 721 */
+
+position: absolute;
+width: 300px;
+height: 50px;
+
+background: #444444;
+border-radius: 100px;
+
+
+/* Group 40 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+
+
+
+/* Ellipse 13 */
+
+position: absolute;
+width: 50px;
+height: 50px;
+
+background: #8000FF;
+
+
+/* ББ */
+
+position: absolute;
+width: 31px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 900;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #280050;
+
+
+
+/* Богдан Богданов */
+
+position: absolute;
+width: 160px;
 height: 23px;
 
 font-family: 'Jost';
@@ -48,14 +316,14 @@ line-height: 23px;
 display: flex;
 align-items: center;
 
-color: #000000;
+color: #FFFFFF;
 
 
 
-/* 1 неделя */
+/* Разбанить */
 
 position: absolute;
-width: 80px;
+width: 71px;
 height: 23px;
 
 font-family: 'Jost';
@@ -65,42 +333,7 @@ font-size: 16px;
 line-height: 23px;
 display: flex;
 align-items: center;
+text-align: center;
 
-color: #000000;
-
-
-
-/* 1 день */
-
-position: absolute;
-width: 80px;
-height: 23px;
-
-font-family: 'Jost';
-font-style: normal;
-font-weight: 400;
-font-size: 16px;
-line-height: 23px;
-display: flex;
-align-items: center;
-
-color: #000000;
-
-
-
-/* Без лимита */
-
-position: absolute;
-width: 80px;
-height: 23px;
-
-font-family: 'Jost';
-font-style: normal;
-font-weight: 400;
-font-size: 16px;
-line-height: 23px;
-display: flex;
-align-items: center;
-
-color: #000000;
+color: #FFFFFF;
 

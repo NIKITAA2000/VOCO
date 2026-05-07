@@ -5600,7 +5600,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsPanel[data-tab="link"] {
-  height: 694px;
+  height: auto;
   max-height: min(694px, calc(100vh - 32px));
   background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
 }
@@ -5937,7 +5937,7 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsDropdownItem:hover,
 .settingsDropdownItemActive {
   color: rgba(0, 0, 0, 0.5);
-  background: rgba(128, 0, 255, 0.08);
+  background: transparent;
 }
 
 :global(:root[data-theme="dark"]) .settingsDropdown {
@@ -5951,7 +5951,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .settingsDropdownItem:hover,
 :global(:root[data-theme="dark"]) .settingsDropdownItemActive {
   color: rgba(255, 255, 255, 0.55);
-  background: rgba(128, 0, 255, 0.2);
+  background: transparent;
 }
 
 /* ----- Тоггл-строка (общая для разных вкладок) ----- */
@@ -6088,7 +6088,6 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsLinkTab {
   display: flex;
   flex-direction: column;
-  height: 100%;
   gap: 10px;
 }
 
@@ -6191,9 +6190,28 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: none;
+  /* высота под 1.5 карточки: 1 полная (~140) + gap (10) + половина (~70) */
+  max-height: 220px;
   overflow-y: auto;
-  padding-right: 0;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
+}
+
+.settingsLinkList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settingsLinkList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settingsLinkList::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .settingsLinkCard {
@@ -6218,12 +6236,24 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsLinkUrl {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 23px;
   font-size: 16px;
   line-height: 23px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+  transition: color 0.2s ease;
+}
+
+.settingsLinkUrlCopied {
+  color: #8000ff;
+  font-weight: 600;
+}
+
+:global(:root[data-theme="dark"]) .settingsLinkUrlCopied {
+  color: #c080ff;
 }
 
 .settingsLinkIconBtn {
@@ -6368,16 +6398,46 @@ button.stageRoomCode .roomCodeCopyHint {
   text-decoration: none;
 }
 
-:global(:root[data-theme="dark"]) .settingsBanRow {
-  background: #dddddd;
+/* === Тёмная тема: вкладка «Бан» === */
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] {
+  background: linear-gradient(180deg, #800000 0%, #222222 100%);
+  color: #fff;
 }
 
-:global(:root[data-theme="dark"]) .settingsBanUnblock {
-  color: #000;
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsTab {
+  color: #fff;
+  background: linear-gradient(180deg, #444444 0%, rgba(128, 0, 0, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsTab:hover {
+  background: linear-gradient(180deg, #555555 0%, rgba(128, 0, 0, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #ff3333 0%, rgba(128, 0, 0, 0) 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(128, 0, 0, 0) 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsBanRow {
+  background: #444444;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsBanName {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="ban"] .settingsBanUnblock {
+  color: #fff;
 }
 
 .settingsPanel[data-tab="link"] .settingsLinkCard {
-  flex: 0 0 127px;
+  flex: 0 0 auto;
   min-height: 127px;
 }
 
@@ -6517,44 +6577,135 @@ button.stageRoomCode .roomCodeCopyHint {
   color: #000;
 }
 
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"],
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] {
+  background: linear-gradient(180deg, #005000 0%, #222222 100%);
+  color: #fff;
+}
+
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField,
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField input,
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleRow,
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTab,
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsClose,
-:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsSaveButton {
-  color: #000;
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleRow {
+  color: #fff;
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField input,
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsToggleRow {
-  background: #dddddd;
+  background: #444444;
+  color: #fff;
 }
 
-.desktopSettingsPanel,
-.tabletSettingsPanel,
-.mobileSettingsPanel {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsField input::placeholder {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTab {
+  color: #fff;
+  background: linear-gradient(180deg, #444444 0%, rgba(0, 80, 0, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTab:hover {
+  background: linear-gradient(180deg, #555555 0%, rgba(0, 80, 0, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #00ff00 0%, rgba(0, 80, 0, 0) 100%);
+  color: #000;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 80, 0, 0) 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsSaveButton {
+  background:
+    linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
+  color: #fff;
+}
+
+/* === Тёмная тема: вкладка «Ссылка» === */
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsTab {
+  color: #fff;
+  background: linear-gradient(180deg, #444444 0%, rgba(0, 37, 80, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsTab:hover {
+  background: linear-gradient(180deg, #555555 0%, rgba(0, 37, 80, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(0, 37, 80, 0) 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(128, 0, 0, 0) 100%);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsField,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsToggleRow {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsField input,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsFakeSelect,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsToggleRow {
+  background: #444444;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsField input::placeholder {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsCreateLink {
+  background:
+    linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #002550 0%, #0077ff 50%, #002550 100%) border-box;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsDropdown {
+  background: linear-gradient(180deg, #280050 0%, #222222 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsLinkCard {
+  background: #444444;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsLinkIconBtn svg {
+  width: 24px;
+  height: 24px;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsLinkDeleteBtn svg {
+  width: 24px;
+  height: 24px;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsSelectChevron svg {
+  width: 22px;
+  height: 14px;
 }
 
 .settingsPanel {
   z-index: 100;
-  box-shadow:
-    0 0 0 100vmax rgba(0, 0, 0, 0.38),
-    0 12px 40px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
 }
 
 .settingsPanel[data-tab="settings"] {
-  box-shadow:
-    0 0 0 100vmax rgba(0, 0, 0, 0.38),
-    0 12px 40px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel {
-  box-shadow:
-    0 0 0 100vmax rgba(0, 0, 0, 0.52),
-    0 12px 40px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
