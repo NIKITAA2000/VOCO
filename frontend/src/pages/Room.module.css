@@ -1039,13 +1039,24 @@
   height: 20px;
 }
 
-.tileSignalOn {
+.tileSignalExcellent {
   color: #00ff00;
 }
 
-.tileSignalOff {
+.tileSignalGood {
+  color: #0077ff;
+}
+
+.tileSignalPoor {
+  color: #ff3333;
+}
+
+.tileSignalLost {
   color: #000;
-  --tile-signal-accent: #ff3333;
+}
+
+.tileSignalBarInactive {
+  opacity: 0.25;
 }
 
 @container (max-width: 180px) {
@@ -4414,19 +4425,27 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .tileSignalOn,
-:global(:root[data-theme="dark"]) .tileSignalOff {
+:global(:root[data-theme="dark"]) .tileSignalLost {
   color: #ffffff;
-  --tile-signal-accent: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .mobileStage .tileSignalOn {
+:global(:root[data-theme="dark"]) .tileSignalExcellent,
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalExcellent {
   color: #00ff00;
 }
 
-:global(:root[data-theme="dark"]) .mobileStage .tileSignalOff {
-  color: #ffffff;
-  --tile-signal-accent: #0077ff;
+:global(:root[data-theme="dark"]) .tileSignalGood,
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalGood {
+  color: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .tileSignalPoor,
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalPoor {
+  color: #ff3333;
+}
+
+:global(:root[data-theme="dark"]) .mobileStage .tileSignalLost {
+  color: #0077ff;
 }
 
 :global(:root[data-theme="dark"]) .tabletExitButton,
@@ -5864,8 +5883,8 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .settingsSelectChevron svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 9px;
 }
 
 :global(:root[data-theme="dark"]) .settingsSelectChevron {
@@ -6633,7 +6652,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTabActive,
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsTabActive:hover {
   background: linear-gradient(180deg, #00ff00 0%, rgba(0, 80, 0, 0) 100%);
-  color: #000;
+  color: #fff;
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="settings"] .settingsClose {
@@ -6717,8 +6736,8 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .settingsPanel[data-tab="link"] .settingsSelectChevron svg {
-  width: 22px;
-  height: 14px;
+  width: 14px;
+  height: 9px;
 }
 
 .settingsPanel {

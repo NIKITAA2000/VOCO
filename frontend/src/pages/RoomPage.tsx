@@ -25,7 +25,7 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { DisconnectReason, RoomEvent, Track } from "livekit-client";
+import { ConnectionQuality, DisconnectReason, RoomEvent, Track } from "livekit-client";
 import { api } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
 import styles from "./Room.module.css";
@@ -350,8 +350,8 @@ function getTrackDisplayName(trackRef: any, localIdentity?: string) {
   return getParticipantDisplayName(participant, localIdentity);
 }
 
-function getTrackMicEnabled(trackRef: any) {
-  return Boolean(trackRef?.participant?.isMicrophoneEnabled);
+function getTrackConnectionQuality(trackRef: any): ConnectionQuality {
+  return trackRef?.participant?.connectionQuality ?? ConnectionQuality.Unknown;
 }
 
 function getTrackSource(trackRef: any) {
@@ -974,25 +974,56 @@ function MobileToolbarControlContent({
   );
 }
 
-function TileSignal({ active }: { active: boolean }) {
+function getConnectionQualityLevel(quality: ConnectionQuality) {
+  switch (quality) {
+    case ConnectionQuality.Excellent:
+      return 3;
+    case ConnectionQuality.Good:
+      return 2;
+    case ConnectionQuality.Poor:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function TileSignal({ quality }: { quality: ConnectionQuality }) {
+  const level = getConnectionQualityLevel(quality);
+  const qualityClass =
+    level === 3
+      ? styles.tileSignalExcellent
+      : level === 2
+        ? styles.tileSignalGood
+        : level === 1
+          ? styles.tileSignalPoor
+          : styles.tileSignalLost;
+
   return (
     <span
-      className={`${styles.tileSignal} ${active ? styles.tileSignalOn : styles.tileSignalOff}`}
-      aria-hidden="true"
+      className={`${styles.tileSignal} ${qualityClass}`}
+      aria-label={`Качество соединения: ${quality}`}
+      title={`Качество соединения: ${quality}`}
     >
-      {active ? (
-        <svg viewBox="0 0 16 20" fill="none">
-          <path d="M15 0L15 20" stroke="currentColor" strokeWidth="2" />
-          <path d="M8 5L8 20" stroke="currentColor" strokeWidth="2" />
-          <path d="M1 10L1 20" stroke="currentColor" strokeWidth="2" />
-        </svg>
-      ) : (
-        <svg viewBox="0 0 16 20" fill="none">
-          <path d="M15 0L15 20" stroke="currentColor" strokeWidth="2" />
-          <path d="M8 5L8 20" stroke="currentColor" strokeWidth="2" />
-          <path d="M1 10L1 20" stroke="var(--tile-signal-accent, #FF3333)" strokeWidth="2" />
-        </svg>
-      )}
+      <svg viewBox="0 0 16 20" fill="none">
+        <path
+          className={level >= 3 ? styles.tileSignalBarActive : styles.tileSignalBarInactive}
+          d="M15 0L15 20"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path
+          className={level >= 2 ? styles.tileSignalBarActive : styles.tileSignalBarInactive}
+          d="M8 5L8 20"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path
+          className={level >= 1 ? styles.tileSignalBarActive : styles.tileSignalBarInactive}
+          d="M1 10L1 20"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      </svg>
     </span>
   );
 }
@@ -1859,11 +1890,13 @@ export function ConferenceRoomContent({
     room.on(RoomEvent.ParticipantMetadataChanged, bump);
     room.on(RoomEvent.ParticipantConnected, bump);
     room.on(RoomEvent.ParticipantDisconnected, bump);
+    room.on(RoomEvent.ConnectionQualityChanged, bump);
     room.on(RoomEvent.LocalTrackPublished, bump);
     return () => {
       room.off(RoomEvent.ParticipantMetadataChanged, bump);
       room.off(RoomEvent.ParticipantConnected, bump);
       room.off(RoomEvent.ParticipantDisconnected, bump);
+      room.off(RoomEvent.ConnectionQualityChanged, bump);
       room.off(RoomEvent.LocalTrackPublished, bump);
     };
   }, [room]);
@@ -3070,7 +3103,7 @@ export function ConferenceRoomContent({
 
           {tabletTileFrames.map((frame, index) => {
             const trackRef = visibleTracks[index];
-            const micEnabled = getTrackMicEnabled(trackRef);
+            const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
 
@@ -3086,7 +3119,7 @@ export function ConferenceRoomContent({
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
-                  <TileSignal active={micEnabled} />
+                  <TileSignal quality={connectionQuality} />
                 </div>
               </article>
             );
@@ -3311,7 +3344,7 @@ export function ConferenceRoomContent({
 
           {mobileTileFrames.map((frame, index) => {
             const trackRef = mobileVisibleTracks[index];
-            const micEnabled = getTrackMicEnabled(trackRef);
+            const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
 
@@ -3327,7 +3360,7 @@ export function ConferenceRoomContent({
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
-                  <TileSignal active={micEnabled} />
+                  <TileSignal quality={connectionQuality} />
                 </div>
               </article>
             );
@@ -3557,7 +3590,7 @@ export function ConferenceRoomContent({
 
         {tileFrames.map((frame, index) => {
           const trackRef = visibleTracks[index];
-          const micEnabled = getTrackMicEnabled(trackRef);
+          const connectionQuality = getTrackConnectionQuality(trackRef);
           const displayName = getTrackDisplayName(trackRef, localIdentity);
           const speaking = isTrackSpeaking(trackRef);
           const isExpandedSingleTile =
@@ -3580,7 +3613,7 @@ export function ConferenceRoomContent({
 
               <div className={styles.tileFooter}>
                 <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
-                <TileSignal active={micEnabled} />
+                <TileSignal quality={connectionQuality} />
               </div>
             </article>
           );
