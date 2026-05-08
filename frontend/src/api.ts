@@ -142,6 +142,10 @@ class ApiClient {
     return this.request(`/rooms/${slug}`, { method: "DELETE" });
   }
 
+  async restoreRoom(slug: string) {
+    return this.request(`/rooms/${slug}/restore`, { method: "POST" });
+  }
+
   async getRoomReport(slug: string) {
     return this.request(`/rooms/${slug}/report`);
   }

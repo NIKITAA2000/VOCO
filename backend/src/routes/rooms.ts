@@ -888,6 +888,52 @@ router.patch("/:slug", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/rooms/:slug/restore — восстановить закрытую комнату (владелец или модератор)
+router.post("/:slug/restore", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.ownerId !== req.user!.userId) {
+      const roleResult = await db.query(
+        `SELECT role FROM participants
+         WHERE room_id = $1 AND user_id = $2
+         ORDER BY joined_at DESC
+         LIMIT 1`,
+        [room.id, req.user!.userId]
+      );
+      const role = roleResult.rows[0]?.role;
+      if (role !== "MODERATOR") {
+        res.status(403).json({ error: "Только владелец или модератор может восстановить комнату" });
+        return;
+      }
+    }
+
+    const result = await db.query(
+      `UPDATE rooms SET is_active = true, closed_at = NULL
+       WHERE id = $1
+       RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
+                 owner_id AS "ownerId", created_at AS "createdAt", closed_at AS "closedAt",
+                 allow_guests AS "allowGuests", require_approval AS "requireApproval"`,
+      [room.id]
+    );
+
+    res.json({ room: result.rows[0], message: "Комната восстановлена" });
+  } catch (error) {
+    console.error("Restore room error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
 // POST /api/rooms/:slug/approve/:identity — одобрить ожидающего (owner или moderator)
 router.post("/:slug/approve/:identity", async (req: Request, res: Response) => {
   try {

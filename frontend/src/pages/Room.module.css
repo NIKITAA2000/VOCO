@@ -465,6 +465,34 @@
   text-align: center;
 }
 
+.participantAvatarFallback {
+  display: inline;
+}
+
+.participantAvatarGuest {
+  background: transparent;
+  color: #eedcff;
+}
+
+.participantAvatarGuest .participantAvatarFallback {
+  display: none;
+}
+
+.participantGuestAvatarIcon {
+  display: block;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+}
+
+.participantGuestAvatarFace {
+  fill: #eedcff;
+}
+
+.participantGuestAvatarStroke {
+  stroke: #eedcff;
+}
+
 .participantAvatarSquare {
   border-radius: 10px;
 }
@@ -4761,6 +4789,26 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .participantAvatar {
   color: #280050;
+}
+
+:global(:root[data-theme="dark"]) .participantAvatarGuest {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .participantAvatarGuest .participantAvatarFallback {
+  display: none;
+}
+
+:global(:root[data-theme="dark"]) .participantAvatarGuest .participantGuestAvatarIcon {
+  display: block;
+}
+
+:global(:root[data-theme="dark"]) .participantAvatarGuest .participantGuestAvatarFace {
+  fill: #280050;
+}
+
+:global(:root[data-theme="dark"]) .participantAvatarGuest .participantGuestAvatarStroke {
+  stroke: #280050;
 }
 
 :global(:root[data-theme="dark"]) .stageParticipantStatusOn {

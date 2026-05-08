@@ -1788,17 +1788,61 @@ function ParticipantAvatar({
   avatarUrl,
   className,
   square,
+  isGuest,
 }: {
   name: string;
   avatarUrl?: string | null;
   className?: string;
   square?: boolean;
+  isGuest?: boolean;
 }) {
   const avatarLabel = typeof avatarUrl === "string" && avatarUrl.trim() ? avatarUrl : null;
+  const fallbackLabel = avatarLabel ?? getInitials(name);
 
   return (
-    <span className={`${styles.participantAvatar} ${square ? styles.participantAvatarSquare : ""} ${className ?? ""}`}>
-      {avatarLabel ?? getInitials(name)}
+    <span
+      className={`${styles.participantAvatar} ${square ? styles.participantAvatarSquare : ""} ${
+        isGuest ? styles.participantAvatarGuest : ""
+      } ${className ?? ""}`}
+    >
+      {isGuest ? (
+        <svg
+          className={styles.participantGuestAvatarIcon}
+          width="50"
+          height="50"
+          viewBox="0 0 50 50"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <circle cx="25" cy="25" r="25" fill="#8000FF" />
+          <ellipse
+            className={styles.participantGuestAvatarFace}
+            cx="19.5"
+            cy="21.5005"
+            rx="3.5"
+            ry="2.5"
+            transform="rotate(10 19.5 21.5005)"
+            fill="#EEDCFF"
+          />
+          <ellipse
+            className={styles.participantGuestAvatarFace}
+            cx="3.5"
+            cy="2.5"
+            rx="3.5"
+            ry="2.5"
+            transform="matrix(-0.984808 0.173648 0.173648 0.984808 33.5127 18.4307)"
+            fill="#EEDCFF"
+          />
+          <path
+            className={styles.participantGuestAvatarStroke}
+            d="M38.5 13.5V26C38.5 33.4558 32.4558 39.5 25 39.5C17.5442 39.5 11.5 33.4558 11.5 26V13.5H38.5Z"
+            stroke="#EEDCFF"
+            strokeWidth="3"
+          />
+        </svg>
+      ) : null}
+      <span className={styles.participantAvatarFallback}>{fallbackLabel}</span>
     </span>
   );
 }
@@ -2891,9 +2935,10 @@ export function ConferenceRoomContent({
         {pendingParticipants.map((participant: any) => {
           const displayName = participant.name || participant.identity || "Гость";
           const inProgress = pendingActionFor === participant.identity;
+          const isGuest = typeof participant.identity === "string" && participant.identity.startsWith("guest_");
           return (
             <div className={styles.pendingParticipantRow} key={participant.identity}>
-              <ParticipantAvatar name={displayName} avatarUrl={null} />
+              <ParticipantAvatar name={displayName} avatarUrl={null} isGuest={isGuest} />
               <span className={styles.stageParticipantText}>{displayName}</span>
               <span className={styles.pendingActions}>
                   <button
@@ -2963,6 +3008,9 @@ export function ConferenceRoomContent({
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
       const shouldShowRaisedHand = Boolean(handRaisedMap[participant.identity]);
+      const isGuest =
+        (typeof participant.identity === "string" && participant.identity.startsWith("guest_")) ||
+        (typeof meta.user.id === "string" && meta.user.id.startsWith("guest_"));
 
       return (
         <div
@@ -2975,6 +3023,7 @@ export function ConferenceRoomContent({
             name={displayName}
             avatarUrl={meta.user.avatarUrl}
             square={meta.role === "MODERATOR" || meta.role === "OWNER"}
+            isGuest={isGuest}
           />
           <span className={styles.stageParticipantText}>
             {displayName}
@@ -3004,6 +3053,9 @@ export function ConferenceRoomContent({
         const isLocal = entry.from?.identity === localIdentity;
         const authorName = entry.from?.name || entry.from?.identity || "Система";
         const authorMeta = participantMetaByUserId.get(entry.from?.identity ?? "");
+        const isGuestAuthor =
+          (typeof entry.from?.identity === "string" && entry.from.identity.startsWith("guest_")) ||
+          (typeof authorMeta?.user.id === "string" && authorMeta.user.id.startsWith("guest_"));
         return (
           <div
             className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
@@ -3014,6 +3066,7 @@ export function ConferenceRoomContent({
                 name={authorName}
                 avatarUrl={authorMeta?.user.avatarUrl}
                 className={styles.chatAvatar}
+                isGuest={isGuestAuthor}
               />
             ) : null}
             <article
