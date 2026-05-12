@@ -660,16 +660,312 @@
   line-height: 23px;
 }
 
+.chatPanelHasPin .chatDate {
+  top: 110px;
+}
+
 .chatScroll {
   position: absolute;
   left: 10px;
   right: 10px;
   top: 88px;
   bottom: 62px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 119, 255, 0.4) transparent;
+}
+
+.chatScrollInner {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 100%;
+}
+
+.chatScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chatScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatScroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 119, 255, 0.4);
+  border-radius: 3px;
+}
+
+:global(:root[data-theme="dark"]) .chatScroll {
+  scrollbar-color: rgba(90, 169, 255, 0.5) transparent;
+}
+
+:global(:root[data-theme="dark"]) .chatScroll::-webkit-scrollbar-thumb {
+  background: rgba(90, 169, 255, 0.5);
+}
+
+.chatPanelHasPin .chatScroll {
+  top: 143px;
+}
+
+.chatClearButton {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 119, 255, 0.12);
+  color: #0077ff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  z-index: 6;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.chatClearButton:hover {
+  background: rgba(0, 119, 255, 0.22);
+  transform: scale(1.05);
+}
+
+.chatClearButton::before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatPinnedBanner {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 50px;
+  z-index: 5;
+}
+
+.chatPinnedRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 50px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+  color: #000000;
+  box-shadow: 0 3px 9px rgba(0, 119, 255, 0.18);
+}
+
+.chatPinnedListButton,
+.chatPinnedArrowPrev,
+.chatPinnedArrowNext,
+.chatPinnedUnpin {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.chatPinnedListButton:disabled,
+.chatPinnedArrowPrev:disabled,
+.chatPinnedArrowNext:disabled,
+.chatPinnedUnpin:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.chatPinnedListButton::before,
+.chatPinnedArrowPrev::before,
+.chatPinnedArrowNext::before,
+.chatPinnedUnpin::before {
+  content: "";
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: currentColor;
+}
+
+.chatPinnedListButton::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='5' width='16' height='2' fill='black'/%3E%3Crect x='4' y='11' width='16' height='2' fill='black'/%3E%3Crect x='4' y='17' width='16' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='5' width='16' height='2' fill='black'/%3E%3Crect x='4' y='11' width='16' height='2' fill='black'/%3E%3Crect x='4' y='17' width='16' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatPinnedArrowPrev::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 6 L9 12 L15 18' stroke='black' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 6 L9 12 L15 18' stroke='black' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatPinnedArrowNext::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M9 6 L15 12 L9 18' stroke='black' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M9 6 L15 12 L9 18' stroke='black' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatPinnedUnpin::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatPinnedText {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000000;
+  cursor: pointer;
+}
+
+.chatPinnedText:disabled {
+  cursor: default;
+}
+
+.chatPinnedText:not(:disabled):hover {
+  text-decoration: underline;
+}
+
+.chatMessageRowHighlight {
+  position: relative;
+}
+
+.chatMessageRowHighlight::before {
+  content: "";
+  position: absolute;
+  inset: -6px -8px;
+  border-radius: 16px;
+  background: rgba(0, 119, 255, 0.18);
+  pointer-events: none;
+  animation: chatPinHighlight 1.6s ease-out forwards;
+  z-index: 0;
+}
+
+@keyframes chatPinHighlight {
+  0% {
+    background: rgba(0, 119, 255, 0.32);
+  }
+  100% {
+    background: rgba(0, 119, 255, 0);
+  }
+}
+
+.chatPinnedAuthor {
+  font-weight: 600;
+  color: #0077ff;
+}
+
+.chatPinnedList {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid rgba(0, 119, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chatPinnedListItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 19px;
+  color: #000000;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.chatPinnedListItem:hover {
+  background: rgba(0, 119, 255, 0.08);
+}
+
+.chatPinnedListItemActive {
+  background: rgba(0, 119, 255, 0.14);
+}
+
+.chatPinnedListAuthor {
+  font-weight: 600;
+  color: #0077ff;
+  flex: 0 0 auto;
+}
+
+.chatPinnedListText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatPinTrigger {
+  appearance: none;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0077ff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+  z-index: 2;
+}
+
+.chatBubble:hover .chatPinTrigger,
+.chatPinTrigger:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1.05);
+}
+
+.chatPinTrigger::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 4px auto;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 3 L21 10 L17 14 L17 17 L13 13 L7 19 L5 19 L5 17 L11 11 L7 7 L10 7 Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 3 L21 10 L17 14 L17 17 L13 13 L7 19 L5 19 L5 17 L11 11 L7 7 L10 7 Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatEmpty {
@@ -680,6 +976,7 @@
 }
 
 .chatBubble {
+  position: relative;
   width: auto;
   max-width: min(304px, 100%);
   min-width: 0;
@@ -701,6 +998,8 @@
 .chatMessageOwn {
   align-self: flex-end;
   justify-content: flex-end;
+  /* запас справа, чтобы pin-кнопка-бейдж (right: -8px) не уезжала за край скролла */
+  padding-right: 10px;
 }
 
 .chatAvatar {
@@ -712,6 +1011,8 @@
 .chatBubbleRemote {
   background: linear-gradient(0deg, #ddd 0%, rgba(255, 255, 255, 0) 100%);
   color: #000;
+  /* острый угол снизу-слева — у иконки автора */
+  border-radius: 10px 10px 10px 0;
 }
 
 .chatBubbleOwn {
@@ -922,6 +1223,10 @@
   top: 88px;
   bottom: 60px;
   padding: 0;
+}
+
+.tabletChatPanel.chatPanelHasPin .tabletChatScroll {
+  top: 130px;
 }
 
 .tabletChatDate {
@@ -1372,6 +1677,7 @@ button.stageRoomCode:disabled {
   color: #000;
   cursor: pointer;
   overflow: hidden;
+  font: inherit;
 }
 
 .exitGlow {
@@ -1431,6 +1737,7 @@ button.stageRoomCode:disabled {
   color: #000;
   cursor: pointer;
   overflow: hidden;
+  font: inherit;
 }
 
 .tabletExitIcon {
@@ -3095,6 +3402,10 @@ button.stageRoomCode:disabled {
   padding: 0;
 }
 
+.mobileChatPanel.chatPanelHasPin .mobileChatScroll {
+  top: 130px;
+}
+
 .mobileChatDate {
   flex: 0 0 auto;
   width: 100%;
@@ -4327,6 +4638,57 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .chatBubbleOwn {
   background: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedRow {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.32);
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedText {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedAuthor {
+  color: #5aa9ff;
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedList {
+  background: #222222;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedListItem {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedListItem:hover {
+  background: rgba(0, 119, 255, 0.22);
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedListItemActive {
+  background: rgba(0, 119, 255, 0.3);
+}
+
+:global(:root[data-theme="dark"]) .chatPinnedListAuthor {
+  color: #5aa9ff;
+}
+
+:global(:root[data-theme="dark"]) .chatPinTrigger {
+  background: #0077ff;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+:global(:root[data-theme="dark"]) .chatClearButton {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatClearButton:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 :global(:root[data-theme="dark"]) .participantRowModerator {

@@ -89,6 +89,29 @@ export const changeRoleSchema = z.object({
   }),
 });
 
+export const saveChatMessageSchema = z.object({
+  externalId: z.string().min(1).max(120),
+  message: z
+    .string()
+    .min(1, "Сообщение обязательно")
+    .max(2000, "Сообщение — максимум 2000 символов"),
+  authorIdentity: z.string().min(1).max(120),
+  authorName: z.string().max(120).optional(),
+  sentAt: z.number().int(),
+  isGuest: z.boolean().optional().default(false),
+});
+
+export const pinMessageSchema = z.object({
+  message: z
+    .string()
+    .min(1, "Сообщение обязательно")
+    .max(2000, "Сообщение — максимум 2000 символов"),
+  authorIdentity: z.string().max(120).optional(),
+  authorName: z.string().max(120).optional(),
+  originalExternalId: z.string().max(120).optional(),
+  originalTimestamp: z.number().int().optional(),
+});
+
 export const joinGuestSchema = z.object({
   displayName: z
     .string()

@@ -60,6 +60,45 @@ export async function initDatabase() {
         UNIQUE(room_id, user_id)
       );
 
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        external_id TEXT,
+        author_identity VARCHAR(120) NOT NULL,
+        author_name VARCHAR(120),
+        message TEXT NOT NULL,
+        sent_at BIGINT NOT NULL,
+        is_guest BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS external_id TEXT;
+      -- Старый UNIQUE по (room_id, author_identity, sent_at) был ненадёжен:
+      -- LiveKit entry.timestamp может быть Date-объектом, после save/reload
+      -- значения расходились и сообщения дублировались в чате.
+      ALTER TABLE chat_messages DROP CONSTRAINT IF EXISTS chat_messages_room_id_author_identity_sent_at_key;
+      -- Чистим записи без external_id (они с старым дедупом и могут дать дубли)
+      DELETE FROM chat_messages WHERE external_id IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS chat_messages_room_external_id_key
+        ON chat_messages(room_id, external_id);
+
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(room_id, sent_at);
+
+      CREATE TABLE IF NOT EXISTS pinned_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        author_identity VARCHAR(120),
+        author_name VARCHAR(120),
+        original_external_id TEXT,
+        original_timestamp BIGINT,
+        pinned_by UUID NOT NULL REFERENCES users(id),
+        pinned_at TIMESTAMP DEFAULT NOW()
+      );
+
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS original_external_id TEXT;
+      CREATE INDEX IF NOT EXISTS idx_pinned_messages_room ON pinned_messages(room_id, pinned_at);
+
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),

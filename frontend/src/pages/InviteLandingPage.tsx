@@ -20,6 +20,8 @@ export function InviteLandingPage({ user }: Props) {
   const [livekitUrl, setLivekitUrl] = useState("");
   const [roomName, setRoomName] = useState("");
   const [roomSlug, setRoomSlug] = useState("");
+  const [initialPins, setInitialPins] = useState<any[]>([]);
+  const [initialChat, setInitialChat] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
   const [inQueue, setInQueue] = useState(false);
@@ -47,6 +49,8 @@ export function InviteLandingPage({ user }: Props) {
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
+      setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
+      setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -70,6 +74,8 @@ export function InviteLandingPage({ user }: Props) {
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
       setRoomSlug(data.room.slug);
+      setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
+      setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -175,6 +181,8 @@ export function InviteLandingPage({ user }: Props) {
               slug={roomSlug}
               onExitIntent={handleLeaveIntent}
               currentUserAvatarUrl={user?.avatarUrl ?? null}
+              initialPinnedMessages={initialPins}
+              initialChatHistory={initialChat}
             />
           )}
         </LiveKitRoom>

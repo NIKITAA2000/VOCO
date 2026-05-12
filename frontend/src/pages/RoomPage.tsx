@@ -3,6 +3,7 @@ import {
   useEffect,
   useCallback,
   useId,
+  useMemo,
   useRef,
   type CSSProperties,
   type FormEvent,
@@ -108,6 +109,40 @@ interface ConferenceRoomContentProps {
   isOwner?: boolean;
   canEndRoom?: boolean;
   currentUserAvatarUrl?: string | null;
+  initialPinnedMessages?: PinnedMessage[];
+  initialChatHistory?: ChatHistoryEntry[];
+}
+
+interface PinnedMessage {
+  id: string;
+  message: string;
+  authorIdentity?: string | null;
+  authorName?: string | null;
+  originalExternalId?: string | null;
+  originalTimestamp?: number | null;
+  pinnedBy?: string | null;
+  pinnedAt?: string | null;
+}
+
+interface ChatHistoryEntry {
+  id?: string;
+  externalId?: string | null;
+  authorIdentity: string;
+  authorName?: string | null;
+  message: string;
+  sentAt: number;
+  isGuest?: boolean;
+}
+
+function readEntryTimestamp(entry: { timestamp?: unknown }): number {
+  const ts = entry?.timestamp;
+  if (typeof ts === "number" && Number.isFinite(ts)) return ts;
+  if (ts instanceof Date) return ts.getTime();
+  if (typeof ts === "string") {
+    const n = Number(ts);
+    if (Number.isFinite(n)) return n;
+  }
+  return Date.now();
 }
 
 type RoomRole = "OWNER" | "MODERATOR" | "PARTICIPANT";
@@ -1882,6 +1917,8 @@ export function ConferenceRoomContent({
   isOwner,
   canEndRoom,
   currentUserAvatarUrl,
+  initialPinnedMessages,
+  initialChatHistory,
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
   const participants = useParticipants();
@@ -1911,6 +1948,18 @@ export function ConferenceRoomContent({
   });
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>("settings");
   const [roomMeta, setRoomMeta] = useState<RoomMeta | null>(null);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>(
+    () => initialPinnedMessages ?? [],
+  );
+  const [currentPinIndex, setCurrentPinIndex] = useState(0);
+  const [pinListOpen, setPinListOpen] = useState(false);
+  const pinListRef = useRef<HTMLDivElement>(null);
+  const [chatHistory, setChatHistory] = useState<ChatHistoryEntry[]>(
+    () => initialChatHistory ?? [],
+  );
+  const [chatClearedAt, setChatClearedAt] = useState(0);
+  const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
+  const savedChatKeysRef = useRef<Set<string>>(new Set());
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
   const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
@@ -1982,6 +2031,12 @@ export function ConferenceRoomContent({
           allowGuests: r.allowGuests ?? true,
           requireApproval: r.requireApproval ?? false,
         });
+      }
+      if (Array.isArray(r?.pinnedMessages)) {
+        setPinnedMessages(r.pinnedMessages as PinnedMessage[]);
+      }
+      if (Array.isArray(r?.chatHistory)) {
+        setChatHistory(r.chatHistory as ChatHistoryEntry[]);
       }
       // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
       if (nextRole === "OWNER" || nextRole === "MODERATOR") {
@@ -2107,6 +2162,196 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.DataReceived, handleData);
     };
   }, [room, localParticipant, onExitIntent]);
+
+  // Live-синхронизация закреплённых сообщений: модератор после pin/unpin
+  // публикует data-сообщение с полным списком, остальные просто заменяют состояние.
+  useEffect(() => {
+    if (!room) return;
+    const handle = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== "voco-pins") return;
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(payload));
+        if (parsed?.type === "pin_list" && Array.isArray(parsed.pins)) {
+          setPinnedMessages(parsed.pins as PinnedMessage[]);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    room.on(RoomEvent.DataReceived, handle);
+    return () => {
+      room.off(RoomEvent.DataReceived, handle);
+    };
+  }, [room]);
+
+  // Очистка чата от модератора: clearedAt — это серверное «отсечение»,
+  // все сообщения с sentAt <= clearedAt больше не показываются ни у кого.
+  useEffect(() => {
+    if (!room) return;
+    const handle = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== "voco-chat-clear") return;
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(payload));
+        const at = typeof parsed?.at === "number" ? parsed.at : Date.now();
+        setChatClearedAt((prev) => Math.max(prev, at));
+        setChatHistory([]);
+      } catch {
+        setChatClearedAt(Date.now());
+        setChatHistory([]);
+      }
+    };
+    room.on(RoomEvent.DataReceived, handle);
+    return () => {
+      room.off(RoomEvent.DataReceived, handle);
+    };
+  }, [room]);
+
+  // Держим индекс активного пина в диапазоне массива; новый пин показываем последним.
+  useEffect(() => {
+    setCurrentPinIndex((idx) => {
+      if (pinnedMessages.length === 0) return 0;
+      if (idx >= pinnedMessages.length) return pinnedMessages.length - 1;
+      if (idx < 0) return 0;
+      return idx;
+    });
+  }, [pinnedMessages.length]);
+
+  // Закрываем поповер со списком пинов по клику снаружи
+  useEffect(() => {
+    if (!pinListOpen) return;
+    const handleDown = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (pinListRef.current?.contains(event.target)) return;
+      setPinListOpen(false);
+    };
+    window.addEventListener("mousedown", handleDown);
+    return () => window.removeEventListener("mousedown", handleDown);
+  }, [pinListOpen]);
+
+  const broadcastPinList = useCallback(
+    async (pins: PinnedMessage[]) => {
+      if (!localParticipant) return;
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ type: "pin_list", pins }),
+        );
+        await localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "voco-pins",
+        });
+      } catch (error) {
+        console.error("Не удалось разослать обновление пинов", error);
+      }
+    },
+    [localParticipant],
+  );
+
+  const handlePinChatMessage = useCallback(
+    async (entry: {
+      message: string;
+      from?: { identity?: string; name?: string };
+      timestamp?: number;
+      externalId?: string;
+    }) => {
+      if (!slug) return;
+      try {
+        const data: any = await api.pinMessage(slug, {
+          message: entry.message,
+          authorIdentity: entry.from?.identity,
+          authorName: entry.from?.name,
+          originalExternalId: entry.externalId,
+          originalTimestamp: entry.timestamp,
+        });
+        const newPin = data?.pin as PinnedMessage | undefined;
+        if (newPin) {
+          const next = [...pinnedMessages, newPin];
+          setPinnedMessages(next);
+          setCurrentPinIndex(next.length - 1);
+          void broadcastPinList(next);
+        }
+      } catch (error) {
+        console.error("Не удалось закрепить сообщение", error);
+      }
+    },
+    [slug, pinnedMessages, broadcastPinList],
+  );
+
+  // Прыжок к оригинальному сообщению из плашки закрепа.
+  // Ищем строку в текущем chatScroll по data-message-id и подсвечиваем её.
+  const handleJumpToPinned = useCallback((pin: PinnedMessage) => {
+    if (!chatScrollRef.current) return;
+    const targetId = pin.originalExternalId;
+    if (!targetId) return;
+    const escaped = (window as any).CSS?.escape ? (window as any).CSS.escape(targetId) : targetId;
+    const node = chatScrollRef.current.querySelector(
+      `[data-message-id="${escaped}"]`,
+    ) as HTMLElement | null;
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    node.classList.add(styles.chatMessageRowHighlight);
+    window.setTimeout(() => {
+      node.classList.remove(styles.chatMessageRowHighlight);
+    }, 1600);
+  }, []);
+
+  const handleClearChatRequest = useCallback(() => {
+    if (!slug) return;
+    if (!api.getToken()) return;
+    setClearChatConfirmOpen(true);
+  }, [slug]);
+
+  const handleClearChatConfirm = useCallback(async () => {
+    if (!slug) return;
+    if (!api.getToken()) return;
+    setClearChatConfirmOpen(false);
+    const at = Date.now();
+    try {
+      await api.clearRoomMessages(slug);
+    } catch (error) {
+      console.error("Не удалось очистить чат на сервере", error);
+      return;
+    }
+    setChatHistory([]);
+    setChatClearedAt(at);
+    if (localParticipant) {
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ type: "chat_cleared", at }),
+        );
+        await localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "voco-chat-clear",
+        });
+      } catch (error) {
+        console.error("Не удалось разослать очистку чата", error);
+      }
+    }
+  }, [slug, localParticipant]);
+
+  const handleUnpinMessage = useCallback(
+    async (pinId: string) => {
+      if (!slug || !pinId) return;
+      try {
+        await api.unpinMessage(slug, pinId);
+        const next = pinnedMessages.filter((p) => p.id !== pinId);
+        setPinnedMessages(next);
+        void broadcastPinList(next);
+      } catch (error) {
+        console.error("Не удалось открепить сообщение", error);
+      }
+    },
+    [slug, pinnedMessages, broadcastPinList],
+  );
 
   useEffect(() => {
     if (!openParticipantMenu) return;
@@ -2441,12 +2686,91 @@ export function ConferenceRoomContent({
     setTilePage((current) => Math.min(current, tilePageCount - 1));
   }, [tilePageCount]);
 
+  // Авто-сохранение чат-сообщений в БД. Дедуп по стабильному LiveKit-id (entry.id).
+  // Каждый авторизованный клиент пишет ВСЕ сообщения, что видит (в т.ч. гостевые),
+  // UNIQUE(room_id, external_id) на бэке снимает дубли между клиентами.
+  useEffect(() => {
+    if (!slug) return;
+    if (!api.getToken()) return; // гостям бэкенд не доступен
+    chatMessages.forEach((entry: any) => {
+      const identity = entry.from?.identity;
+      const externalId = typeof entry.id === "string" ? entry.id : "";
+      if (!identity || !externalId) return;
+      const sentAt = readEntryTimestamp(entry);
+      if (sentAt <= chatClearedAt) return;
+      if (savedChatKeysRef.current.has(externalId)) return;
+      savedChatKeysRef.current.add(externalId);
+      void api
+        .saveRoomMessage(slug, {
+          externalId,
+          message: entry.message,
+          authorIdentity: identity,
+          authorName: entry.from?.name,
+          sentAt,
+          isGuest: identity.startsWith("guest_"),
+        })
+        .catch(() => {
+          // молча — другой клиент сохранит, или это уже сохранённое
+        });
+    });
+  }, [chatMessages, slug, chatClearedAt]);
+
+  // Склеиваем серверную историю с live-сообщениями LiveKit. Дедуп по стабильному
+  // LiveKit-id (externalId на сервере = entry.id у live). Если id вдруг нет — fallback
+  // на identity+sentAt, но это резервный путь.
+  const combinedChatEntries = useMemo(() => {
+    type Entry = {
+      key: string;
+      externalId?: string;
+      sentAt: number;
+      message: string;
+      authorIdentity: string;
+      authorName?: string | null;
+      isGuest: boolean;
+    };
+    const map = new Map<string, Entry>();
+    for (const item of chatHistory) {
+      if (!item.authorIdentity || !item.message) continue;
+      if (item.sentAt <= chatClearedAt) continue;
+      const key = item.externalId
+        ? `ext:${item.externalId}`
+        : `ts:${item.authorIdentity}|${item.sentAt}`;
+      map.set(key, {
+        key,
+        externalId: item.externalId ?? undefined,
+        sentAt: item.sentAt,
+        message: item.message,
+        authorIdentity: item.authorIdentity,
+        authorName: item.authorName ?? undefined,
+        isGuest: Boolean(item.isGuest) || item.authorIdentity.startsWith("guest_"),
+      });
+    }
+    for (const entry of chatMessages as any[]) {
+      const identity = entry.from?.identity;
+      if (!identity) continue;
+      const sentAt = readEntryTimestamp(entry);
+      if (sentAt <= chatClearedAt) continue;
+      const externalId = typeof entry.id === "string" ? entry.id : "";
+      const key = externalId ? `ext:${externalId}` : `ts:${identity}|${sentAt}`;
+      map.set(key, {
+        key,
+        externalId: externalId || undefined,
+        sentAt,
+        message: entry.message,
+        authorIdentity: identity,
+        authorName: entry.from?.name ?? undefined,
+        isGuest: identity.startsWith("guest_"),
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.sentAt - b.sentAt);
+  }, [chatHistory, chatMessages, chatClearedAt]);
+
   useEffect(() => {
     chatScrollRef.current?.scrollTo({
       top: chatScrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [chatMessages]);
+  }, [combinedChatEntries]);
 
   useEffect(() => {
     if (!isChatPanelOpen) setEmojiPickerOpen(false);
@@ -3046,20 +3370,21 @@ export function ConferenceRoomContent({
     });
 
   const renderChatMessages = (emptyClass?: string) =>
-    chatMessages.length === 0 ? (
+    combinedChatEntries.length === 0 ? (
       <div className={emptyClass ?? styles.chatEmpty}>Сообщений пока нет</div>
     ) : (
-      chatMessages.map((entry) => {
-        const isLocal = entry.from?.identity === localIdentity;
-        const authorName = entry.from?.name || entry.from?.identity || "Система";
-        const authorMeta = participantMetaByUserId.get(entry.from?.identity ?? "");
+      combinedChatEntries.map((entry) => {
+        const isLocal = entry.authorIdentity === localIdentity;
+        const authorName = entry.authorName || entry.authorIdentity || "Система";
+        const authorMeta = participantMetaByUserId.get(entry.authorIdentity);
         const isGuestAuthor =
-          (typeof entry.from?.identity === "string" && entry.from.identity.startsWith("guest_")) ||
+          entry.isGuest ||
           (typeof authorMeta?.user.id === "string" && authorMeta.user.id.startsWith("guest_"));
         return (
           <div
             className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
-            key={`${entry.timestamp}-${entry.from?.identity ?? "system"}`}
+            key={entry.key}
+            data-message-id={entry.externalId ?? entry.key}
           >
             {!isLocal ? (
               <ParticipantAvatar
@@ -3074,12 +3399,161 @@ export function ConferenceRoomContent({
             >
               {!isLocal ? <div className={styles.chatAuthor}>{authorName}</div> : null}
               <div className={styles.chatBody}>{entry.message}</div>
-              <div className={styles.chatTime}>{formatMessageTime(entry.timestamp)}</div>
+              <div className={styles.chatTime}>{formatMessageTime(entry.sentAt)}</div>
+              {canModerateParticipants && slug ? (
+                <button
+                  type="button"
+                  className={styles.chatPinTrigger}
+                  aria-label="Закрепить сообщение"
+                  title="Закрепить"
+                  onClick={() =>
+                    void handlePinChatMessage({
+                      message: entry.message,
+                      from: { identity: entry.authorIdentity, name: entry.authorName ?? undefined },
+                      timestamp: entry.sentAt,
+                      externalId: entry.externalId,
+                    })
+                  }
+                />
+              ) : null}
             </article>
           </div>
         );
       })
     );
+
+  const renderChatClearButton = () =>
+    canModerateParticipants && slug ? (
+      <button
+        type="button"
+        className={styles.chatClearButton}
+        aria-label="Очистить чат"
+        title="Очистить чат"
+        onClick={handleClearChatRequest}
+      />
+    ) : null;
+
+  const renderClearChatConfirm = () =>
+    clearChatConfirmOpen ? (
+      <div
+        className={styles.reportModalOverlay}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-chat-modal-title"
+      >
+        <div className={styles.reportModal}>
+          <h2 id="clear-chat-modal-title">Очистить чат?</h2>
+          <p className={styles.reportModalText}>
+            Все сообщения будут удалены для всех участников. Это действие нельзя
+            отменить.
+          </p>
+          <div className={styles.reportModalActions}>
+            <button
+              type="button"
+              className={styles.reportModalPrimary}
+              onClick={() => void handleClearChatConfirm()}
+            >
+              Очистить
+            </button>
+            <button
+              type="button"
+              className={styles.reportModalGhost}
+              onClick={() => setClearChatConfirmOpen(false)}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null;
+
+  const renderPinnedBanner = () => {
+    if (pinnedMessages.length === 0) return null;
+    const safeIndex = Math.min(currentPinIndex, pinnedMessages.length - 1);
+    const pin = pinnedMessages[safeIndex];
+    if (!pin) return null;
+    const showArrows = pinnedMessages.length > 1;
+    return (
+      <div className={styles.chatPinnedBanner} ref={pinListRef}>
+        <div className={styles.chatPinnedRow}>
+          <button
+            type="button"
+            className={styles.chatPinnedListButton}
+            aria-label="Список закреплённых"
+            aria-expanded={pinListOpen}
+            onClick={() => setPinListOpen((open) => !open)}
+          />
+          {showArrows ? (
+            <button
+              type="button"
+              className={styles.chatPinnedArrowPrev}
+              aria-label="Предыдущее закреплённое"
+              disabled={safeIndex === 0}
+              onClick={() => setCurrentPinIndex((idx) => Math.max(0, idx - 1))}
+            />
+          ) : null}
+          <button
+            type="button"
+            className={styles.chatPinnedText}
+            title={pin.originalExternalId ? "Перейти к сообщению" : pin.message}
+            onClick={() => handleJumpToPinned(pin)}
+            disabled={!pin.originalExternalId}
+          >
+            {pin.authorName ? (
+              <span className={styles.chatPinnedAuthor}>{pin.authorName}: </span>
+            ) : null}
+            {pin.message}
+          </button>
+          {showArrows ? (
+            <button
+              type="button"
+              className={styles.chatPinnedArrowNext}
+              aria-label="Следующее закреплённое"
+              disabled={safeIndex >= pinnedMessages.length - 1}
+              onClick={() =>
+                setCurrentPinIndex((idx) =>
+                  Math.min(pinnedMessages.length - 1, idx + 1),
+                )
+              }
+            />
+          ) : null}
+          {canModerateParticipants ? (
+            <button
+              type="button"
+              className={styles.chatPinnedUnpin}
+              aria-label="Открепить"
+              title="Открепить"
+              onClick={() => void handleUnpinMessage(pin.id)}
+            />
+          ) : null}
+        </div>
+        {pinListOpen ? (
+          <div className={styles.chatPinnedList} role="menu">
+            {pinnedMessages.map((item, idx) => (
+              <button
+                type="button"
+                key={item.id}
+                className={`${styles.chatPinnedListItem} ${
+                  idx === safeIndex ? styles.chatPinnedListItemActive : ""
+                }`}
+                role="menuitem"
+                onClick={() => {
+                  setCurrentPinIndex(idx);
+                  setPinListOpen(false);
+                  handleJumpToPinned(item);
+                }}
+              >
+                {item.authorName ? (
+                  <span className={styles.chatPinnedListAuthor}>{item.authorName}: </span>
+                ) : null}
+                <span className={styles.chatPinnedListText}>{item.message}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   const sharedLiveKitUi = <RoomAudioRenderer muted={!outputEnabled} />;
 
@@ -3196,15 +3670,21 @@ export function ConferenceRoomContent({
 
           {isChatPanelOpen ? (
             <aside
-              className={`${styles.sidePanel} ${styles.chatPanel} ${styles.tabletSidePanel} ${styles.tabletChatPanel}`}
+              className={`${styles.sidePanel} ${styles.chatPanel} ${styles.tabletSidePanel} ${styles.tabletChatPanel}${
+                pinnedMessages.length > 0 ? ` ${styles.chatPanelHasPin}` : ""
+              }`}
               style={tabletContentRect(384, 384, 0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.chatTitle}>Чат</div>
+              {renderChatClearButton()}
+              {renderPinnedBanner()}
 
               <div className={`${styles.chatScroll} ${styles.tabletChatScroll}`} ref={chatScrollRef}>
-                {chatMessages.length > 0 ? <div className={styles.tabletChatDate}>{currentDate}</div> : null}
-                {renderChatMessages()}
+                <div className={styles.chatScrollInner}>
+                  {combinedChatEntries.length > 0 ? <div className={styles.tabletChatDate}>{currentDate}</div> : null}
+                  {renderChatMessages()}
+                </div>
               </div>
 
               {renderChatComposer()}
@@ -3213,6 +3693,7 @@ export function ConferenceRoomContent({
 
           {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
           {renderSettingsPanel(styles.tabletSettingsPanel)}
+          {renderClearChatConfirm()}
 
           <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
             {roomTitle}
@@ -3226,20 +3707,38 @@ export function ConferenceRoomContent({
           )}
           {renderRecordingIndicator(undefined, styles.tabletRecordingIndicator)}
 
-          <DisconnectButton
-            className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
-            aria-label="Выйти"
-            onClick={onExitIntent}
-          >
-            <span className={styles.exitGlow} aria-hidden="true" />
-            <span className={styles.tabletExitIcon} aria-hidden="true">
-              <ExitArrowIcon />
-            </span>
-            <span className={styles.tabletExitMenu} aria-hidden="true">
-              <ChevronDownIcon />
-            </span>
-          </DisconnectButton>
-          {renderExitMenuTrigger(`${styles.exitMenuTriggerTablet} ${styles.tabletHeaderExitMenuTrigger}`)}
+          {canEndRoom ? (
+            <button
+              type="button"
+              className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
+              aria-label="Выйти"
+              aria-haspopup="menu"
+              aria-expanded={exitMenuOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                setExitMenuOpen((current) => !current);
+              }}
+            >
+              <span className={styles.exitGlow} aria-hidden="true" />
+              <span className={styles.tabletExitIcon} aria-hidden="true">
+                <ExitArrowIcon />
+              </span>
+              <span className={styles.tabletExitMenu} aria-hidden="true">
+                <ChevronDownIcon />
+              </span>
+            </button>
+          ) : (
+            <DisconnectButton
+              className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
+              aria-label="Выйти"
+              onClick={onExitIntent}
+            >
+              <span className={styles.exitGlow} aria-hidden="true" />
+              <span className={styles.tabletExitIcon} aria-hidden="true">
+                <ExitArrowIcon />
+              </span>
+            </DisconnectButton>
+          )}
           {renderExitMenu(undefined, styles.tabletHeaderExitDropdown)}
 
           <div
@@ -3437,15 +3936,21 @@ export function ConferenceRoomContent({
 
           {isChatPanelOpen ? (
             <aside
-              className={`${styles.sidePanel} ${styles.chatPanel} ${styles.mobileChatPanel}`}
+              className={`${styles.sidePanel} ${styles.chatPanel} ${styles.mobileChatPanel}${
+                pinnedMessages.length > 0 ? ` ${styles.chatPanelHasPin}` : ""
+              }`}
               style={mobileContentRect(0, 1)}
             >
               <div className={styles.sideHeaderFade} />
               <div className={styles.chatTitle}>Чат</div>
+              {renderChatClearButton()}
+              {renderPinnedBanner()}
 
               <div className={`${styles.chatScroll} ${styles.mobileChatScroll}`} ref={chatScrollRef}>
-                {chatMessages.length > 0 ? <div className={styles.mobileChatDate}>{currentDate}</div> : null}
-                {renderChatMessages()}
+                <div className={styles.chatScrollInner}>
+                  {combinedChatEntries.length > 0 ? <div className={styles.mobileChatDate}>{currentDate}</div> : null}
+                  {renderChatMessages()}
+                </div>
               </div>
 
               {renderChatComposer(styles.mobileChatComposer)}
@@ -3465,6 +3970,7 @@ export function ConferenceRoomContent({
 
           {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
           {renderSettingsPanel(styles.mobileSettingsPanel)}
+          {renderClearChatConfirm()}
 
           {canEndRoom ? (
             <button
@@ -3628,13 +4134,21 @@ export function ConferenceRoomContent({
         ) : null}
 
         {isChatPanelOpen ? (
-          <aside className={`${styles.sidePanel} ${styles.chatPanel} ${styles.desktopChatPanel}`}>
+          <aside
+            className={`${styles.sidePanel} ${styles.chatPanel} ${styles.desktopChatPanel}${
+              pinnedMessages.length > 0 ? ` ${styles.chatPanelHasPin}` : ""
+            }`}
+          >
             <div className={styles.sideHeaderFade} />
             <div className={styles.chatTitle}>Чат</div>
+            {renderChatClearButton()}
+            {renderPinnedBanner()}
             <div className={styles.chatDate}>{currentDate}</div>
 
             <div className={styles.chatScroll} ref={chatScrollRef}>
-              {renderChatMessages()}
+              <div className={styles.chatScrollInner}>
+                {renderChatMessages()}
+              </div>
             </div>
 
             {renderChatComposer()}
@@ -3674,6 +4188,7 @@ export function ConferenceRoomContent({
 
         {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
         {renderSettingsPanel(styles.desktopSettingsPanel)}
+        {renderClearChatConfirm()}
 
         <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
           {roomTitle}
@@ -3687,21 +4202,40 @@ export function ConferenceRoomContent({
         )}
         {renderRecordingIndicator(undefined, styles.desktopRecordingIndicator)}
 
-        <DisconnectButton
-          className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}
-          aria-label="Выйти"
-          onClick={onExitIntent}
-        >
-          <span className={styles.exitGlow} aria-hidden="true" />
-          <span className={styles.exitIcon} aria-hidden="true">
-            <ExitArrowIcon />
-          </span>
-          <span className={styles.exitLabel}>Выйти</span>
-          <span className={styles.exitMenu} aria-hidden="true">
-            <ChevronDownIcon />
-          </span>
-        </DisconnectButton>
-        {renderExitMenuTrigger(`${styles.exitMenuTriggerStage} ${styles.desktopHeaderExitMenuTrigger}`)}
+        {canEndRoom ? (
+          <button
+            type="button"
+            className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}
+            aria-label="Выйти"
+            aria-haspopup="menu"
+            aria-expanded={exitMenuOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExitMenuOpen((current) => !current);
+            }}
+          >
+            <span className={styles.exitGlow} aria-hidden="true" />
+            <span className={styles.exitIcon} aria-hidden="true">
+              <ExitArrowIcon />
+            </span>
+            <span className={styles.exitLabel}>Выйти</span>
+            <span className={styles.exitMenu} aria-hidden="true">
+              <ChevronDownIcon />
+            </span>
+          </button>
+        ) : (
+          <DisconnectButton
+            className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}
+            aria-label="Выйти"
+            onClick={onExitIntent}
+          >
+            <span className={styles.exitGlow} aria-hidden="true" />
+            <span className={styles.exitIcon} aria-hidden="true">
+              <ExitArrowIcon />
+            </span>
+            <span className={styles.exitLabel}>Выйти</span>
+          </DisconnectButton>
+        )}
         {renderExitMenu(undefined, styles.desktopHeaderExitDropdown)}
 
         <div

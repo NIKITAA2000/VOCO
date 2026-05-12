@@ -191,6 +191,48 @@ class ApiClient {
     });
   }
 
+  // Pinned messages
+  async pinMessage(
+    slug: string,
+    payload: {
+      message: string;
+      authorIdentity?: string;
+      authorName?: string;
+      originalExternalId?: string;
+      originalTimestamp?: number;
+    },
+  ) {
+    return this.request(`/rooms/${slug}/pins`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async unpinMessage(slug: string, pinId: string) {
+    return this.request(`/rooms/${slug}/pins/${pinId}`, { method: "DELETE" });
+  }
+
+  // Chat persistence
+  async saveRoomMessage(
+    slug: string,
+    payload: {
+      message: string;
+      authorIdentity: string;
+      authorName?: string;
+      sentAt: number;
+      isGuest?: boolean;
+    },
+  ) {
+    return this.request(`/rooms/${slug}/messages`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async clearRoomMessages(slug: string) {
+    return this.request(`/rooms/${slug}/messages`, { method: "DELETE" });
+  }
+
   // Invites (owner)
   async createInvite(
     slug: string,

@@ -2018,6 +2018,16 @@
   z-index: 4;
 }
 
+.join-room-item:last-child .join-room-closed-menu {
+  top: auto;
+  bottom: 60px;
+  background: linear-gradient(0deg, #deeeff 0%, #ffffff 100%);
+}
+
+.theme-dark .join-room-item:last-child .join-room-closed-menu {
+  background: linear-gradient(0deg, #002550 0%, #222222 100%);
+}
+
 .join-room-closed-menu-button {
   appearance: none;
   position: relative;

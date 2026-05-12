@@ -9,6 +9,8 @@ import {
   createInviteSchema,
   blockUserSchema,
   changeRoleSchema,
+  pinMessageSchema,
+  saveChatMessageSchema,
 } from "../schemas/index.js";
 import { config } from "../config/index.js";
 import {
@@ -153,6 +155,29 @@ router.get("/:slug", async (req: Request, res: Response) => {
       myRole = myRoleResult.rows[0]?.role ?? null;
     }
 
+    const pinsResult = await db.query(
+      `SELECT id, message, author_identity AS "authorIdentity",
+              author_name AS "authorName",
+              original_external_id AS "originalExternalId",
+              original_timestamp AS "originalTimestamp",
+              pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
+       FROM pinned_messages
+       WHERE room_id = $1
+       ORDER BY pinned_at ASC`,
+      [row.id]
+    );
+
+    const chatResult = await db.query(
+      `SELECT id, external_id AS "externalId",
+              author_identity AS "authorIdentity",
+              author_name AS "authorName", message,
+              sent_at AS "sentAt", is_guest AS "isGuest"
+       FROM chat_messages
+       WHERE room_id = $1
+       ORDER BY sent_at ASC`,
+      [row.id]
+    );
+
     res.json({
       room: {
         id: row.id,
@@ -172,6 +197,25 @@ router.get("/:slug", async (req: Request, res: Response) => {
           role: p.role,
           joinedAt: p.joinedAt,
           user: { id: p.userId, username: p.username, avatarUrl: p.avatarUrl },
+        })),
+        pinnedMessages: pinsResult.rows.map((p) => ({
+          id: p.id,
+          message: p.message,
+          authorIdentity: p.authorIdentity,
+          authorName: p.authorName,
+          originalExternalId: p.originalExternalId,
+          originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
+          pinnedBy: p.pinnedBy,
+          pinnedAt: p.pinnedAt,
+        })),
+        chatHistory: chatResult.rows.map((m) => ({
+          id: m.id,
+          externalId: m.externalId,
+          authorIdentity: m.authorIdentity,
+          authorName: m.authorName,
+          message: m.message,
+          sentAt: Number(m.sentAt),
+          isGuest: m.isGuest,
         })),
       },
     });
@@ -343,7 +387,7 @@ router.post("/:slug/leave", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/rooms/:slug/invite — создать ссылку-приглашение (только владелец)
+// POST /api/rooms/:slug/invite — создать ссылку-приглашение (owner или moderator)
 router.post("/:slug/invite", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
@@ -358,8 +402,17 @@ router.post("/:slug/invite", async (req: Request, res: Response) => {
 
     const room = roomResult.rows[0];
 
-    if (room.ownerId !== req.user!.userId) {
-      res.status(403).json({ error: "Только владелец может создавать ссылки-приглашения" });
+    const isOwner = room.ownerId === req.user!.userId;
+    let isModerator = false;
+    if (!isOwner) {
+      const roleResult = await db.query(
+        "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+        [req.user!.userId, room.id]
+      );
+      isModerator = roleResult.rows[0]?.role === "MODERATOR";
+    }
+    if (!isOwner && !isModerator) {
+      res.status(403).json({ error: "Только владелец или модератор может создавать ссылки-приглашения" });
       return;
     }
 
@@ -388,7 +441,7 @@ router.post("/:slug/invite", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/rooms/:slug/invites — список ссылок-приглашений (только владелец)
+// GET /api/rooms/:slug/invites — список ссылок-приглашений (owner или moderator)
 router.get("/:slug/invites", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
@@ -403,8 +456,17 @@ router.get("/:slug/invites", async (req: Request, res: Response) => {
 
     const room = roomResult.rows[0];
 
-    if (room.ownerId !== req.user!.userId) {
-      res.status(403).json({ error: "Только владелец может просматривать ссылки-приглашения" });
+    const isOwner = room.ownerId === req.user!.userId;
+    let isModerator = false;
+    if (!isOwner) {
+      const roleResult = await db.query(
+        "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+        [req.user!.userId, room.id]
+      );
+      isModerator = roleResult.rows[0]?.role === "MODERATOR";
+    }
+    if (!isOwner && !isModerator) {
+      res.status(403).json({ error: "Только владелец или модератор может просматривать ссылки-приглашения" });
       return;
     }
 
@@ -425,7 +487,7 @@ router.get("/:slug/invites", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/rooms/:slug/invite/:code — деактивировать ссылку (только владелец)
+// DELETE /api/rooms/:slug/invite/:code — деактивировать ссылку (owner или moderator)
 router.delete("/:slug/invite/:code", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
@@ -440,8 +502,17 @@ router.delete("/:slug/invite/:code", async (req: Request, res: Response) => {
 
     const room = roomResult.rows[0];
 
-    if (room.ownerId !== req.user!.userId) {
-      res.status(403).json({ error: "Только владелец может деактивировать ссылки-приглашения" });
+    const isOwner = room.ownerId === req.user!.userId;
+    let isModerator = false;
+    if (!isOwner) {
+      const roleResult = await db.query(
+        "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+        [req.user!.userId, room.id]
+      );
+      isModerator = roleResult.rows[0]?.role === "MODERATOR";
+    }
+    if (!isOwner && !isModerator) {
+      res.status(403).json({ error: "Только владелец или модератор может деактивировать ссылки-приглашения" });
       return;
     }
 
@@ -1031,6 +1102,186 @@ router.post("/:slug/reject/:identity", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/rooms/:slug/messages — сохранить сообщение чата
+// Любой авторизованный участник может вызывать; идемпотентен по (room_id, author_identity, sent_at).
+// Авторизованные клиенты вызывают это для каждого нового сообщения в `useChat`,
+// включая чужие — чтобы гарантированно сохранить сообщения гостей (у них нет Bearer).
+router.post("/:slug/messages", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT 1 FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    if (authResult.rows.length === 0) {
+      res.status(403).json({ error: "Вы не в этой комнате" });
+      return;
+    }
+
+    const parsed = saveChatMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { externalId, message, authorIdentity, authorName, sentAt, isGuest } = parsed.data;
+
+    const inserted = await db.query(
+      `INSERT INTO chat_messages (room_id, external_id, author_identity, author_name, message, sent_at, is_guest)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (room_id, external_id) DO NOTHING
+       RETURNING id`,
+      [room.id, externalId, authorIdentity, authorName ?? null, message, sentAt, isGuest]
+    );
+
+    res.status(201).json({ saved: (inserted.rowCount ?? 0) > 0 });
+  } catch (error) {
+    console.error("Save chat message error:", error);
+    res.status(500).json({ error: "Не удалось сохранить сообщение" });
+  }
+});
+
+// DELETE /api/rooms/:slug/messages — очистить весь чат (owner или moderator)
+router.delete("/:slug/messages", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    await db.query(`DELETE FROM chat_messages WHERE room_id = $1`, [room.id]);
+    res.json({ message: "Чат очищен" });
+  } catch (error) {
+    console.error("Clear chat error:", error);
+    res.status(500).json({ error: "Не удалось очистить чат" });
+  }
+});
+
+// POST /api/rooms/:slug/pins — закрепить сообщение (owner или moderator)
+router.post("/:slug/pins", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const parsed = pinMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { message, authorIdentity, authorName, originalExternalId, originalTimestamp } = parsed.data;
+
+    const inserted = await db.query(
+      `INSERT INTO pinned_messages (room_id, message, author_identity, author_name, original_external_id, original_timestamp, pinned_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, message, author_identity AS "authorIdentity",
+                 author_name AS "authorName",
+                 original_external_id AS "originalExternalId",
+                 original_timestamp AS "originalTimestamp",
+                 pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"`,
+      [
+        room.id,
+        message,
+        authorIdentity ?? null,
+        authorName ?? null,
+        originalExternalId ?? null,
+        originalTimestamp ?? null,
+        req.user!.userId,
+      ]
+    );
+
+    const pin = inserted.rows[0];
+    res.status(201).json({
+      pin: {
+        ...pin,
+        originalTimestamp:
+          pin.originalTimestamp != null ? Number(pin.originalTimestamp) : null,
+      },
+    });
+  } catch (error) {
+    console.error("Pin message error:", error);
+    res.status(500).json({ error: "Не удалось закрепить сообщение" });
+  }
+});
+
+// DELETE /api/rooms/:slug/pins/:pinId — открепить (owner или moderator)
+router.delete("/:slug/pins/:pinId", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const room = roomResult.rows[0];
+
+    const authResult = await db.query(
+      "SELECT role FROM participants WHERE user_id = $1 AND room_id = $2 AND left_at IS NULL",
+      [req.user!.userId, room.id]
+    );
+    const requesterRole = authResult.rows[0]?.role;
+    if (requesterRole !== "OWNER" && requesterRole !== "MODERATOR") {
+      res.status(403).json({ error: "Недостаточно прав" });
+      return;
+    }
+
+    const result = await db.query(
+      `DELETE FROM pinned_messages WHERE id = $1 AND room_id = $2`,
+      [req.params.pinId, room.id]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: "Закреплённое сообщение не найдено" });
+      return;
+    }
+
+    res.json({ message: "Сообщение откреплено" });
+  } catch (error) {
+    console.error("Unpin message error:", error);
+    res.status(500).json({ error: "Не удалось открепить сообщение" });
+  }
+});
+
 // DELETE /api/rooms/:slug
 router.delete("/:slug", async (req: Request, res: Response) => {
   try {
@@ -1065,6 +1316,8 @@ router.delete("/:slug", async (req: Request, res: Response) => {
       "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
       [room.id]
     );
+    // Закрытие комнаты завершает встречу — чат стирается. Удаление комнаты не выполняем.
+    await db.query("DELETE FROM chat_messages WHERE room_id = $1", [room.id]);
 
     res.json({ message: "Комната закрыта" });
   } catch (error) {

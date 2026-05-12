@@ -10,6 +10,52 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 
+async function loadPinnedMessages(roomId: string) {
+  const result = await db.query(
+    `SELECT id, message, author_identity AS "authorIdentity",
+            author_name AS "authorName",
+            original_external_id AS "originalExternalId",
+            original_timestamp AS "originalTimestamp",
+            pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
+     FROM pinned_messages
+     WHERE room_id = $1
+     ORDER BY pinned_at ASC`,
+    [roomId]
+  );
+  return result.rows.map((p) => ({
+    id: p.id,
+    message: p.message,
+    authorIdentity: p.authorIdentity,
+    authorName: p.authorName,
+    originalExternalId: p.originalExternalId,
+    originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
+    pinnedBy: p.pinnedBy,
+    pinnedAt: p.pinnedAt,
+  }));
+}
+
+async function loadChatHistory(roomId: string) {
+  const result = await db.query(
+    `SELECT id, external_id AS "externalId",
+            author_identity AS "authorIdentity",
+            author_name AS "authorName", message,
+            sent_at AS "sentAt", is_guest AS "isGuest"
+     FROM chat_messages
+     WHERE room_id = $1
+     ORDER BY sent_at ASC`,
+    [roomId]
+  );
+  return result.rows.map((m) => ({
+    id: m.id,
+    externalId: m.externalId,
+    authorIdentity: m.authorIdentity,
+    authorName: m.authorName,
+    message: m.message,
+    sentAt: Number(m.sentAt),
+    isGuest: m.isGuest,
+  }));
+}
+
 const router = Router();
 
 interface InviteRow {
@@ -177,12 +223,19 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
+    const [pinnedMessages, chatHistory] = await Promise.all([
+      loadPinnedMessages(invite.roomId),
+      loadChatHistory(invite.roomId),
+    ]);
+
     res.json({
       message: isPending ? "Запрос отправлен модератору" : "Присоединились к комнате",
       token: livekitToken,
       livekitUrl,
       pending: isPending,
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
+      pinnedMessages,
+      chatHistory,
     });
   } catch (error) {
     console.error("Invite join error:", error);
@@ -261,6 +314,11 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
+    const [pinnedMessages, chatHistory] = await Promise.all([
+      loadPinnedMessages(invite.roomId),
+      loadChatHistory(invite.roomId),
+    ]);
+
     res.json({
       message: isPending
         ? "Запрос отправлен модератору"
@@ -270,6 +328,8 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
       guestIdentity,
       pending: isPending,
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
+      pinnedMessages,
+      chatHistory,
     });
   } catch (error) {
     console.error("Invite guest join error:", error);
