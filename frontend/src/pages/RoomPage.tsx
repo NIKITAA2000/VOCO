@@ -2442,24 +2442,6 @@ export function ConferenceRoomContent({
       </div>
     ) : null;
 
-  const renderExitMenuTrigger = (className: string, style?: CSSProperties) =>
-    canEndRoom ? (
-      <button
-        type="button"
-        className={`${styles.exitMenuTrigger} ${className}`}
-        style={style}
-        onClick={(event) => {
-          event.stopPropagation();
-          event.preventDefault();
-          setExitMenuOpen((current) => !current);
-        }}
-        onMouseDown={(event) => event.stopPropagation()}
-        aria-haspopup="menu"
-        aria-expanded={exitMenuOpen}
-        aria-label="Меню выхода"
-      />
-    ) : null;
-
   const handleCopyRoomCode = useCallback(async () => {
     if (!slug || codeCopyStatus === "copying") return;
     setCodeCopyStatus("copying");

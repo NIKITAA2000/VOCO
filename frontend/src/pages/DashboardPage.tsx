@@ -333,8 +333,6 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
 
   const handleClosedRoomDelete = async (room: any) => {
     if (!room?.slug || closedRoomActionLoading) return;
-    const confirmed = window.confirm(`Удалить комнату «${room.name}»?`);
-    if (!confirmed) return;
     setJoinError("");
     setClosedRoomMenuOpen("");
     setClosedRoomActionLoading(`delete:${room.slug}`);

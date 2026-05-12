@@ -216,6 +216,7 @@ class ApiClient {
   async saveRoomMessage(
     slug: string,
     payload: {
+      externalId?: string;
       message: string;
       authorIdentity: string;
       authorName?: string;
