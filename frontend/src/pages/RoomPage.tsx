@@ -403,6 +403,7 @@ function isTrackSpeaking(trackRef: any) {
 function parseParticipantStatus(participant: any): {
   status: "pending" | "active";
   isGuest: boolean;
+  role?: "OWNER" | "MODERATOR" | "PARTICIPANT";
 } {
   const raw = participant?.metadata;
   if (!raw || typeof raw !== "string") {
@@ -410,9 +411,15 @@ function parseParticipantStatus(participant: any): {
   }
   try {
     const data = JSON.parse(raw);
+    const rawRole = data?.role;
+    const role =
+      rawRole === "OWNER" || rawRole === "MODERATOR" || rawRole === "PARTICIPANT"
+        ? rawRole
+        : undefined;
     return {
       status: data?.status === "pending" ? "pending" : "active",
       isGuest: Boolean(data?.isGuest),
+      role,
     };
   } catch {
     return { status: "active", isGuest: false };
@@ -2534,6 +2541,26 @@ export function ConferenceRoomContent({
       participant.identity !== localIdentity &&
       parseParticipantStatus(participant).status === "pending",
   );
+  const participantMetaByUserId = new Map(
+    roomParticipants.map((participant) => [participant.user.id, participant] as const),
+  );
+  // Получаем роль участника. Сначала пытаемся из LiveKit-метаданных (доступно всем,
+  // в т.ч. гостям), потом из participantMetaByUserId (только для авторизованных).
+  const resolveParticipantRole = (participant: any): "OWNER" | "MODERATOR" | "PARTICIPANT" | undefined => {
+    const fromMeta = parseParticipantStatus(participant).role;
+    if (fromMeta) return fromMeta;
+    return participantMetaByUserId.get(participant?.identity ?? "")?.role as any;
+  };
+  // Ранг для сортировки: OWNER → MODERATOR → обычный зарегистрированный → гость
+  const participantRoleRank = (participant: any): number => {
+    const identity = participant?.identity;
+    if (!identity) return 3;
+    if (identity.startsWith("guest_")) return 3;
+    const role = resolveParticipantRole(participant);
+    if (role === "OWNER") return 0;
+    if (role === "MODERATOR") return 1;
+    return 2;
+  };
   const orderedParticipants = allRoomParticipants
     .filter(
       (participant: any) =>
@@ -2543,11 +2570,11 @@ export function ConferenceRoomContent({
     .sort((left: any, right: any) => {
       if (left.identity === localIdentity) return -1;
       if (right.identity === localIdentity) return 1;
+      const lRank = participantRoleRank(left);
+      const rRank = participantRoleRank(right);
+      if (lRank !== rRank) return lRank - rRank;
       return (left.name || left.identity || "").localeCompare(right.name || right.identity || "", "ru");
     });
-  const participantMetaByUserId = new Map(
-    roomParticipants.map((participant) => [participant.user.id, participant] as const),
-  );
   const canModerateParticipants = Boolean(
     isOwner || roomRole === "OWNER" || roomRole === "MODERATOR",
   );
@@ -3062,17 +3089,32 @@ export function ConferenceRoomContent({
     return () => window.cancelAnimationFrame(frame);
   }, [focusChatInput, isChatPanelOpen, isCompactLayout]);
 
-  const getParticipantMeta = (participant: any) =>
-    participantMetaByUserId.get(participant?.identity) ??
-    ({
+  const getParticipantMeta = (participant: any) => {
+    const existing = participantMetaByUserId.get(participant?.identity);
+    if (existing) {
+      // Если у участника метаданные LiveKit говорят о более актуальной роли —
+      // (например, гость смотрит и не имеет доступа к /api/rooms),
+      // подменим. Для зарегистрированных это обычно одно и то же.
+      const metaRole = parseParticipantStatus(participant).role;
+      if (metaRole && metaRole !== existing.role) {
+        return { ...existing, role: metaRole };
+      }
+      return existing;
+    }
+    const metaRole = parseParticipantStatus(participant).role;
+    const fallbackRole =
+      metaRole ??
+      (participant?.identity === localIdentity && isOwner ? "OWNER" : "PARTICIPANT");
+    return {
       id: participant?.identity ?? "",
-      role: participant?.identity === localIdentity && isOwner ? "OWNER" : "PARTICIPANT",
+      role: fallbackRole,
       user: {
         id: participant?.identity ?? "",
         username: participant?.name || participant?.identity || "Участник",
         avatarUrl: participant?.identity === localIdentity ? currentUserAvatarUrl ?? null : null,
       },
-    } satisfies RoomParticipantMeta);
+    } satisfies RoomParticipantMeta;
+  };
 
   const canManageTarget = (meta: RoomParticipantMeta, isLocal: boolean) => {
     if (!canModerateParticipants || isLocal || !meta.user.id) return false;

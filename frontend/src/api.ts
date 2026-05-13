@@ -119,8 +119,9 @@ class ApiClient {
     });
   }
 
-  async getRooms() {
-    return this.request("/rooms");
+  async getRooms(options?: { includeHidden?: boolean }) {
+    const qs = options?.includeHidden ? "?includeHidden=true" : "";
+    return this.request(`/rooms${qs}`);
   }
 
   async getRoom(slug: string) {
@@ -232,6 +233,14 @@ class ApiClient {
 
   async clearRoomMessages(slug: string) {
     return this.request(`/rooms/${slug}/messages`, { method: "DELETE" });
+  }
+
+  async hideRoom(slug: string) {
+    return this.request(`/rooms/${slug}/hide`, { method: "POST" });
+  }
+
+  async unhideRoom(slug: string) {
+    return this.request(`/rooms/${slug}/hide`, { method: "DELETE" });
   }
 
   // Invites (owner)

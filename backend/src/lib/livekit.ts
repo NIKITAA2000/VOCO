@@ -19,9 +19,12 @@ export const roomService = new RoomServiceClient(
 export const PARTICIPANT_STATUS_PENDING = "pending";
 export const PARTICIPANT_STATUS_ACTIVE = "active";
 
+export type ParticipantRole = "OWNER" | "MODERATOR" | "PARTICIPANT";
+
 export type ParticipantMetadata = {
   status: typeof PARTICIPANT_STATUS_PENDING | typeof PARTICIPANT_STATUS_ACTIVE;
   isGuest?: boolean;
+  role?: ParticipantRole;
 };
 
 export function buildMetadata(meta: ParticipantMetadata) {

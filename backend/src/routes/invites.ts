@@ -208,6 +208,7 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       name: displayName || req.user!.username,
       metadata: buildMetadata({
         status: isPending ? "pending" : PARTICIPANT_STATUS_ACTIVE,
+        role: participantRole as any,
       }),
     });
 

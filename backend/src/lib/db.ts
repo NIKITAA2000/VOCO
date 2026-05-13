@@ -99,6 +99,13 @@ export async function initDatabase() {
       ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS original_external_id TEXT;
       CREATE INDEX IF NOT EXISTS idx_pinned_messages_room ON pinned_messages(room_id, pinned_at);
 
+      CREATE TABLE IF NOT EXISTS hidden_rooms (
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        hidden_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (user_id, room_id)
+      );
+
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),

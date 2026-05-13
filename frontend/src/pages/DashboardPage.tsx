@@ -119,6 +119,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [profileSaving, setProfileSaving] = useState(false);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(false);
+  const [showHiddenRooms, setShowHiddenRooms] = useState(false);
   const getInitialThemeMode = (): ThemeMode => {
     const saved = localStorage.getItem("voco_theme_mode");
     if (saved === "light" || saved === "dark" || saved === "system") return saved;
@@ -225,6 +226,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   useEffect(() => {
     if (!joinOpen) {
       setClosedRoomMenuOpen("");
+      setShowHiddenRooms(false);
       return;
     }
 
@@ -232,7 +234,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     const loadRooms = async () => {
       try {
         setActiveRoomsLoading(true);
-        const data = await api.getRooms();
+        const data = await api.getRooms({ includeHidden: showHiddenRooms });
         if (!cancelled) {
           setActiveRooms(Array.isArray(data?.rooms) ? data.rooms : []);
         }
@@ -251,7 +253,7 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [joinOpen]);
+  }, [joinOpen, showHiddenRooms]);
 
   const handleCreateRoom = () => {
     setRoomNameInput("");
@@ -341,6 +343,65 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
       setActiveRooms((rooms) => rooms.filter((item) => item.id !== room.id));
     } catch (err: any) {
       setJoinError(err?.message || "Не удалось удалить комнату");
+    } finally {
+      setClosedRoomActionLoading("");
+    }
+  };
+
+  const handleActiveRoomClose = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    setJoinError("");
+    setClosedRoomMenuOpen("");
+    setClosedRoomActionLoading(`close:${room.slug}`);
+    try {
+      await api.deleteRoom(room.slug);
+      // комната становится закрытой; обновим её локально, чтобы UI поменялся без повторного запроса
+      setActiveRooms((rooms) =>
+        rooms.map((item) =>
+          item.id === room.id
+            ? { ...item, isActive: false, closedAt: new Date().toISOString() }
+            : item,
+        ),
+      );
+    } catch (err: any) {
+      setJoinError(err?.message || "Не удалось закрыть комнату");
+    } finally {
+      setClosedRoomActionLoading("");
+    }
+  };
+
+  const handleHideRoom = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    setJoinError("");
+    setClosedRoomActionLoading(`hide:${room.slug}`);
+    try {
+      await api.hideRoom(room.slug);
+      if (showHiddenRooms) {
+        // в режиме «показать скрытые» оставляем строку, помечая её скрытой
+        setActiveRooms((rooms) =>
+          rooms.map((item) => (item.id === room.id ? { ...item, hidden: true } : item)),
+        );
+      } else {
+        setActiveRooms((rooms) => rooms.filter((item) => item.id !== room.id));
+      }
+    } catch (err: any) {
+      setJoinError(err?.message || "Не удалось скрыть комнату");
+    } finally {
+      setClosedRoomActionLoading("");
+    }
+  };
+
+  const handleUnhideRoom = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    setJoinError("");
+    setClosedRoomActionLoading(`hide:${room.slug}`);
+    try {
+      await api.unhideRoom(room.slug);
+      setActiveRooms((rooms) =>
+        rooms.map((item) => (item.id === room.id ? { ...item, hidden: false } : item)),
+      );
+    } catch (err: any) {
+      setJoinError(err?.message || "Не удалось вернуть комнату");
     } finally {
       setClosedRoomActionLoading("");
     }
@@ -797,7 +858,69 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                     ) : (
                       recentRooms.map((room) => {
                         const isClosed = room?.isActive === false;
-                        const closedRoomActions = isClosed ? (
+                        const isMine = Boolean(room?.owner?.id && user?.id && room.owner.id === user.id);
+                        const isHidden = room?.hidden === true;
+                        const canManageActive = isMine || room?.myRole === "MODERATOR";
+                        const hideButton = (
+                          <button
+                            type="button"
+                            className={`join-room-action ${isHidden ? "join-room-action--unhide" : "join-room-action--hide"}`}
+                            aria-label={isHidden ? "Вернуть комнату в список" : "Скрыть комнату из списка"}
+                            title={isHidden ? "Вернуть" : "Скрыть"}
+                            disabled={closedRoomActionLoading === `hide:${room.slug}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (isHidden) void handleUnhideRoom(room);
+                              else void handleHideRoom(room);
+                            }}
+                          />
+                        );
+                        const activeRoomManageActions = (
+                          <span className="join-room-actions join-room-actions--single" aria-label="Действия комнаты">
+                            <button
+                              type="button"
+                              className="join-room-action join-room-action--settings"
+                              aria-label="Настройки комнаты"
+                              aria-expanded={closedRoomMenuOpen === room.slug}
+                              disabled={closedRoomActionLoading.startsWith(`close:${room.slug}`) || closedRoomActionLoading.startsWith(`hide:${room.slug}`)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setClosedRoomMenuOpen((current) =>
+                                  current === room.slug ? "" : room.slug,
+                                );
+                              }}
+                            />
+                            {closedRoomMenuOpen === room.slug && (
+                              <span className="join-room-closed-menu" role="menu">
+                                <button
+                                  type="button"
+                                  className={`join-room-closed-menu-button ${isHidden ? "join-room-closed-menu-button--unhide" : "join-room-closed-menu-button--hide"}`}
+                                  role="menuitem"
+                                  aria-label={isHidden ? "Вернуть комнату в список" : "Скрыть комнату из списка"}
+                                  disabled={closedRoomActionLoading === `hide:${room.slug}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setClosedRoomMenuOpen("");
+                                    if (isHidden) void handleUnhideRoom(room);
+                                    else void handleHideRoom(room);
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="join-room-closed-menu-button join-room-closed-menu-button--close"
+                                  role="menuitem"
+                                  aria-label="Закрыть комнату"
+                                  disabled={closedRoomActionLoading === `close:${room.slug}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleActiveRoomClose(room);
+                                  }}
+                                />
+                              </span>
+                            )}
+                          </span>
+                        );
+                        const closedRoomActions = isClosed && isMine ? (
                           <span className="join-room-actions" aria-label="Действия закрытой комнаты">
                             <button
                               type="button"
@@ -862,28 +985,36 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                         return (
                           <li
                             key={room.id}
-                            className={`join-room-item${isClosed ? " join-room-item--closed" : ""}`}
+                            className={`join-room-item${isClosed ? " join-room-item--closed" : ""}${isHidden ? " join-room-item--hidden" : ""}`}
                           >
                             {isClosed ? (
                               <div className="join-room-link is-closed">
                                 <span className="join-room-name">{room.name}</span>
-                                {closedRoomActions}
+                                {isMine ? closedRoomActions : (
+                                  <span className="join-room-actions join-room-actions--hide-only" aria-label="Действия комнаты">
+                                    {hideButton}
+                                  </span>
+                                )}
                               </div>
                             ) : (
-                              <button
-                                type="button"
-                                className="join-room-link"
-                                onClick={() => {
-                                  navigate(`/room/${room.slug}`);
-                                  setJoinOpen(false);
-                                }}
-                              >
-                                <span className="join-room-name">{room.name}</span>
-                                <span className="join-room-code">{room.slug}</span>
-                                <span className="join-room-count">
-                                  {room?._count?.participants ?? 0}
-                                </span>
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className="join-room-link"
+                                  onClick={() => {
+                                    navigate(`/room/${room.slug}`);
+                                    setJoinOpen(false);
+                                  }}
+                                >
+                                  <span className="join-room-name">{room.name}</span>
+                                  <span className="join-room-code">{room.slug}</span>
+                                </button>
+                                {canManageActive ? activeRoomManageActions : (
+                                  <span className="join-room-actions join-room-actions--hide-only" aria-label="Действия комнаты">
+                                    {hideButton}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </li>
                         );
@@ -891,6 +1022,13 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                     )}
                   </ul>
                 )}
+                <button
+                  type="button"
+                  className="join-hidden-toggle"
+                  onClick={() => setShowHiddenRooms((v) => !v)}
+                >
+                  {showHiddenRooms ? "Скрыть скрытые" : "Показать скрытые"}
+                </button>
               </section>
             </section>
           </div>

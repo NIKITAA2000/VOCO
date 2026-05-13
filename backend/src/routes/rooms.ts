@@ -74,19 +74,45 @@ router.post("/", async (req: Request, res: Response) => {
 // GET /api/rooms
 router.get("/", async (req: Request, res: Response) => {
   try {
+    const includeHidden = req.query.includeHidden === "true";
+
     const result = await db.query(
-      `SELECT DISTINCT r.id, r.name, r.slug, r.is_active AS "isActive",
+      `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
               r.max_users AS "maxUsers", r.owner_id AS "ownerId",
               r.created_at AS "createdAt", r.closed_at AS "closedAt",
               u.id AS "owner_id", u.username AS "owner_username",
               (SELECT COUNT(DISTINCT p.user_id) FROM participants p
-               WHERE p.room_id = r.id AND p.left_at IS NULL) AS "activeCount"
+               WHERE p.room_id = r.id AND p.left_at IS NULL) AS "activeCount",
+              EXISTS (
+                SELECT 1 FROM hidden_rooms hr
+                WHERE hr.room_id = r.id AND hr.user_id = $1
+              ) AS "hidden",
+              (SELECT pr.role FROM participants pr
+               WHERE pr.room_id = r.id AND pr.user_id = $1
+               ORDER BY pr.joined_at DESC LIMIT 1) AS "myRole"
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
-       LEFT JOIN participants p ON p.room_id = r.id
-       WHERE r.owner_id = $1 OR p.user_id = $1
-       ORDER BY r.is_active DESC, r.created_at DESC`,
-      [req.user!.userId]
+       WHERE (r.owner_id = $1 OR EXISTS (
+               SELECT 1 FROM participants pp
+               WHERE pp.room_id = r.id AND pp.user_id = $1
+             ))
+         AND ($2 = true OR NOT EXISTS (
+           SELECT 1 FROM hidden_rooms hr
+           WHERE hr.room_id = r.id AND hr.user_id = $1
+         ))
+       ORDER BY
+         CASE
+           WHEN r.is_active = true AND (
+             r.owner_id = $1
+             OR (SELECT pr.role FROM participants pr
+                 WHERE pr.room_id = r.id AND pr.user_id = $1
+                 ORDER BY pr.joined_at DESC LIMIT 1) IN ('OWNER', 'MODERATOR')
+           ) THEN 0
+           WHEN r.is_active = true THEN 1
+           ELSE 2
+         END,
+         r.created_at DESC`,
+      [req.user!.userId, includeHidden]
     );
 
     const rooms = result.rows.map((row) => ({
@@ -100,6 +126,8 @@ router.get("/", async (req: Request, res: Response) => {
       closedAt: row.closedAt,
       owner: { id: row.owner_id, username: row.owner_username },
       _count: { participants: parseInt(row.activeCount) },
+      hidden: Boolean(row.hidden),
+      myRole: row.myRole ?? null,
     }));
 
     res.json({ rooms });
@@ -324,6 +352,7 @@ router.post("/:slug/join", async (req: Request, res: Response) => {
       name: displayName || req.user!.username,
       metadata: buildMetadata({
         status: isPending ? "pending" : PARTICIPANT_STATUS_ACTIVE,
+        role: participantRole as any,
       }),
     });
 
@@ -739,6 +768,20 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
       return;
     }
 
+    // Синхронизируем роль в LiveKit-метаданных, чтобы все клиенты (включая гостей)
+    // увидели изменение немедленно — иначе пришлось бы ждать переподключения.
+    try {
+      await roomService.updateParticipant(req.params.slug as string, req.params.userId, {
+        metadata: buildMetadata({
+          status: PARTICIPANT_STATUS_ACTIVE,
+          role: parsed.data.role,
+        }),
+      });
+    } catch {
+      // участник может быть оффлайн в LiveKit — не критично, при следующем join
+      // токен уже выпустится с новой ролью
+    }
+
     res.json({ message: "Роль обновлена" });
   } catch (error) {
     console.error("Change role error:", error);
@@ -1030,8 +1073,22 @@ router.post("/:slug/approve/:identity", async (req: Request, res: Response) => {
 
     const identity = String(req.params.identity);
     const isGuest = identity.startsWith("guest_");
+    let approvedRole: "OWNER" | "MODERATOR" | "PARTICIPANT" = "PARTICIPANT";
+    if (!isGuest) {
+      const roleResult = await db.query(
+        `SELECT role FROM participants WHERE user_id = $1 AND room_id = $2
+         ORDER BY joined_at DESC LIMIT 1`,
+        [identity, room.id],
+      );
+      const r = roleResult.rows[0]?.role;
+      if (r === "OWNER" || r === "MODERATOR") approvedRole = r;
+    }
     await roomService.updateParticipant(room.slug, identity, {
-      metadata: buildMetadata({ status: PARTICIPANT_STATUS_ACTIVE, isGuest }),
+      metadata: buildMetadata({
+        status: PARTICIPANT_STATUS_ACTIVE,
+        isGuest,
+        role: approvedRole,
+      }),
       permission: {
         canPublish: true,
         canSubscribe: true,
@@ -1282,11 +1339,66 @@ router.delete("/:slug/pins/:pinId", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/rooms/:slug
-router.delete("/:slug", async (req: Request, res: Response) => {
+// POST /api/rooms/:slug/hide — скрыть комнату из своего списка
+// Доступно любому, кто видит комнату (т.е. участвовал или владеет).
+router.post("/:slug/hide", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
-      `SELECT id, owner_id AS "ownerId" FROM rooms WHERE slug = $1`,
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const roomId = roomResult.rows[0].id;
+
+    await db.query(
+      `INSERT INTO hidden_rooms (user_id, room_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, room_id) DO NOTHING`,
+      [req.user!.userId, roomId]
+    );
+
+    res.json({ message: "Комната скрыта" });
+  } catch (error) {
+    console.error("Hide room error:", error);
+    res.status(500).json({ error: "Не удалось скрыть комнату" });
+  }
+});
+
+// DELETE /api/rooms/:slug/hide — вернуть комнату в список
+router.delete("/:slug/hide", async (req: Request, res: Response) => {
+  try {
+    const roomResult = await db.query(
+      `SELECT id FROM rooms WHERE slug = $1`,
+      [req.params.slug]
+    );
+    if (roomResult.rows.length === 0) {
+      res.status(404).json({ error: "Комната не найдена" });
+      return;
+    }
+    const roomId = roomResult.rows[0].id;
+
+    await db.query(
+      `DELETE FROM hidden_rooms WHERE user_id = $1 AND room_id = $2`,
+      [req.user!.userId, roomId]
+    );
+
+    res.json({ message: "Комната возвращена в список" });
+  } catch (error) {
+    console.error("Unhide room error:", error);
+    res.status(500).json({ error: "Не удалось вернуть комнату" });
+  }
+});
+
+// DELETE /api/rooms/:slug
+// Если комната активна — закрываем её (owner или moderator).
+// Если уже закрыта — удаляем запись и все зависимости (только владелец).
+router.delete("/:slug", async (req: Request, res: Response) => {
+  const client = await db.connect();
+  try {
+    const roomResult = await client.query(
+      `SELECT id, owner_id AS "ownerId", is_active AS "isActive" FROM rooms WHERE slug = $1`,
       [req.params.slug]
     );
 
@@ -1296,33 +1408,60 @@ router.delete("/:slug", async (req: Request, res: Response) => {
     }
 
     const room = roomResult.rows[0];
+    const isOwner = room.ownerId === req.user!.userId;
 
-    if (room.ownerId !== req.user!.userId) {
-      const roleResult = await db.query(
-        `SELECT role FROM participants
-         WHERE room_id = $1 AND user_id = $2
-         ORDER BY joined_at DESC
-         LIMIT 1`,
-        [room.id, req.user!.userId]
-      );
-      const role = roleResult.rows[0]?.role;
-      if (role !== "MODERATOR") {
-        res.status(403).json({ error: "Только владелец или модератор может закрыть комнату" });
-        return;
+    if (room.isActive) {
+      // ЗАКРЫТЬ: разрешено владельцу и модератору
+      if (!isOwner) {
+        const roleResult = await client.query(
+          `SELECT role FROM participants
+           WHERE room_id = $1 AND user_id = $2
+           ORDER BY joined_at DESC LIMIT 1`,
+          [room.id, req.user!.userId]
+        );
+        if (roleResult.rows[0]?.role !== "MODERATOR") {
+          res.status(403).json({ error: "Только владелец или модератор может закрыть комнату" });
+          return;
+        }
       }
+
+      await client.query(
+        "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
+        [room.id]
+      );
+      // Закрытие комнаты завершает встречу — чат стирается
+      await client.query("DELETE FROM chat_messages WHERE room_id = $1", [room.id]);
+
+      res.json({ message: "Комната закрыта" });
+      return;
     }
 
-    await db.query(
-      "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
-      [room.id]
-    );
-    // Закрытие комнаты завершает встречу — чат стирается. Удаление комнаты не выполняем.
-    await db.query("DELETE FROM chat_messages WHERE room_id = $1", [room.id]);
+    // УДАЛИТЬ навсегда: только владелец
+    if (!isOwner) {
+      res.status(403).json({ error: "Только владелец может удалить комнату" });
+      return;
+    }
 
-    res.json({ message: "Комната закрыта" });
+    await client.query("BEGIN");
+    try {
+      // FK без ON DELETE CASCADE — чистим вручную
+      await client.query("DELETE FROM participants WHERE room_id = $1", [room.id]);
+      await client.query("DELETE FROM blocked_users WHERE room_id = $1", [room.id]);
+      await client.query("DELETE FROM invite_links WHERE room_id = $1", [room.id]);
+      // chat_messages, pinned_messages, hidden_rooms — на CASCADE; удалятся сами
+      await client.query("DELETE FROM rooms WHERE id = $1", [room.id]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+
+    res.json({ message: "Комната удалена" });
   } catch (error) {
     console.error("Delete room error:", error);
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  } finally {
+    client.release();
   }
 });
 
