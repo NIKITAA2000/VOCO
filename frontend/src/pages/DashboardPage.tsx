@@ -941,44 +941,60 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                                 void handleClosedRoomReport(room);
                               }}
                             />
-                            <button
-                              type="button"
-                              className="join-room-action join-room-action--settings"
-                              aria-label="Настройки закрытой комнаты"
-                              aria-expanded={closedRoomMenuOpen === room.slug}
-                              disabled={closedRoomActionLoading.startsWith(`restore:${room.slug}`) || closedRoomActionLoading.startsWith(`delete:${room.slug}`)}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setClosedRoomMenuOpen((current) =>
-                                  current === room.slug ? "" : room.slug,
-                                );
-                              }}
-                            />
-                            {closedRoomMenuOpen === room.slug && (
-                              <span className="join-room-closed-menu" role="menu">
+                            {isHidden ? (
+                              <button
+                                type="button"
+                                className="join-room-action join-room-action--unhide"
+                                aria-label="Вернуть комнату в список"
+                                title="Вернуть"
+                                disabled={closedRoomActionLoading === `hide:${room.slug}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleUnhideRoom(room);
+                                }}
+                              />
+                            ) : (
+                              <>
                                 <button
                                   type="button"
-                                  className="join-room-closed-menu-button join-room-closed-menu-button--restore"
-                                  role="menuitem"
-                                  aria-label="Восстановить комнату"
-                                  disabled={closedRoomActionLoading === `restore:${room.slug}`}
+                                  className="join-room-action join-room-action--settings"
+                                  aria-label="Настройки закрытой комнаты"
+                                  aria-expanded={closedRoomMenuOpen === room.slug}
+                                  disabled={closedRoomActionLoading.startsWith(`restore:${room.slug}`) || closedRoomActionLoading.startsWith(`delete:${room.slug}`)}
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    void handleClosedRoomRestore(room);
+                                    setClosedRoomMenuOpen((current) =>
+                                      current === room.slug ? "" : room.slug,
+                                    );
                                   }}
                                 />
-                                <button
-                                  type="button"
-                                  className="join-room-closed-menu-button join-room-closed-menu-button--delete"
-                                  role="menuitem"
-                                  aria-label="Удалить комнату"
-                                  disabled={closedRoomActionLoading === `delete:${room.slug}`}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void handleClosedRoomDelete(room);
-                                  }}
-                                />
-                              </span>
+                                {closedRoomMenuOpen === room.slug && (
+                                  <span className="join-room-closed-menu" role="menu">
+                                    <button
+                                      type="button"
+                                      className="join-room-closed-menu-button join-room-closed-menu-button--restore"
+                                      role="menuitem"
+                                      aria-label="Восстановить комнату"
+                                      disabled={closedRoomActionLoading === `restore:${room.slug}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleClosedRoomRestore(room);
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="join-room-closed-menu-button join-room-closed-menu-button--delete"
+                                      role="menuitem"
+                                      aria-label="Удалить комнату"
+                                      disabled={closedRoomActionLoading === `delete:${room.slug}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleClosedRoomDelete(room);
+                                      }}
+                                    />
+                                  </span>
+                                )}
+                              </>
                             )}
                           </span>
                         ) : null;
