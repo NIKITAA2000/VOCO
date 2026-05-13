@@ -3,3 +3,7 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# user uploads (chat attachments) — хранятся в Docker volume в проде
+uploads/*
+!uploads/.gitkeep

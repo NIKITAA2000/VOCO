@@ -16,6 +16,11 @@ async function loadPinnedMessages(roomId: string) {
             author_name AS "authorName",
             original_external_id AS "originalExternalId",
             original_timestamp AS "originalTimestamp",
+            attachment_url AS "attachmentUrl",
+            attachment_name AS "attachmentName",
+            attachment_kind AS "attachmentKind",
+            attachment_size AS "attachmentSize",
+            attachment_mime AS "attachmentMime",
             pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
      FROM pinned_messages
      WHERE room_id = $1
@@ -24,11 +29,20 @@ async function loadPinnedMessages(roomId: string) {
   );
   return result.rows.map((p) => ({
     id: p.id,
-    message: p.message,
+    message: p.message ?? "",
     authorIdentity: p.authorIdentity,
     authorName: p.authorName,
     originalExternalId: p.originalExternalId,
     originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
+    attachment: p.attachmentUrl
+      ? {
+          url: p.attachmentUrl,
+          name: p.attachmentName,
+          kind: p.attachmentKind,
+          size: p.attachmentSize != null ? Number(p.attachmentSize) : null,
+          mime: p.attachmentMime,
+        }
+      : null,
     pinnedBy: p.pinnedBy,
     pinnedAt: p.pinnedAt,
   }));
@@ -39,7 +53,12 @@ async function loadChatHistory(roomId: string) {
     `SELECT id, external_id AS "externalId",
             author_identity AS "authorIdentity",
             author_name AS "authorName", message,
-            sent_at AS "sentAt", is_guest AS "isGuest"
+            sent_at AS "sentAt", is_guest AS "isGuest",
+            attachment_url AS "attachmentUrl",
+            attachment_name AS "attachmentName",
+            attachment_kind AS "attachmentKind",
+            attachment_size AS "attachmentSize",
+            attachment_mime AS "attachmentMime"
      FROM chat_messages
      WHERE room_id = $1
      ORDER BY sent_at ASC`,
@@ -50,9 +69,18 @@ async function loadChatHistory(roomId: string) {
     externalId: m.externalId,
     authorIdentity: m.authorIdentity,
     authorName: m.authorName,
-    message: m.message,
+    message: m.message ?? "",
     sentAt: Number(m.sentAt),
     isGuest: m.isGuest,
+    attachment: m.attachmentUrl
+      ? {
+          url: m.attachmentUrl,
+          name: m.attachmentName,
+          kind: m.attachmentKind,
+          size: m.attachmentSize != null ? Number(m.attachmentSize) : null,
+          mime: m.attachmentMime,
+        }
+      : null,
   }));
 }
 
@@ -119,6 +147,38 @@ async function validateInvite(
 
   return { invite };
 }
+
+// GET /api/invite/:code/info — публичная превью-информация о приглашении
+router.get("/:code/info", async (req: Request, res: Response) => {
+  try {
+    const validation = await validateInvite(req.params.code as string);
+    if ("error" in validation) {
+      res.status(validation.status).json({ error: validation.error });
+      return;
+    }
+    const { invite } = validation;
+
+    const ownerResult = await db.query(
+      "SELECT username FROM users WHERE id = $1",
+      [invite.roomOwnerId]
+    );
+    const ownerUsername = ownerResult.rows[0]?.username ?? "";
+
+    res.json({
+      room: {
+        id: invite.roomId,
+        name: invite.roomName,
+        slug: invite.roomSlug,
+        allowGuests: invite.roomAllowGuests && invite.allowGuests,
+        requireApproval: invite.roomRequireApproval,
+      },
+      owner: { username: ownerUsername },
+    });
+  } catch (error) {
+    console.error("Invite info error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
 
 // POST /api/invite/:code/join — войти по ссылке (с авторизацией)
 router.post("/:code/join", authenticate, async (req: Request, res: Response) => {

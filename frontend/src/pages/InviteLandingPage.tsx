@@ -20,26 +20,64 @@ export function InviteLandingPage({ user }: Props) {
   const [livekitUrl, setLivekitUrl] = useState("");
   const [roomName, setRoomName] = useState("");
   const [roomSlug, setRoomSlug] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [initialPins, setInitialPins] = useState<any[]>([]);
   const [initialChat, setInitialChat] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
   const [inQueue, setInQueue] = useState(false);
   const [rejectionToast, setRejectionToast] = useState<string | null>(null);
-  const [guestName, setGuestName] = useState("");
-  const defaultAuthedName =
+  const defaultName =
     (typeof localStorage !== "undefined" && localStorage.getItem("voco_room_display_name")) ||
-    user?.username ||
-    user?.email ||
-    "";
-  const [authedName, setAuthedName] = useState<string>(defaultAuthedName);
+    (isAuthed ? user?.username || user?.email || "" : "");
+  const [displayName, setDisplayName] = useState<string>(defaultName);
   const [submitting, setSubmitting] = useState(false);
   const [guestsDenied, setGuestsDenied] = useState(false);
   const leaveRequestedRef = useRef(false);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const waitingDate = now.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const waitingTime = now.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  useEffect(() => {
+    if (!code) {
+      setError("Ссылка недействительна");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const info: any = await api.getInviteInfo(code);
+        if (cancelled) return;
+        setRoomName(info?.room?.name ?? "");
+        setRoomSlug(info?.room?.slug ?? "");
+        setOwnerName(info?.owner?.username ?? "");
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message || "Ссылка недействительна");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
 
   const handleAuthedSubmit = useCallback(async () => {
     if (!code) return;
-    const name = authedName.trim();
+    const name = displayName.trim();
     setSubmitting(true);
     setError("");
     try {
@@ -61,15 +99,16 @@ export function InviteLandingPage({ user }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [code, authedName]);
+  }, [code, displayName]);
 
   const handleGuestSubmit = useCallback(async () => {
-    const name = guestName.trim();
+    const name = displayName.trim();
     if (!name || !code) return;
     setSubmitting(true);
     setError("");
     try {
       const data = await api.joinByInviteAsGuest(code, name);
+      localStorage.setItem("voco_room_display_name", name);
       setToken(data.token);
       setLivekitUrl(data.livekitUrl);
       setRoomName(data.room.name);
@@ -85,14 +124,14 @@ export function InviteLandingPage({ user }: Props) {
       const message: string = err?.message ?? "";
       if (/гост/i.test(message)) {
         setGuestsDenied(true);
-        setError("");
+        setError("Для входа в эту комнату нужен аккаунт");
       } else {
         setError(message);
       }
     } finally {
       setSubmitting(false);
     }
-  }, [code, guestName]);
+  }, [code, displayName]);
 
   const goToRegister = useCallback(() => {
     if (code) {
@@ -115,6 +154,10 @@ export function InviteLandingPage({ user }: Props) {
     }
     navigate("/login");
   }, [code, navigate]);
+
+  const handleWaitingLeave = useCallback(() => {
+    navigate(isAuthed ? "/dashboard" : "/login");
+  }, [isAuthed, navigate]);
 
   const handleLeaveIntent = useCallback(() => {
     leaveRequestedRef.current = true;
@@ -153,15 +196,19 @@ export function InviteLandingPage({ user }: Props) {
     setConferenceReady(true);
   }, []);
 
-  useEffect(() => {
-    if (!code) setError("Ссылка недействительна");
-  }, [code]);
+  const canSubmit =
+    !guestsDenied && !submitting && !inQueue && displayName.trim().length > 0;
 
-  const headerTitle = guestsDenied
-    ? "Требуется регистрация"
-    : isAuthed
-      ? "Присоединение по ссылке"
-      : "Вход гостем";
+  const handleEntrySubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (guestsDenied) {
+      goToRegister();
+      return;
+    }
+    if (!canSubmit) return;
+    if (isAuthed) void handleAuthedSubmit();
+    else void handleGuestSubmit();
+  };
 
   const liveKitConnection =
     token && livekitUrl && (inQueue || conferenceReady) ? (
@@ -183,11 +230,30 @@ export function InviteLandingPage({ user }: Props) {
               currentUserAvatarUrl={user?.avatarUrl ?? null}
               initialPinnedMessages={initialPins}
               initialChatHistory={initialChat}
+              livekitToken={token}
             />
           )}
         </LiveKitRoom>
       </div>
     ) : null;
+
+  const inputLabel = guestsDenied
+    ? "Гостям сюда нельзя"
+    : isAuthed
+      ? "Имя в конференции (или войдите с текущим)"
+      : "Имя в конференции";
+
+  const inputPlaceholder = isAuthed
+    ? user?.username || "your@email.com"
+    : "Гость";
+
+  const submitLabel = guestsDenied
+    ? "Зарегистрироваться"
+    : inQueue
+      ? "Ожидание в очереди"
+      : submitting
+        ? "Вход..."
+        : "Войти";
 
   return (
     <div className={conferenceReady ? styles.container : styles.waitingScreen}>
@@ -199,117 +265,83 @@ export function InviteLandingPage({ user }: Props) {
       {liveKitConnection}
       {!conferenceReady ? (
         <div className={styles.waitingStage}>
-          <section
-            className={`${styles.waitingPanel} ${guestsDenied ? styles.waitingPanelTall : ""}`}
+          <div className={styles.waitingBackdrop} aria-hidden="true">
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle1}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle2}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle3}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle4}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle5}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle6}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle7}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle8}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle9}`} />
+            <div className={`${styles.waitingCircle} ${styles.waitingCircle10}`} />
+          </div>
+
+          <div className={styles.waitingClock} aria-hidden="true">
+            <div className={styles.waitingClockDate}>{waitingDate}</div>
+            <div className={styles.waitingClockTime}>{waitingTime}</div>
+          </div>
+
+          <form
+            className={styles.waitingPanel}
             aria-label="Вход по приглашению"
+            onSubmit={handleEntrySubmit}
           >
             <div className={styles.waitingHeader}>
-              <h2>{headerTitle}</h2>
+              <h2>Комната ожидания</h2>
               <button
                 className={styles.waitingClose}
                 type="button"
-                onClick={() => navigate(isAuthed ? "/dashboard" : "/login")}
-                aria-label="Закрыть"
+                onClick={handleWaitingLeave}
+                aria-label={isAuthed ? "Вернуться в дашборд" : "Вернуться на главную"}
               />
             </div>
 
-            {guestsDenied ? (
-              <p className={styles.waitingHint}>
-                Владелец комнаты отключил гостевой вход. Зарегистрируйтесь или войдите,
-                чтобы присоединиться.
-              </p>
-            ) : isAuthed ? (
-              <>
-                <label className={styles.waitingLabel} htmlFor="authed-display-name">
-                  Ваше имя в конференции
-                </label>
-                <input
-                  id="authed-display-name"
-                  className={styles.waitingInput}
-                  type="text"
-                  value={authedName}
-                  onChange={(event) => setAuthedName(event.target.value)}
-                  placeholder={user?.username || "Участник"}
-                />
-              </>
-            ) : (
-              <>
-                <label className={styles.waitingLabel} htmlFor="guest-display-name">
-                  Ваше имя в конференции
-                </label>
-                <input
-                  id="guest-display-name"
-                  className={styles.waitingInput}
-                  type="text"
-                  value={guestName}
-                  onChange={(event) => setGuestName(event.target.value)}
-                  placeholder="Гость"
-                />
-              </>
-            )}
+            <label className={styles.waitingLabel} htmlFor="invite-display-name">
+              {inputLabel}
+            </label>
+
+            <input
+              id="invite-display-name"
+              className={styles.waitingInput}
+              type="text"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder={inputPlaceholder}
+              disabled={guestsDenied}
+              autoFocus={!guestsDenied}
+            />
 
             <div
               className={`${styles.waitingError} ${error ? "" : styles.waitingErrorHidden}`}
               aria-live="polite"
             >
-              {error ? `Ошибка: ${error}` : "\u00A0"}
+              {error ? `Ошибка: ${error}` : " "}
             </div>
 
-            {guestsDenied ? (
-              <div className={styles.waitingActions}>
-                <button
-                  className={styles.waitingSubmit}
-                  type="button"
-                  onClick={goToRegister}
-                >
-                  Зарегистрироваться
-                </button>
-                <button
-                  className={styles.waitingSecondary}
-                  type="button"
-                  onClick={goToLogin}
-                >
-                  Войти
-                </button>
-              </div>
-            ) : isAuthed ? (
-              <button
-                className={styles.waitingSubmit}
-                type="button"
-                onClick={handleAuthedSubmit}
-                disabled={submitting || inQueue}
-              >
-                {inQueue ? (
-                  <>
-                    Ожидание в очереди
-                    <span className={styles.queueDots} aria-hidden="true" />
-                  </>
-                ) : submitting ? (
-                  "Подключение..."
-                ) : (
-                  "Войти в комнату"
-                )}
-              </button>
-            ) : (
-              <button
-                className={styles.waitingSubmit}
-                type="button"
-                onClick={handleGuestSubmit}
-                disabled={submitting || !guestName.trim() || inQueue}
-              >
-                {inQueue ? (
-                  <>
-                    Ожидание в очереди
-                    <span className={styles.queueDots} aria-hidden="true" />
-                  </>
-                ) : submitting ? (
-                  "Вход..."
-                ) : (
-                  "Войти гостем"
-                )}
-              </button>
-            )}
-          </section>
+            <button
+              className={styles.waitingSubmit}
+              type="submit"
+              disabled={!canSubmit && !guestsDenied}
+            >
+              {inQueue ? (
+                <>
+                  {submitLabel}
+                  <span className={styles.queueDots} aria-hidden="true" />
+                </>
+              ) : (
+                submitLabel
+              )}
+            </button>
+          </form>
+
+          {(roomName || ownerName) && (
+            <div className={styles.waitingMeta} aria-hidden="true">
+              {roomName && <div className={styles.waitingMetaName}>{roomName}</div>}
+              {ownerName && <div className={styles.waitingMetaOwner}>{ownerName}</div>}
+            </div>
+          )}
         </div>
       ) : null}
     </div>

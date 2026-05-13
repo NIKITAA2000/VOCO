@@ -89,28 +89,48 @@ export const changeRoleSchema = z.object({
   }),
 });
 
-export const saveChatMessageSchema = z.object({
-  externalId: z.string().min(1).max(120),
-  message: z
-    .string()
-    .min(1, "Сообщение обязательно")
-    .max(2000, "Сообщение — максимум 2000 символов"),
-  authorIdentity: z.string().min(1).max(120),
-  authorName: z.string().max(120).optional(),
-  sentAt: z.number().int(),
-  isGuest: z.boolean().optional().default(false),
-});
+export const saveChatMessageSchema = z
+  .object({
+    externalId: z.string().min(1).max(120),
+    message: z.string().max(2000, "Сообщение — максимум 2000 символов").optional().default(""),
+    authorIdentity: z.string().min(1).max(120),
+    authorName: z.string().max(120).optional(),
+    sentAt: z.number().int(),
+    isGuest: z.boolean().optional().default(false),
+    attachment: z
+      .object({
+        url: z.string().min(1).max(500),
+        name: z.string().min(1).max(255),
+        kind: z.enum(["image", "video", "document"]),
+        size: z.number().int().nonnegative(),
+        mime: z.string().min(1).max(160),
+      })
+      .optional(),
+  })
+  .refine((data) => data.message.trim().length > 0 || data.attachment, {
+    message: "Сообщение или вложение обязательно",
+  });
 
-export const pinMessageSchema = z.object({
-  message: z
-    .string()
-    .min(1, "Сообщение обязательно")
-    .max(2000, "Сообщение — максимум 2000 символов"),
-  authorIdentity: z.string().max(120).optional(),
-  authorName: z.string().max(120).optional(),
-  originalExternalId: z.string().max(120).optional(),
-  originalTimestamp: z.number().int().optional(),
-});
+export const pinMessageSchema = z
+  .object({
+    message: z.string().max(2000, "Сообщение — максимум 2000 символов").optional().default(""),
+    authorIdentity: z.string().max(120).optional(),
+    authorName: z.string().max(120).optional(),
+    originalExternalId: z.string().max(120).optional(),
+    originalTimestamp: z.number().int().optional(),
+    attachment: z
+      .object({
+        url: z.string().min(1).max(500),
+        name: z.string().min(1).max(255),
+        kind: z.enum(["image", "video", "document"]),
+        size: z.number().int().nonnegative(),
+        mime: z.string().min(1).max(160),
+      })
+      .optional(),
+  })
+  .refine((d) => d.message.trim().length > 0 || d.attachment, {
+    message: "Нужно сообщение или вложение",
+  });
 
 export const joinGuestSchema = z.object({
   displayName: z

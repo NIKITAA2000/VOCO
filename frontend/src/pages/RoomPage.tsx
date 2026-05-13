@@ -111,6 +111,8 @@ interface ConferenceRoomContentProps {
   currentUserAvatarUrl?: string | null;
   initialPinnedMessages?: PinnedMessage[];
   initialChatHistory?: ChatHistoryEntry[];
+  // LiveKit-токен для гостей. У зарегистрированных не нужен — берётся наш Bearer.
+  livekitToken?: string;
 }
 
 interface PinnedMessage {
@@ -120,8 +122,17 @@ interface PinnedMessage {
   authorName?: string | null;
   originalExternalId?: string | null;
   originalTimestamp?: number | null;
+  attachment?: ChatAttachment | null;
   pinnedBy?: string | null;
   pinnedAt?: string | null;
+}
+
+interface ChatAttachment {
+  url: string;
+  name: string;
+  kind: "image" | "video" | "document";
+  size: number;
+  mime: string;
 }
 
 interface ChatHistoryEntry {
@@ -132,6 +143,56 @@ interface ChatHistoryEntry {
   message: string;
   sentAt: number;
   isGuest?: boolean;
+  attachment?: ChatAttachment | null;
+}
+
+// Сообщения чата с вложением едут через LiveKit в JSON-обёртке `{__voco:"msg",t,a}`.
+// Чистый текст шлём как есть — обратная совместимость с историей до вложений.
+function buildChatPayload(text: string, attachment?: ChatAttachment): string {
+  if (!attachment) return text;
+  return JSON.stringify({ __voco: "msg", t: text, a: attachment });
+}
+
+function parseChatPayload(raw: string | undefined | null): {
+  text: string;
+  attachment?: ChatAttachment;
+} {
+  if (!raw || typeof raw !== "string") return { text: raw ?? "" };
+  if (!raw.startsWith("{")) return { text: raw };
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.__voco === "msg" &&
+      typeof parsed.t === "string"
+    ) {
+      const a = parsed.a;
+      const attachment: ChatAttachment | undefined =
+        a &&
+        typeof a.url === "string" &&
+        typeof a.name === "string" &&
+        (a.kind === "image" || a.kind === "video" || a.kind === "document")
+          ? {
+              url: a.url,
+              name: a.name,
+              kind: a.kind,
+              size: Number(a.size) || 0,
+              mime: String(a.mime || ""),
+            }
+          : undefined;
+      return { text: parsed.t, attachment };
+    }
+  } catch {
+    // не json — старый формат
+  }
+  return { text: raw };
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
 function readEntryTimestamp(entry: { timestamp?: unknown }): number {
@@ -1926,6 +1987,7 @@ export function ConferenceRoomContent({
   currentUserAvatarUrl,
   initialPinnedMessages,
   initialChatHistory,
+  livekitToken,
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
   const participants = useParticipants();
@@ -1967,6 +2029,12 @@ export function ConferenceRoomContent({
   const [chatClearedAt, setChatClearedAt] = useState(0);
   const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
   const savedChatKeysRef = useRef<Set<string>>(new Set());
+  const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [composerMenuOpen, setComposerMenuOpen] = useState(false);
+  const composerMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [openParticipantMenu, setOpenParticipantMenu] = useState<string | null>(null);
   const [participantMenuRect, setParticipantMenuRect] = useState<{ top: number; left: number } | null>(null);
@@ -2212,9 +2280,11 @@ export function ConferenceRoomContent({
         const at = typeof parsed?.at === "number" ? parsed.at : Date.now();
         setChatClearedAt((prev) => Math.max(prev, at));
         setChatHistory([]);
+        setPinnedMessages([]);
       } catch {
         setChatClearedAt(Date.now());
         setChatHistory([]);
+        setPinnedMessages([]);
       }
     };
     room.on(RoomEvent.DataReceived, handle);
@@ -2269,6 +2339,7 @@ export function ConferenceRoomContent({
       from?: { identity?: string; name?: string };
       timestamp?: number;
       externalId?: string;
+      attachment?: ChatAttachment | null;
     }) => {
       if (!slug) return;
       try {
@@ -2278,6 +2349,7 @@ export function ConferenceRoomContent({
           authorName: entry.from?.name,
           originalExternalId: entry.externalId,
           originalTimestamp: entry.timestamp,
+          attachment: entry.attachment ?? undefined,
         });
         const newPin = data?.pin as PinnedMessage | undefined;
         if (newPin) {
@@ -2330,6 +2402,7 @@ export function ConferenceRoomContent({
     }
     setChatHistory([]);
     setChatClearedAt(at);
+    setPinnedMessages([]);
     if (localParticipant) {
       try {
         const payload = new TextEncoder().encode(
@@ -2709,14 +2782,16 @@ export function ConferenceRoomContent({
       if (sentAt <= chatClearedAt) return;
       if (savedChatKeysRef.current.has(externalId)) return;
       savedChatKeysRef.current.add(externalId);
+      const { text, attachment } = parseChatPayload(entry.message);
       void api
         .saveRoomMessage(slug, {
           externalId,
-          message: entry.message,
+          message: text,
           authorIdentity: identity,
           authorName: entry.from?.name,
           sentAt,
           isGuest: identity.startsWith("guest_"),
+          attachment,
         })
         .catch(() => {
           // молча — другой клиент сохранит, или это уже сохранённое
@@ -2736,10 +2811,12 @@ export function ConferenceRoomContent({
       authorIdentity: string;
       authorName?: string | null;
       isGuest: boolean;
+      attachment?: ChatAttachment | null;
     };
     const map = new Map<string, Entry>();
     for (const item of chatHistory) {
-      if (!item.authorIdentity || !item.message) continue;
+      if (!item.authorIdentity) continue;
+      if (!item.message && !item.attachment) continue;
       if (item.sentAt <= chatClearedAt) continue;
       const key = item.externalId
         ? `ext:${item.externalId}`
@@ -2752,6 +2829,7 @@ export function ConferenceRoomContent({
         authorIdentity: item.authorIdentity,
         authorName: item.authorName ?? undefined,
         isGuest: Boolean(item.isGuest) || item.authorIdentity.startsWith("guest_"),
+        attachment: item.attachment ?? undefined,
       });
     }
     for (const entry of chatMessages as any[]) {
@@ -2761,14 +2839,16 @@ export function ConferenceRoomContent({
       if (sentAt <= chatClearedAt) continue;
       const externalId = typeof entry.id === "string" ? entry.id : "";
       const key = externalId ? `ext:${externalId}` : `ts:${identity}|${sentAt}`;
+      const { text, attachment } = parseChatPayload(entry.message);
       map.set(key, {
         key,
         externalId: externalId || undefined,
         sentAt,
-        message: entry.message,
+        message: text,
         authorIdentity: identity,
         authorName: entry.from?.name ?? undefined,
         isGuest: identity.startsWith("guest_"),
+        attachment: attachment ?? undefined,
       });
     }
     return Array.from(map.values()).sort((a, b) => a.sentAt - b.sentAt);
@@ -2785,14 +2865,70 @@ export function ConferenceRoomContent({
     if (!isChatPanelOpen) setEmojiPickerOpen(false);
   }, [isChatPanelOpen]);
 
+  const handleToggleComposerMenu = useCallback(() => {
+    setComposerMenuOpen((open) => !open);
+    setAttachmentError("");
+  }, []);
+
+  const handlePickFile = useCallback(() => {
+    // Сначала вызываем нативный picker — пока меню видимо и кнопка в DOM.
+    // Только потом закрываем меню (state-change затем размонтирует кнопку).
+    setAttachmentError("");
+    fileInputRef.current?.click();
+    setComposerMenuOpen(false);
+  }, []);
+
+  const handleOpenPolls = useCallback(() => {
+    // TODO: подключить экран опросов, когда фича будет готова
+    setComposerMenuOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!composerMenuOpen) return;
+    const handleDown = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (composerMenuRef.current?.contains(event.target)) return;
+      setComposerMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handleDown);
+    return () => window.removeEventListener("mousedown", handleDown);
+  }, [composerMenuOpen]);
+
+  const handleFileSelected = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = ""; // позволяем выбрать тот же файл повторно
+      if (!file || !slug) return;
+      setAttachmentError("");
+      setUploadingAttachment(true);
+      try {
+        const data = await api.uploadRoomFile(slug, file, livekitToken);
+        setPendingAttachment(data);
+      } catch (err: any) {
+        setAttachmentError(err?.message || "Не удалось загрузить файл");
+      } finally {
+        setUploadingAttachment(false);
+      }
+    },
+    [slug, livekitToken],
+  );
+
+  const handleRemovePendingAttachment = useCallback(() => {
+    setPendingAttachment(null);
+    setAttachmentError("");
+  }, []);
+
   const handleChatSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedMessage = message.trim();
-    if (!normalizedMessage) return;
+    if (!normalizedMessage && !pendingAttachment) return;
+    if (uploadingAttachment) return;
 
+    const payload = buildChatPayload(normalizedMessage, pendingAttachment ?? undefined);
     try {
-      await send(normalizedMessage);
+      await send(payload);
       setMessage("");
+      setPendingAttachment(null);
       setEmojiPickerOpen(false);
     } catch {
       // Keep the current value so the user can retry.
@@ -2863,14 +2999,66 @@ export function ConferenceRoomContent({
       className={`${styles.chatComposer}${className ? ` ${className}` : ""}`}
       onSubmit={handleChatSubmit}
     >
-      <button
-        className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
-        type="button"
-        aria-label="Добавить вложение"
-        onClick={focusChatInput}
-      >
-        <PlusIcon />
-      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className={styles.chatFileInput}
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        onChange={(e) => void handleFileSelected(e)}
+      />
+      <div className={styles.chatAttachWrap} ref={composerMenuRef}>
+        <button
+          className={`${styles.chatIconButton} ${styles.chatAttachButton}`}
+          type="button"
+          aria-label="Меню вложений"
+          aria-haspopup="menu"
+          aria-expanded={composerMenuOpen}
+          onClick={handleToggleComposerMenu}
+          disabled={uploadingAttachment}
+        >
+          <PlusIcon />
+        </button>
+        {composerMenuOpen ? (
+          <div className={styles.chatAttachMenu} role="menu">
+            <button
+              type="button"
+              className={`${styles.chatAttachMenuButton} ${styles.chatAttachMenuButtonFile}`}
+              role="menuitem"
+              aria-label="Прикрепить файл"
+              title="Прикрепить файл"
+              onClick={handlePickFile}
+            />
+            <button
+              type="button"
+              className={`${styles.chatAttachMenuButton} ${styles.chatAttachMenuButtonPoll}`}
+              role="menuitem"
+              aria-label="Создать опрос"
+              title="Опрос (скоро)"
+              onClick={handleOpenPolls}
+            />
+          </div>
+        ) : null}
+      </div>
+      {pendingAttachment ? (
+        <div className={styles.chatPendingAttachment} title={pendingAttachment.name}>
+          <span className={styles.chatPendingAttachmentName}>{pendingAttachment.name}</span>
+          <span className={styles.chatPendingAttachmentSize}>
+            {formatFileSize(pendingAttachment.size)}
+          </span>
+          <button
+            type="button"
+            className={styles.chatPendingAttachmentRemove}
+            onClick={handleRemovePendingAttachment}
+            aria-label="Убрать вложение"
+          />
+        </div>
+      ) : null}
+      {uploadingAttachment ? (
+        <div className={styles.chatAttachmentStatus}>Загружаем файл…</div>
+      ) : null}
+      {attachmentError ? (
+        <div className={styles.chatAttachmentError}>{attachmentError}</div>
+      ) : null}
 
       <button
         className={`${styles.chatIconButton} ${styles.chatEmojiButton}`}
@@ -2931,7 +3119,7 @@ export function ConferenceRoomContent({
         className={`${styles.chatIconButton} ${styles.chatSendButton}`}
         type="submit"
         aria-label="Отправить сообщение"
-        disabled={isSending || !message.trim()}
+        disabled={isSending || uploadingAttachment || (!message.trim() && !pendingAttachment)}
       >
         <SendIcon />
       </button>
@@ -3393,6 +3581,49 @@ export function ConferenceRoomContent({
       );
     });
 
+  const renderChatAttachment = (attachment: ChatAttachment) => {
+    if (attachment.kind === "image") {
+      return (
+        <a
+          className={styles.chatAttachmentImage}
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Открыть ${attachment.name}`}
+        >
+          <img src={attachment.url} alt={attachment.name} loading="lazy" />
+        </a>
+      );
+    }
+    if (attachment.kind === "video") {
+      return (
+        <video
+          className={styles.chatAttachmentVideo}
+          src={attachment.url}
+          controls
+          preload="metadata"
+        />
+      );
+    }
+    return (
+      <a
+        className={styles.chatAttachmentFile}
+        href={attachment.url}
+        download={attachment.name}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span className={styles.chatAttachmentFileIcon} aria-hidden="true" />
+        <span className={styles.chatAttachmentFileMeta}>
+          <span className={styles.chatAttachmentFileName}>{attachment.name}</span>
+          <span className={styles.chatAttachmentFileSize}>
+            {formatFileSize(attachment.size)}
+          </span>
+        </span>
+      </a>
+    );
+  };
+
   const renderChatMessages = (emptyClass?: string) =>
     combinedChatEntries.length === 0 ? (
       <div className={emptyClass ?? styles.chatEmpty}>Сообщений пока нет</div>
@@ -3422,7 +3653,8 @@ export function ConferenceRoomContent({
               className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
             >
               {!isLocal ? <div className={styles.chatAuthor}>{authorName}</div> : null}
-              <div className={styles.chatBody}>{entry.message}</div>
+              {entry.attachment ? renderChatAttachment(entry.attachment) : null}
+              {entry.message ? <div className={styles.chatBody}>{entry.message}</div> : null}
               <div className={styles.chatTime}>{formatMessageTime(entry.sentAt)}</div>
               {canModerateParticipants && slug ? (
                 <button
@@ -3436,6 +3668,7 @@ export function ConferenceRoomContent({
                       from: { identity: entry.authorIdentity, name: entry.authorName ?? undefined },
                       timestamp: entry.sentAt,
                       externalId: entry.externalId,
+                      attachment: entry.attachment ?? null,
                     })
                   }
                 />
@@ -3519,14 +3752,18 @@ export function ConferenceRoomContent({
           <button
             type="button"
             className={styles.chatPinnedText}
-            title={pin.originalExternalId ? "Перейти к сообщению" : pin.message}
+            title={pin.originalExternalId ? "Перейти к сообщению" : (pin.message || pin.attachment?.name || "")}
             onClick={() => handleJumpToPinned(pin)}
             disabled={!pin.originalExternalId}
           >
             {pin.authorName ? (
               <span className={styles.chatPinnedAuthor}>{pin.authorName}: </span>
             ) : null}
-            {pin.message}
+            {pin.attachment && !pin.message ? (
+              <span className={styles.chatPinnedAttachment}>📎 {pin.attachment.name}</span>
+            ) : (
+              pin.message
+            )}
           </button>
           {showArrows ? (
             <button
@@ -3570,7 +3807,11 @@ export function ConferenceRoomContent({
                 {item.authorName ? (
                   <span className={styles.chatPinnedListAuthor}>{item.authorName}: </span>
                 ) : null}
-                <span className={styles.chatPinnedListText}>{item.message}</span>
+                <span className={styles.chatPinnedListText}>
+                  {item.attachment && !item.message
+                    ? `📎 ${item.attachment.name}`
+                    : item.message}
+                </span>
               </button>
             ))}
           </div>
@@ -3732,25 +3973,35 @@ export function ConferenceRoomContent({
           {renderRecordingIndicator(undefined, styles.tabletRecordingIndicator)}
 
           {canEndRoom ? (
-            <button
-              type="button"
-              className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
-              aria-label="Выйти"
-              aria-haspopup="menu"
-              aria-expanded={exitMenuOpen}
-              onClick={(event) => {
-                event.stopPropagation();
-                setExitMenuOpen((current) => !current);
-              }}
-            >
-              <span className={styles.exitGlow} aria-hidden="true" />
-              <span className={styles.tabletExitIcon} aria-hidden="true">
-                <ExitArrowIcon />
-              </span>
-              <span className={styles.tabletExitMenu} aria-hidden="true">
-                <ChevronDownIcon />
-              </span>
-            </button>
+            <>
+              <button
+                type="button"
+                className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
+                aria-label="Выйти"
+                onClick={handleExitMenuLeave}
+              >
+                <span className={styles.exitGlow} aria-hidden="true" />
+                <span className={styles.tabletExitIcon} aria-hidden="true">
+                  <ExitArrowIcon />
+                </span>
+                <span className={styles.tabletExitMenu} aria-hidden="true">
+                  <ChevronDownIcon />
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.exitMenuTrigger} ${styles.tabletHeaderExitMenuTrigger}`}
+                aria-label="Меню выхода"
+                aria-haspopup="menu"
+                aria-expanded={exitMenuOpen}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setExitMenuOpen((c) => !c);
+                }}
+              />
+            </>
           ) : (
             <DisconnectButton
               className={`${styles.tabletExitButton} ${styles.tabletHeaderExitButton}`}
@@ -4227,26 +4478,36 @@ export function ConferenceRoomContent({
         {renderRecordingIndicator(undefined, styles.desktopRecordingIndicator)}
 
         {canEndRoom ? (
-          <button
-            type="button"
-            className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}
-            aria-label="Выйти"
-            aria-haspopup="menu"
-            aria-expanded={exitMenuOpen}
-            onClick={(event) => {
-              event.stopPropagation();
-              setExitMenuOpen((current) => !current);
-            }}
-          >
-            <span className={styles.exitGlow} aria-hidden="true" />
-            <span className={styles.exitIcon} aria-hidden="true">
-              <ExitArrowIcon />
-            </span>
-            <span className={styles.exitLabel}>Выйти</span>
-            <span className={styles.exitMenu} aria-hidden="true">
-              <ChevronDownIcon />
-            </span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}
+              aria-label="Выйти"
+              onClick={handleExitMenuLeave}
+            >
+              <span className={styles.exitGlow} aria-hidden="true" />
+              <span className={styles.exitIcon} aria-hidden="true">
+                <ExitArrowIcon />
+              </span>
+              <span className={styles.exitLabel}>Выйти</span>
+              <span className={styles.exitMenu} aria-hidden="true">
+                <ChevronDownIcon />
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.exitMenuTrigger} ${styles.desktopHeaderExitMenuTrigger}`}
+              aria-label="Меню выхода"
+              aria-haspopup="menu"
+              aria-expanded={exitMenuOpen}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setExitMenuOpen((c) => !c);
+              }}
+            />
+          </>
         ) : (
           <DisconnectButton
             className={`${styles.exitButton} ${styles.desktopHeaderExitButton}`}

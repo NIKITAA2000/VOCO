@@ -196,11 +196,18 @@ class ApiClient {
   async pinMessage(
     slug: string,
     payload: {
-      message: string;
+      message?: string;
       authorIdentity?: string;
       authorName?: string;
       originalExternalId?: string;
       originalTimestamp?: number;
+      attachment?: {
+        url: string;
+        name: string;
+        kind: "image" | "video" | "document";
+        size: number;
+        mime: string;
+      };
     },
   ) {
     return this.request(`/rooms/${slug}/pins`, {
@@ -223,12 +230,46 @@ class ApiClient {
       authorName?: string;
       sentAt: number;
       isGuest?: boolean;
+      attachment?: {
+        url: string;
+        name: string;
+        kind: "image" | "video" | "document";
+        size: number;
+        mime: string;
+      };
     },
   ) {
     return this.request(`/rooms/${slug}/messages`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  }
+
+  // Загрузка файла-вложения в чат (multipart). Возвращает {url, kind, name, size, mime}.
+  // `guestToken` — LiveKit JWT для гостей, у которых нет нашего Bearer.
+  async uploadRoomFile(slug: string, file: File, guestToken?: string) {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    // Зарегистрированные ходят под своим JWT; гостям — только LiveKit-токен.
+    const tok = this.token || guestToken;
+    if (tok) headers["Authorization"] = `Bearer ${tok}`;
+    const res = await fetch(`${API_URL}/rooms/${slug}/uploads`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Не удалось загрузить файл");
+    }
+    return data as {
+      url: string;
+      kind: "image" | "video" | "document";
+      name: string;
+      size: number;
+      mime: string;
+    };
   }
 
   async clearRoomMessages(slug: string) {
@@ -263,6 +304,10 @@ class ApiClient {
   }
 
   // Invites (join)
+  async getInviteInfo(code: string) {
+    return this.request(`/invite/${code}/info`, { method: "GET" });
+  }
+
   async joinByInvite(code: string, displayName?: string) {
     return this.request(`/invite/${code}/join`, {
       method: "POST",

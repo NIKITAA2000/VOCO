@@ -188,6 +188,11 @@ router.get("/:slug", async (req: Request, res: Response) => {
               author_name AS "authorName",
               original_external_id AS "originalExternalId",
               original_timestamp AS "originalTimestamp",
+              attachment_url AS "attachmentUrl",
+              attachment_name AS "attachmentName",
+              attachment_kind AS "attachmentKind",
+              attachment_size AS "attachmentSize",
+              attachment_mime AS "attachmentMime",
               pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
        FROM pinned_messages
        WHERE room_id = $1
@@ -199,7 +204,12 @@ router.get("/:slug", async (req: Request, res: Response) => {
       `SELECT id, external_id AS "externalId",
               author_identity AS "authorIdentity",
               author_name AS "authorName", message,
-              sent_at AS "sentAt", is_guest AS "isGuest"
+              sent_at AS "sentAt", is_guest AS "isGuest",
+              attachment_url AS "attachmentUrl",
+              attachment_name AS "attachmentName",
+              attachment_kind AS "attachmentKind",
+              attachment_size AS "attachmentSize",
+              attachment_mime AS "attachmentMime"
        FROM chat_messages
        WHERE room_id = $1
        ORDER BY sent_at ASC`,
@@ -228,11 +238,20 @@ router.get("/:slug", async (req: Request, res: Response) => {
         })),
         pinnedMessages: pinsResult.rows.map((p) => ({
           id: p.id,
-          message: p.message,
+          message: p.message ?? "",
           authorIdentity: p.authorIdentity,
           authorName: p.authorName,
           originalExternalId: p.originalExternalId,
           originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
+          attachment: p.attachmentUrl
+            ? {
+                url: p.attachmentUrl,
+                name: p.attachmentName,
+                kind: p.attachmentKind,
+                size: p.attachmentSize != null ? Number(p.attachmentSize) : null,
+                mime: p.attachmentMime,
+              }
+            : null,
           pinnedBy: p.pinnedBy,
           pinnedAt: p.pinnedAt,
         })),
@@ -241,9 +260,18 @@ router.get("/:slug", async (req: Request, res: Response) => {
           externalId: m.externalId,
           authorIdentity: m.authorIdentity,
           authorName: m.authorName,
-          message: m.message,
+          message: m.message ?? "",
           sentAt: Number(m.sentAt),
           isGuest: m.isGuest,
+          attachment: m.attachmentUrl
+            ? {
+                url: m.attachmentUrl,
+                name: m.attachmentName,
+                kind: m.attachmentKind,
+                size: m.attachmentSize != null ? Number(m.attachmentSize) : null,
+                mime: m.attachmentMime,
+              }
+            : null,
         })),
       },
     });
@@ -1189,14 +1217,30 @@ router.post("/:slug/messages", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
       return;
     }
-    const { externalId, message, authorIdentity, authorName, sentAt, isGuest } = parsed.data;
+    const { externalId, message, authorIdentity, authorName, sentAt, isGuest, attachment } = parsed.data;
 
     const inserted = await db.query(
-      `INSERT INTO chat_messages (room_id, external_id, author_identity, author_name, message, sent_at, is_guest)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO chat_messages (
+         room_id, external_id, author_identity, author_name, message, sent_at, is_guest,
+         attachment_url, attachment_name, attachment_kind, attachment_size, attachment_mime
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (room_id, external_id) DO NOTHING
        RETURNING id`,
-      [room.id, externalId, authorIdentity, authorName ?? null, message, sentAt, isGuest]
+      [
+        room.id,
+        externalId,
+        authorIdentity,
+        authorName ?? null,
+        message ?? "",
+        sentAt,
+        isGuest,
+        attachment?.url ?? null,
+        attachment?.name ?? null,
+        attachment?.kind ?? null,
+        attachment?.size ?? null,
+        attachment?.mime ?? null,
+      ]
     );
 
     res.status(201).json({ saved: (inserted.rowCount ?? 0) > 0 });
@@ -1230,6 +1274,8 @@ router.delete("/:slug/messages", async (req: Request, res: Response) => {
     }
 
     await db.query(`DELETE FROM chat_messages WHERE room_id = $1`, [room.id]);
+    // При очистке чата сбрасываем и закрепления — они становятся «пустыми ссылками»
+    await db.query(`DELETE FROM pinned_messages WHERE room_id = $1`, [room.id]);
     res.json({ message: "Чат очищен" });
   } catch (error) {
     console.error("Clear chat error:", error);
@@ -1265,23 +1311,45 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
       return;
     }
-    const { message, authorIdentity, authorName, originalExternalId, originalTimestamp } = parsed.data;
+    const {
+      message,
+      authorIdentity,
+      authorName,
+      originalExternalId,
+      originalTimestamp,
+      attachment,
+    } = parsed.data;
 
     const inserted = await db.query(
-      `INSERT INTO pinned_messages (room_id, message, author_identity, author_name, original_external_id, original_timestamp, pinned_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO pinned_messages (
+         room_id, message, author_identity, author_name,
+         original_external_id, original_timestamp,
+         attachment_url, attachment_name, attachment_kind, attachment_size, attachment_mime,
+         pinned_by
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, message, author_identity AS "authorIdentity",
                  author_name AS "authorName",
                  original_external_id AS "originalExternalId",
                  original_timestamp AS "originalTimestamp",
+                 attachment_url AS "attachmentUrl",
+                 attachment_name AS "attachmentName",
+                 attachment_kind AS "attachmentKind",
+                 attachment_size AS "attachmentSize",
+                 attachment_mime AS "attachmentMime",
                  pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"`,
       [
         room.id,
-        message,
+        message ?? "",
         authorIdentity ?? null,
         authorName ?? null,
         originalExternalId ?? null,
         originalTimestamp ?? null,
+        attachment?.url ?? null,
+        attachment?.name ?? null,
+        attachment?.kind ?? null,
+        attachment?.size ?? null,
+        attachment?.mime ?? null,
         req.user!.userId,
       ]
     );
@@ -1289,9 +1357,23 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
     const pin = inserted.rows[0];
     res.status(201).json({
       pin: {
-        ...pin,
-        originalTimestamp:
-          pin.originalTimestamp != null ? Number(pin.originalTimestamp) : null,
+        id: pin.id,
+        message: pin.message ?? "",
+        authorIdentity: pin.authorIdentity,
+        authorName: pin.authorName,
+        originalExternalId: pin.originalExternalId,
+        originalTimestamp: pin.originalTimestamp != null ? Number(pin.originalTimestamp) : null,
+        attachment: pin.attachmentUrl
+          ? {
+              url: pin.attachmentUrl,
+              name: pin.attachmentName,
+              kind: pin.attachmentKind,
+              size: pin.attachmentSize != null ? Number(pin.attachmentSize) : null,
+              mime: pin.attachmentMime,
+            }
+          : null,
+        pinnedBy: pin.pinnedBy,
+        pinnedAt: pin.pinnedAt,
       },
     });
   } catch (error) {
@@ -1429,8 +1511,9 @@ router.delete("/:slug", async (req: Request, res: Response) => {
         "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
         [room.id]
       );
-      // Закрытие комнаты завершает встречу — чат стирается
+      // Закрытие комнаты завершает встречу — чат и закрепления стираются
       await client.query("DELETE FROM chat_messages WHERE room_id = $1", [room.id]);
+      await client.query("DELETE FROM pinned_messages WHERE room_id = $1", [room.id]);
 
       res.json({ message: "Комната закрыта" });
       return;

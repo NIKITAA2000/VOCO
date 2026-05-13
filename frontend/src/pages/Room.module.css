@@ -1116,6 +1116,255 @@
   color: #000;
 }
 
+.chatFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Выпадашка над «+»: 100×50 пилюля под цвет кнопки, две круглые иконки внутри. */
+.chatAttachWrap {
+  position: relative;
+  width: 50px;
+  height: 50px;
+}
+
+.chatAttachMenu {
+  position: absolute;
+  left: 0;
+  bottom: 60px;
+  width: 100px;
+  height: 50px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  z-index: 6;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.chatAttachMenuButton {
+  appearance: none;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.chatAttachMenuButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.chatAttachMenuButton::before {
+  content: "";
+  display: block;
+  width: 30px;
+  height: 30px;
+  background: currentColor;
+}
+
+.chatAttachMenuButtonFile::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg' fill='none'%3E%3Cpath d='M11 8V20.5C11 26.5 19 26.5 19 20.5V15' stroke='black' stroke-width='2'/%3E%3Cpath d='M19 15V11.5C19 8.5 15 8.5 15 11.5V21' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M19 6V5.5C19 -0.5 11 -0.5 11 5.5V9' stroke='black' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg' fill='none'%3E%3Cpath d='M11 8V20.5C11 26.5 19 26.5 19 20.5V15' stroke='black' stroke-width='2'/%3E%3Cpath d='M19 15V11.5C19 8.5 15 8.5 15 11.5V21' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M19 6V5.5C19 -0.5 11 -0.5 11 5.5V9' stroke='black' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatAttachMenuButtonPoll::before {
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg' fill='none'%3E%3Cpath d='M15 3V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M8 9V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M22 14V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg' fill='none'%3E%3Cpath d='M15 3V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M8 9V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M22 14V27' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+:global(:root[data-theme="dark"]) .chatAttachMenu {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatAttachMenuButton {
+  color: #ffffff;
+}
+
+.chatPendingAttachment {
+  position: absolute;
+  left: 60px;
+  bottom: 54px;
+  max-width: calc(100% - 120px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 12px;
+  background: #eef4ff;
+  color: #003a80;
+  font-size: 13px;
+  line-height: 18px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.chatPendingAttachmentName {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatPendingAttachmentSize {
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
+.chatPendingAttachmentRemove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.chatPendingAttachmentRemove::before,
+.chatPendingAttachmentRemove::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+.chatPendingAttachmentRemove::before { transform: rotate(45deg); }
+.chatPendingAttachmentRemove::after { transform: rotate(-45deg); }
+
+.chatAttachmentStatus,
+.chatAttachmentError {
+  position: absolute;
+  left: 60px;
+  bottom: 54px;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.chatAttachmentStatus {
+  background: rgba(0, 119, 255, 0.12);
+  color: #003a80;
+}
+
+.chatAttachmentError {
+  background: rgba(255, 60, 60, 0.12);
+  color: #b00020;
+}
+
+.chatAttachmentImage {
+  display: block;
+  margin: 0 -2px 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 280px;
+}
+
+.chatAttachmentImage img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.chatAttachmentVideo {
+  display: block;
+  margin: 0 -2px 6px;
+  border-radius: 8px;
+  width: 280px;
+  max-width: 100%;
+  max-height: 220px;
+  background: #000;
+}
+
+/* Вложение-файл: без отдельной плашки, просто иконка + имя + размер,
+   чтобы вписывалось в овальный bubble без «карточки в карточке». */
+.chatAttachmentFile,
+.chatAttachmentFile:link,
+.chatAttachmentFile:visited,
+.chatAttachmentFile:hover,
+.chatAttachmentFile:active {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px -2px 6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  max-width: 280px;
+}
+
+.chatBubbleOwn .chatAttachmentFile,
+.chatBubbleOwn .chatAttachmentFile:link,
+.chatBubbleOwn .chatAttachmentFile:visited,
+.chatBubbleOwn .chatAttachmentFile:hover,
+.chatBubbleOwn .chatAttachmentFile:active {
+  color: #ffffff;
+}
+
+.chatAttachmentFile:hover .chatAttachmentFileName {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}
+
+.chatAttachmentFileIcon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 40px;
+  background: currentColor;
+  color: #0077ff;
+  /* Силуэт документа с уголком и тремя строчками внутри (вырезы — текст). */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 36 40' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' clip-rule='evenodd'%3E%3Cpath d='M4 2 H22 L32 12 V36 a2 2 0 0 1-2 2 H4 a2 2 0 0 1-2-2 V4 a2 2 0 0 1 2-2 Z M22 2 V12 H32 L22 2 Z M8 19 H26 V21 H8 Z M8 24 H26 V26 H8 Z M8 29 H20 V31 H8 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 36 40' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' clip-rule='evenodd'%3E%3Cpath d='M4 2 H22 L32 12 V36 a2 2 0 0 1-2 2 H4 a2 2 0 0 1-2-2 V4 a2 2 0 0 1 2-2 Z M22 2 V12 H32 L22 2 Z M8 19 H26 V21 H8 Z M8 24 H26 V26 H8 Z M8 29 H20 V31 H8 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.chatBubbleOwn .chatAttachmentFileIcon {
+  color: #ffffff;
+}
+
+.chatAttachmentFileMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chatAttachmentFileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 18px;
+  color: inherit;
+}
+
+.chatAttachmentFileSize {
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0.6;
+}
+
 .chatInput::placeholder {
   color: #999;
 }
@@ -1777,7 +2026,7 @@ button.stageRoomCode:disabled {
   background: transparent;
   cursor: pointer;
   border-radius: 100px;
-  z-index: 2;
+  z-index: 10;
 }
 
 .exitMenuTrigger:focus-visible {
@@ -2893,7 +3142,7 @@ button.stageRoomCode:disabled {
   right: 25px;
   width: 50px;
   height: 50px;
-  z-index: 5;
+  z-index: 10;
 }
 
 .desktopHeaderExitDropdown,
@@ -4142,16 +4391,29 @@ button.stageRoomCode .roomCodeCopyHint {
   position: absolute;
   border-radius: 50%;
   background: linear-gradient(269.65deg, #deeeff 0.3%, #ffffff 99.7%);
-  will-change: rotate;
   transform-origin: center center;
-  animation: waitingCircleSpin var(--waiting-duration, 48s) linear infinite;
-  animation-delay: var(--waiting-delay, 0s);
+  animation: waitingSwirl 60s linear infinite;
+  will-change: rotate;
+}
+
+.waitingCircle2,
+.waitingCircle4,
+.waitingCircle6,
+.waitingCircle8,
+.waitingCircle10 {
+  animation-direction: reverse;
+}
+
+@keyframes waitingSwirl {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 1turn;
+  }
 }
 
 .waitingCircle1 {
-  --waiting-duration: 72s;
-  --waiting-delay: -7s;
-  --waiting-rotation: -1turn;
   width: 131.9444%;
   height: 185.5469%;
   left: -15.9722%;
@@ -4160,9 +4422,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle2 {
-  --waiting-duration: 64s;
-  --waiting-delay: -3s;
-  --waiting-rotation: 1turn;
   width: 118.0556%;
   height: 166.0156%;
   left: -9.0278%;
@@ -4170,9 +4429,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle3 {
-  --waiting-duration: 58s;
-  --waiting-delay: -11s;
-  --waiting-rotation: -1turn;
   width: 104.1667%;
   height: 146.4844%;
   left: -2.0833%;
@@ -4181,9 +4437,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle4 {
-  --waiting-duration: 52s;
-  --waiting-delay: -5s;
-  --waiting-rotation: 1turn;
   width: 90.2778%;
   height: 126.9531%;
   left: 4.8611%;
@@ -4191,9 +4444,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle5 {
-  --waiting-duration: 46s;
-  --waiting-delay: -9s;
-  --waiting-rotation: -1turn;
   width: 76.3889%;
   height: 107.4219%;
   left: 11.8056%;
@@ -4202,9 +4452,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle6 {
-  --waiting-duration: 40s;
-  --waiting-delay: -2s;
-  --waiting-rotation: 1turn;
   width: 62.5%;
   height: 87.8906%;
   left: 18.75%;
@@ -4212,9 +4459,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle7 {
-  --waiting-duration: 34s;
-  --waiting-delay: -6s;
-  --waiting-rotation: -1turn;
   width: 48.6111%;
   height: 68.3594%;
   left: 25.6944%;
@@ -4223,9 +4467,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle8 {
-  --waiting-duration: 28s;
-  --waiting-delay: -4s;
-  --waiting-rotation: 1turn;
   width: 34.7222%;
   height: 48.8281%;
   left: 32.6389%;
@@ -4233,9 +4474,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle9 {
-  --waiting-duration: 22s;
-  --waiting-delay: -8s;
-  --waiting-rotation: -1turn;
   width: 20.8333%;
   height: 29.2969%;
   left: 39.5833%;
@@ -4244,9 +4482,6 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .waitingCircle10 {
-  --waiting-duration: 16s;
-  --waiting-delay: -1s;
-  --waiting-rotation: 1turn;
   width: 6.9444%;
   height: 9.7656%;
   left: 46.5278%;
@@ -4515,15 +4750,6 @@ button.stageRoomCode .roomCodeCopyHint {
   outline-offset: 2px;
 }
 
-@keyframes waitingCircleSpin {
-  from {
-    rotate: 0deg;
-  }
-
-  to {
-    rotate: var(--waiting-rotation, 1turn);
-  }
-}
 
 :global(:root[data-theme="dark"]) .container,
 :global(:root[data-theme="dark"]) .livekitRoot,

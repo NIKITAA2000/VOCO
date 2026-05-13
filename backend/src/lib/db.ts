@@ -66,13 +66,25 @@ export async function initDatabase() {
         external_id TEXT,
         author_identity VARCHAR(120) NOT NULL,
         author_name VARCHAR(120),
-        message TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
         sent_at BIGINT NOT NULL,
         is_guest BOOLEAN DEFAULT false,
+        attachment_url TEXT,
+        attachment_name TEXT,
+        attachment_kind VARCHAR(16),
+        attachment_size BIGINT,
+        attachment_mime VARCHAR(160),
         created_at TIMESTAMP DEFAULT NOW()
       );
 
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS external_id TEXT;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_kind VARCHAR(16);
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_size BIGINT;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_mime VARCHAR(160);
+      ALTER TABLE chat_messages ALTER COLUMN message DROP NOT NULL;
+      ALTER TABLE chat_messages ALTER COLUMN message SET DEFAULT '';
       -- Старый UNIQUE по (room_id, author_identity, sent_at) был ненадёжен:
       -- LiveKit entry.timestamp может быть Date-объектом, после save/reload
       -- значения расходились и сообщения дублировались в чате.
@@ -87,16 +99,28 @@ export async function initDatabase() {
       CREATE TABLE IF NOT EXISTS pinned_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-        message TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
         author_identity VARCHAR(120),
         author_name VARCHAR(120),
         original_external_id TEXT,
         original_timestamp BIGINT,
+        attachment_url TEXT,
+        attachment_name TEXT,
+        attachment_kind VARCHAR(16),
+        attachment_size BIGINT,
+        attachment_mime VARCHAR(160),
         pinned_by UUID NOT NULL REFERENCES users(id),
         pinned_at TIMESTAMP DEFAULT NOW()
       );
 
       ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS original_external_id TEXT;
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_kind VARCHAR(16);
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_size BIGINT;
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_mime VARCHAR(160);
+      ALTER TABLE pinned_messages ALTER COLUMN message DROP NOT NULL;
+      ALTER TABLE pinned_messages ALTER COLUMN message SET DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_pinned_messages_room ON pinned_messages(room_id, pinned_at);
 
       CREATE TABLE IF NOT EXISTS hidden_rooms (
