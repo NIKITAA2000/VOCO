@@ -1017,7 +1017,7 @@
 
 .chatBubbleOwn {
   background: #0077ff;
-  color: #000000;
+  color: #ffffff;
 }
 
 .chatAuthor {
@@ -1690,7 +1690,7 @@
 }
 
 .tabletChatPanel .chatBubbleOwn {
-  color: #000000;
+  color: #ffffff;
 }
 
 .tabletChatPanel .chatAuthor {
@@ -3867,7 +3867,7 @@ button.stageRoomCode:disabled {
 }
 
 .mobileChatPanel .chatBubbleOwn {
-  color: #000000;
+  color: #ffffff;
 }
 
 .mobileChatPanel .chatAuthor {
@@ -5156,11 +5156,11 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn {
-  color: #000000;
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .mobileChatPanel .chatBubbleOwn {
-  color: #000000;
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .tabletChatPanel .chatBubbleOwn .chatTime {
