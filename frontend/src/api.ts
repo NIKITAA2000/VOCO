@@ -201,13 +201,13 @@ class ApiClient {
       authorName?: string;
       originalExternalId?: string;
       originalTimestamp?: number;
-      attachment?: {
+      attachments?: Array<{
         url: string;
         name: string;
         kind: "image" | "video" | "document";
         size: number;
         mime: string;
-      };
+      }>;
     },
   ) {
     return this.request(`/rooms/${slug}/pins`, {
@@ -230,13 +230,13 @@ class ApiClient {
       authorName?: string;
       sentAt: number;
       isGuest?: boolean;
-      attachment?: {
+      attachments?: Array<{
         url: string;
         name: string;
         kind: "image" | "video" | "document";
         size: number;
         mime: string;
-      };
+      }>;
     },
   ) {
     return this.request(`/rooms/${slug}/messages`, {

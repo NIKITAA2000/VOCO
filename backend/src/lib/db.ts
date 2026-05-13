@@ -83,6 +83,7 @@ export async function initDatabase() {
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_kind VARCHAR(16);
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_size BIGINT;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment_mime VARCHAR(160);
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachments JSONB;
       ALTER TABLE chat_messages ALTER COLUMN message DROP NOT NULL;
       ALTER TABLE chat_messages ALTER COLUMN message SET DEFAULT '';
       -- Старый UNIQUE по (room_id, author_identity, sent_at) был ненадёжен:
@@ -119,6 +120,7 @@ export async function initDatabase() {
       ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_kind VARCHAR(16);
       ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_size BIGINT;
       ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachment_mime VARCHAR(160);
+      ALTER TABLE pinned_messages ADD COLUMN IF NOT EXISTS attachments JSONB;
       ALTER TABLE pinned_messages ALTER COLUMN message DROP NOT NULL;
       ALTER TABLE pinned_messages ALTER COLUMN message SET DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_pinned_messages_room ON pinned_messages(room_id, pinned_at);

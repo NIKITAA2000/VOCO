@@ -19,6 +19,47 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 
+interface AttachmentDto {
+  url: string;
+  name: string;
+  kind: "image" | "video" | "document";
+  size: number | null;
+  mime: string;
+}
+
+// Сообщения могут иметь до 5 фото/видео или до 10 документов. Хранится в JSONB-колонке
+// `attachments`. Старые строки имеют одно вложение в singular-колонках — оборачиваем в массив.
+function resolveAttachments(row: {
+  attachments?: AttachmentDto[] | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentKind?: AttachmentDto["kind"] | null;
+  attachmentSize?: number | string | null;
+  attachmentMime?: string | null;
+}): AttachmentDto[] {
+  if (Array.isArray(row.attachments) && row.attachments.length > 0) {
+    return row.attachments.map((a) => ({
+      url: a.url,
+      name: a.name,
+      kind: a.kind,
+      size: a.size != null ? Number(a.size) : null,
+      mime: a.mime,
+    }));
+  }
+  if (row.attachmentUrl && row.attachmentKind) {
+    return [
+      {
+        url: row.attachmentUrl,
+        name: row.attachmentName ?? "",
+        kind: row.attachmentKind,
+        size: row.attachmentSize != null ? Number(row.attachmentSize) : null,
+        mime: row.attachmentMime ?? "",
+      },
+    ];
+  }
+  return [];
+}
+
 const router = Router();
 
 router.use(authenticate);
@@ -193,6 +234,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
               attachment_kind AS "attachmentKind",
               attachment_size AS "attachmentSize",
               attachment_mime AS "attachmentMime",
+              attachments,
               pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
        FROM pinned_messages
        WHERE room_id = $1
@@ -209,7 +251,8 @@ router.get("/:slug", async (req: Request, res: Response) => {
               attachment_name AS "attachmentName",
               attachment_kind AS "attachmentKind",
               attachment_size AS "attachmentSize",
-              attachment_mime AS "attachmentMime"
+              attachment_mime AS "attachmentMime",
+              attachments
        FROM chat_messages
        WHERE room_id = $1
        ORDER BY sent_at ASC`,
@@ -243,15 +286,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
           authorName: p.authorName,
           originalExternalId: p.originalExternalId,
           originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
-          attachment: p.attachmentUrl
-            ? {
-                url: p.attachmentUrl,
-                name: p.attachmentName,
-                kind: p.attachmentKind,
-                size: p.attachmentSize != null ? Number(p.attachmentSize) : null,
-                mime: p.attachmentMime,
-              }
-            : null,
+          attachments: resolveAttachments(p),
           pinnedBy: p.pinnedBy,
           pinnedAt: p.pinnedAt,
         })),
@@ -263,15 +298,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
           message: m.message ?? "",
           sentAt: Number(m.sentAt),
           isGuest: m.isGuest,
-          attachment: m.attachmentUrl
-            ? {
-                url: m.attachmentUrl,
-                name: m.attachmentName,
-                kind: m.attachmentKind,
-                size: m.attachmentSize != null ? Number(m.attachmentSize) : null,
-                mime: m.attachmentMime,
-              }
-            : null,
+          attachments: resolveAttachments(m),
         })),
       },
     });
@@ -1217,14 +1244,34 @@ router.post("/:slug/messages", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Ошибка валидации", details: parsed.error.flatten().fieldErrors });
       return;
     }
-    const { externalId, message, authorIdentity, authorName, sentAt, isGuest, attachment } = parsed.data;
+    const {
+      externalId,
+      message,
+      authorIdentity,
+      authorName,
+      sentAt,
+      isGuest,
+      attachment,
+      attachments,
+    } = parsed.data;
+
+    // Группа вложений едет как массив. Для обратной совместимости с однотипным
+    // back-compat-path принимаем и `attachment` (одиночный) — оборачиваем в массив.
+    const finalAttachments =
+      attachments && attachments.length > 0
+        ? attachments
+        : attachment
+          ? [attachment]
+          : [];
+    const first = finalAttachments[0];
 
     const inserted = await db.query(
       `INSERT INTO chat_messages (
          room_id, external_id, author_identity, author_name, message, sent_at, is_guest,
-         attachment_url, attachment_name, attachment_kind, attachment_size, attachment_mime
+         attachment_url, attachment_name, attachment_kind, attachment_size, attachment_mime,
+         attachments
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (room_id, external_id) DO NOTHING
        RETURNING id`,
       [
@@ -1235,11 +1282,12 @@ router.post("/:slug/messages", async (req: Request, res: Response) => {
         message ?? "",
         sentAt,
         isGuest,
-        attachment?.url ?? null,
-        attachment?.name ?? null,
-        attachment?.kind ?? null,
-        attachment?.size ?? null,
-        attachment?.mime ?? null,
+        first?.url ?? null,
+        first?.name ?? null,
+        first?.kind ?? null,
+        first?.size ?? null,
+        first?.mime ?? null,
+        finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null,
       ]
     );
 
@@ -1318,16 +1366,26 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
       originalExternalId,
       originalTimestamp,
       attachment,
+      attachments,
     } = parsed.data;
+
+    const finalAttachments =
+      attachments && attachments.length > 0
+        ? attachments
+        : attachment
+          ? [attachment]
+          : [];
+    const first = finalAttachments[0];
 
     const inserted = await db.query(
       `INSERT INTO pinned_messages (
          room_id, message, author_identity, author_name,
          original_external_id, original_timestamp,
          attachment_url, attachment_name, attachment_kind, attachment_size, attachment_mime,
+         attachments,
          pinned_by
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id, message, author_identity AS "authorIdentity",
                  author_name AS "authorName",
                  original_external_id AS "originalExternalId",
@@ -1337,6 +1395,7 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
                  attachment_kind AS "attachmentKind",
                  attachment_size AS "attachmentSize",
                  attachment_mime AS "attachmentMime",
+                 attachments,
                  pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"`,
       [
         room.id,
@@ -1345,11 +1404,12 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
         authorName ?? null,
         originalExternalId ?? null,
         originalTimestamp ?? null,
-        attachment?.url ?? null,
-        attachment?.name ?? null,
-        attachment?.kind ?? null,
-        attachment?.size ?? null,
-        attachment?.mime ?? null,
+        first?.url ?? null,
+        first?.name ?? null,
+        first?.kind ?? null,
+        first?.size ?? null,
+        first?.mime ?? null,
+        finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null,
         req.user!.userId,
       ]
     );
@@ -1363,15 +1423,7 @@ router.post("/:slug/pins", async (req: Request, res: Response) => {
         authorName: pin.authorName,
         originalExternalId: pin.originalExternalId,
         originalTimestamp: pin.originalTimestamp != null ? Number(pin.originalTimestamp) : null,
-        attachment: pin.attachmentUrl
-          ? {
-              url: pin.attachmentUrl,
-              name: pin.attachmentName,
-              kind: pin.attachmentKind,
-              size: pin.attachmentSize != null ? Number(pin.attachmentSize) : null,
-              mime: pin.attachmentMime,
-            }
-          : null,
+        attachments: resolveAttachments(pin),
         pinnedBy: pin.pinnedBy,
         pinnedAt: pin.pinnedAt,
       },

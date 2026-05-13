@@ -89,6 +89,29 @@ export const changeRoleSchema = z.object({
   }),
 });
 
+const attachmentSchema = z.object({
+  url: z.string().min(1).max(500),
+  name: z.string().min(1).max(255),
+  kind: z.enum(["image", "video", "document"]),
+  size: z.number().int().nonnegative(),
+  mime: z.string().min(1).max(160),
+});
+
+// Группа вложений: либо media (image+video), либо files (document). До 10 в сообщении.
+// Смешивать группы в одном сообщении нельзя.
+const attachmentsSchema = z
+  .array(attachmentSchema)
+  .min(1)
+  .max(10, "В сообщении до 10 вложений")
+  .refine(
+    (arr) => {
+      const hasMedia = arr.some((a) => a.kind === "image" || a.kind === "video");
+      const hasDoc = arr.some((a) => a.kind === "document");
+      return !(hasMedia && hasDoc);
+    },
+    { message: "Нельзя смешивать фото/видео и документы в одном сообщении" },
+  );
+
 export const saveChatMessageSchema = z
   .object({
     externalId: z.string().min(1).max(120),
@@ -97,19 +120,18 @@ export const saveChatMessageSchema = z
     authorName: z.string().max(120).optional(),
     sentAt: z.number().int(),
     isGuest: z.boolean().optional().default(false),
-    attachment: z
-      .object({
-        url: z.string().min(1).max(500),
-        name: z.string().min(1).max(255),
-        kind: z.enum(["image", "video", "document"]),
-        size: z.number().int().nonnegative(),
-        mime: z.string().min(1).max(160),
-      })
-      .optional(),
+    attachment: attachmentSchema.optional(),
+    attachments: attachmentsSchema.optional(),
   })
-  .refine((data) => data.message.trim().length > 0 || data.attachment, {
-    message: "Сообщение или вложение обязательно",
-  });
+  .refine(
+    (data) =>
+      data.message.trim().length > 0 ||
+      data.attachment ||
+      (data.attachments && data.attachments.length > 0),
+    {
+      message: "Сообщение или вложение обязательно",
+    },
+  );
 
 export const pinMessageSchema = z
   .object({
@@ -118,19 +140,18 @@ export const pinMessageSchema = z
     authorName: z.string().max(120).optional(),
     originalExternalId: z.string().max(120).optional(),
     originalTimestamp: z.number().int().optional(),
-    attachment: z
-      .object({
-        url: z.string().min(1).max(500),
-        name: z.string().min(1).max(255),
-        kind: z.enum(["image", "video", "document"]),
-        size: z.number().int().nonnegative(),
-        mime: z.string().min(1).max(160),
-      })
-      .optional(),
+    attachment: attachmentSchema.optional(),
+    attachments: attachmentsSchema.optional(),
   })
-  .refine((d) => d.message.trim().length > 0 || d.attachment, {
-    message: "Нужно сообщение или вложение",
-  });
+  .refine(
+    (d) =>
+      d.message.trim().length > 0 ||
+      d.attachment ||
+      (d.attachments && d.attachments.length > 0),
+    {
+      message: "Нужно сообщение или вложение",
+    },
+  );
 
 export const joinGuestSchema = z.object({
   displayName: z

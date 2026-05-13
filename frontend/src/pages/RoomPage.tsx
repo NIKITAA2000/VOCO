@@ -122,7 +122,7 @@ interface PinnedMessage {
   authorName?: string | null;
   originalExternalId?: string | null;
   originalTimestamp?: number | null;
-  attachment?: ChatAttachment | null;
+  attachments?: ChatAttachment[] | null;
   pinnedBy?: string | null;
   pinnedAt?: string | null;
 }
@@ -143,22 +143,53 @@ interface ChatHistoryEntry {
   message: string;
   sentAt: number;
   isGuest?: boolean;
-  attachment?: ChatAttachment | null;
+  attachments?: ChatAttachment[] | null;
 }
 
-// Сообщения чата с вложением едут через LiveKit в JSON-обёртке `{__voco:"msg",t,a}`.
-// Чистый текст шлём как есть — обратная совместимость с историей до вложений.
-function buildChatPayload(text: string, attachment?: ChatAttachment): string {
-  if (!attachment) return text;
-  return JSON.stringify({ __voco: "msg", t: text, a: attachment });
+// Группа вложений в сообщении: фото/видео (до 5) или документы (до 10).
+// Смешивать в одном сообщении нельзя.
+type AttachmentGroup = "media" | "files";
+const ATTACHMENT_LIMITS: Record<AttachmentGroup, number> = { media: 10, files: 10 };
+// Сколько медиа-плиток видно в коллаже сообщения; остальные скрываются за «+N».
+const MEDIA_COLLAGE_VISIBLE = 4;
+
+function attachmentGroupOf(kind: ChatAttachment["kind"]): AttachmentGroup {
+  return kind === "document" ? "files" : "media";
+}
+
+function sanitizeChatAttachment(a: unknown): ChatAttachment | null {
+  if (!a || typeof a !== "object") return null;
+  const obj = a as Record<string, unknown>;
+  if (
+    typeof obj.url !== "string" ||
+    typeof obj.name !== "string" ||
+    (obj.kind !== "image" && obj.kind !== "video" && obj.kind !== "document")
+  ) {
+    return null;
+  }
+  return {
+    url: obj.url,
+    name: obj.name,
+    kind: obj.kind,
+    size: Number(obj.size) || 0,
+    mime: String(obj.mime || ""),
+  };
+}
+
+// Сообщения чата с вложениями едут через LiveKit в JSON-обёртке
+// `{__voco:"msg", t, a: ChatAttachment[]}`. Чистый текст шлём как есть.
+// Парсер также поддерживает legacy-формат `a: ChatAttachment` (одно вложение).
+function buildChatPayload(text: string, attachments?: ChatAttachment[]): string {
+  if (!attachments || attachments.length === 0) return text;
+  return JSON.stringify({ __voco: "msg", t: text, a: attachments });
 }
 
 function parseChatPayload(raw: string | undefined | null): {
   text: string;
-  attachment?: ChatAttachment;
+  attachments: ChatAttachment[];
 } {
-  if (!raw || typeof raw !== "string") return { text: raw ?? "" };
-  if (!raw.startsWith("{")) return { text: raw };
+  if (!raw || typeof raw !== "string") return { text: raw ?? "", attachments: [] };
+  if (!raw.startsWith("{")) return { text: raw, attachments: [] };
   try {
     const parsed = JSON.parse(raw);
     if (
@@ -167,26 +198,19 @@ function parseChatPayload(raw: string | undefined | null): {
       parsed.__voco === "msg" &&
       typeof parsed.t === "string"
     ) {
-      const a = parsed.a;
-      const attachment: ChatAttachment | undefined =
-        a &&
-        typeof a.url === "string" &&
-        typeof a.name === "string" &&
-        (a.kind === "image" || a.kind === "video" || a.kind === "document")
-          ? {
-              url: a.url,
-              name: a.name,
-              kind: a.kind,
-              size: Number(a.size) || 0,
-              mime: String(a.mime || ""),
-            }
-          : undefined;
-      return { text: parsed.t, attachment };
+      const raw_a = parsed.a;
+      const attachments: ChatAttachment[] = Array.isArray(raw_a)
+        ? (raw_a.map(sanitizeChatAttachment).filter(Boolean) as ChatAttachment[])
+        : (() => {
+            const single = sanitizeChatAttachment(raw_a);
+            return single ? [single] : [];
+          })();
+      return { text: parsed.t, attachments };
     }
   } catch {
     // не json — старый формат
   }
-  return { text: raw };
+  return { text: raw, attachments: [] };
 }
 
 function formatFileSize(bytes: number): string {
@@ -2029,9 +2053,45 @@ export function ConferenceRoomContent({
   const [chatClearedAt, setChatClearedAt] = useState(0);
   const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
   const savedChatKeysRef = useRef<Set<string>>(new Set());
-  const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
-  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [uploadingAttachmentCount, setUploadingAttachmentCount] = useState(0);
   const [attachmentError, setAttachmentError] = useState("");
+  const pendingGroup: AttachmentGroup | null =
+    pendingAttachments.length > 0 ? attachmentGroupOf(pendingAttachments[0].kind) : null;
+  const uploadingAttachment = uploadingAttachmentCount > 0;
+  // Лайтбокс умеет листать всю медиа-группу сообщения: items — массив, index —
+  // активный элемент. Открывается из коллажа (клик по плитке или «+N»).
+  type LightboxItem = { url: string; kind: "image" | "video"; name: string };
+  const [lightboxState, setLightboxState] = useState<{
+    items: LightboxItem[];
+    index: number;
+  } | null>(null);
+  const lightboxItem = lightboxState
+    ? lightboxState.items[lightboxState.index] ?? null
+    : null;
+  const closeLightbox = useCallback(() => setLightboxState(null), []);
+  const lightboxNext = useCallback(() => {
+    setLightboxState((cur) =>
+      cur ? { ...cur, index: (cur.index + 1) % cur.items.length } : cur,
+    );
+  }, []);
+  const lightboxPrev = useCallback(() => {
+    setLightboxState((cur) =>
+      cur
+        ? { ...cur, index: (cur.index - 1 + cur.items.length) % cur.items.length }
+        : cur,
+    );
+  }, []);
+  useEffect(() => {
+    if (!lightboxState) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightboxState(null);
+      else if (event.key === "ArrowRight") lightboxNext();
+      else if (event.key === "ArrowLeft") lightboxPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxState, lightboxNext, lightboxPrev]);
   const [composerMenuOpen, setComposerMenuOpen] = useState(false);
   const composerMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2339,7 +2399,7 @@ export function ConferenceRoomContent({
       from?: { identity?: string; name?: string };
       timestamp?: number;
       externalId?: string;
-      attachment?: ChatAttachment | null;
+      attachments?: ChatAttachment[] | null;
     }) => {
       if (!slug) return;
       try {
@@ -2349,7 +2409,10 @@ export function ConferenceRoomContent({
           authorName: entry.from?.name,
           originalExternalId: entry.externalId,
           originalTimestamp: entry.timestamp,
-          attachment: entry.attachment ?? undefined,
+          attachments:
+            entry.attachments && entry.attachments.length > 0
+              ? entry.attachments
+              : undefined,
         });
         const newPin = data?.pin as PinnedMessage | undefined;
         if (newPin) {
@@ -2782,7 +2845,7 @@ export function ConferenceRoomContent({
       if (sentAt <= chatClearedAt) return;
       if (savedChatKeysRef.current.has(externalId)) return;
       savedChatKeysRef.current.add(externalId);
-      const { text, attachment } = parseChatPayload(entry.message);
+      const { text, attachments } = parseChatPayload(entry.message);
       void api
         .saveRoomMessage(slug, {
           externalId,
@@ -2791,7 +2854,7 @@ export function ConferenceRoomContent({
           authorName: entry.from?.name,
           sentAt,
           isGuest: identity.startsWith("guest_"),
-          attachment,
+          attachments: attachments.length > 0 ? attachments : undefined,
         })
         .catch(() => {
           // молча — другой клиент сохранит, или это уже сохранённое
@@ -2811,12 +2874,13 @@ export function ConferenceRoomContent({
       authorIdentity: string;
       authorName?: string | null;
       isGuest: boolean;
-      attachment?: ChatAttachment | null;
+      attachments: ChatAttachment[];
     };
     const map = new Map<string, Entry>();
     for (const item of chatHistory) {
       if (!item.authorIdentity) continue;
-      if (!item.message && !item.attachment) continue;
+      const itemAttachments = item.attachments ?? [];
+      if (!item.message && itemAttachments.length === 0) continue;
       if (item.sentAt <= chatClearedAt) continue;
       const key = item.externalId
         ? `ext:${item.externalId}`
@@ -2829,7 +2893,7 @@ export function ConferenceRoomContent({
         authorIdentity: item.authorIdentity,
         authorName: item.authorName ?? undefined,
         isGuest: Boolean(item.isGuest) || item.authorIdentity.startsWith("guest_"),
-        attachment: item.attachment ?? undefined,
+        attachments: itemAttachments,
       });
     }
     for (const entry of chatMessages as any[]) {
@@ -2839,7 +2903,7 @@ export function ConferenceRoomContent({
       if (sentAt <= chatClearedAt) continue;
       const externalId = typeof entry.id === "string" ? entry.id : "";
       const key = externalId ? `ext:${externalId}` : `ts:${identity}|${sentAt}`;
-      const { text, attachment } = parseChatPayload(entry.message);
+      const { text, attachments } = parseChatPayload(entry.message);
       map.set(key, {
         key,
         externalId: externalId || undefined,
@@ -2848,7 +2912,7 @@ export function ConferenceRoomContent({
         authorIdentity: identity,
         authorName: entry.from?.name ?? undefined,
         isGuest: identity.startsWith("guest_"),
-        attachment: attachment ?? undefined,
+        attachments,
       });
     }
     return Array.from(map.values()).sort((a, b) => a.sentAt - b.sentAt);
@@ -2896,39 +2960,114 @@ export function ConferenceRoomContent({
 
   const handleFileSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = ""; // позволяем выбрать тот же файл повторно
-      if (!file || !slug) return;
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = ""; // позволяем выбрать те же файлы повторно
+      if (files.length === 0 || !slug) return;
       setAttachmentError("");
-      setUploadingAttachment(true);
-      try {
-        const data = await api.uploadRoomFile(slug, file, livekitToken);
-        setPendingAttachment(data);
-      } catch (err: any) {
-        setAttachmentError(err?.message || "Не удалось загрузить файл");
-      } finally {
-        setUploadingAttachment(false);
+
+      // Кинд по MIME (тот же маппинг, что на бэке в uploads.ts).
+      const kindByMime = (mime: string): ChatAttachment["kind"] | null => {
+        if (mime.startsWith("image/")) return "image";
+        if (mime.startsWith("video/")) return "video";
+        if (
+          mime === "application/pdf" ||
+          mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        ) {
+          return "document";
+        }
+        return null;
+      };
+
+      // Определяем целевую группу: либо текущая (если уже что-то выбрано), либо
+      // первая из переданных файлов.
+      const currentGroup = pendingAttachments.length > 0
+        ? attachmentGroupOf(pendingAttachments[0].kind)
+        : null;
+
+      const accepted: File[] = [];
+      let rejectedGroupMismatch = false;
+      let targetGroup: AttachmentGroup | null = currentGroup;
+      for (const file of files) {
+        const kind = kindByMime(file.type);
+        if (!kind) {
+          setAttachmentError(`Тип файла не поддерживается: ${file.name}`);
+          continue;
+        }
+        const group = attachmentGroupOf(kind);
+        if (!targetGroup) targetGroup = group;
+        if (group !== targetGroup) {
+          rejectedGroupMismatch = true;
+          continue;
+        }
+        accepted.push(file);
       }
+      if (rejectedGroupMismatch) {
+        setAttachmentError(
+          targetGroup === "media"
+            ? "В одном сообщении — только фото/видео ИЛИ файлы"
+            : "В одном сообщении — только файлы ИЛИ фото/видео",
+        );
+      }
+      if (accepted.length === 0 || !targetGroup) return;
+
+      const limit = ATTACHMENT_LIMITS[targetGroup];
+      const remaining = Math.max(0, limit - pendingAttachments.length);
+      const toUpload = accepted.slice(0, remaining);
+      if (toUpload.length < accepted.length) {
+        setAttachmentError(
+          targetGroup === "media"
+            ? `До ${limit} фото/видео в одном сообщении`
+            : `До ${limit} файлов в одном сообщении`,
+        );
+      }
+      if (toUpload.length === 0) return;
+
+      setUploadingAttachmentCount((c) => c + toUpload.length);
+      // Грузим параллельно; добавляем по мере готовности, сохраняя порядок выбора.
+      const results = await Promise.allSettled(
+        toUpload.map((file) => api.uploadRoomFile(slug, file, livekitToken)),
+      );
+      const uploaded: ChatAttachment[] = [];
+      let lastError = "";
+      for (const r of results) {
+        if (r.status === "fulfilled") uploaded.push(r.value);
+        else lastError = r.reason?.message || "Не удалось загрузить файл";
+      }
+      if (uploaded.length > 0) {
+        setPendingAttachments((prev) => [...prev, ...uploaded].slice(0, limit));
+      }
+      if (lastError) setAttachmentError(lastError);
+      setUploadingAttachmentCount((c) => Math.max(0, c - toUpload.length));
     },
-    [slug, livekitToken],
+    [slug, livekitToken, pendingAttachments],
   );
 
-  const handleRemovePendingAttachment = useCallback(() => {
-    setPendingAttachment(null);
+  const handleRemovePendingAttachment = useCallback((index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentError("");
+  }, []);
+
+  const handleClearPendingAttachments = useCallback(() => {
+    setPendingAttachments([]);
     setAttachmentError("");
   }, []);
 
   const handleChatSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedMessage = message.trim();
-    if (!normalizedMessage && !pendingAttachment) return;
+    if (!normalizedMessage && pendingAttachments.length === 0) return;
     if (uploadingAttachment) return;
 
-    const payload = buildChatPayload(normalizedMessage, pendingAttachment ?? undefined);
+    const payload = buildChatPayload(
+      normalizedMessage,
+      pendingAttachments.length > 0 ? pendingAttachments : undefined,
+    );
     try {
       await send(payload);
       setMessage("");
-      setPendingAttachment(null);
+      setPendingAttachments([]);
+      setAttachmentError("");
       setEmojiPickerOpen(false);
     } catch {
       // Keep the current value so the user can retry.
@@ -3002,8 +3141,15 @@ export function ConferenceRoomContent({
       <input
         ref={fileInputRef}
         type="file"
+        multiple
         className={styles.chatFileInput}
-        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        accept={
+          pendingGroup === "media"
+            ? "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+            : pendingGroup === "files"
+              ? "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              : "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        }
         onChange={(e) => void handleFileSelected(e)}
       />
       <div className={styles.chatAttachWrap} ref={composerMenuRef}>
@@ -3014,7 +3160,11 @@ export function ConferenceRoomContent({
           aria-haspopup="menu"
           aria-expanded={composerMenuOpen}
           onClick={handleToggleComposerMenu}
-          disabled={uploadingAttachment}
+          disabled={
+            uploadingAttachment ||
+            (pendingGroup !== null &&
+              pendingAttachments.length >= ATTACHMENT_LIMITS[pendingGroup])
+          }
         >
           <PlusIcon />
         </button>
@@ -3039,25 +3189,90 @@ export function ConferenceRoomContent({
           </div>
         ) : null}
       </div>
-      {pendingAttachment ? (
-        <div className={styles.chatPendingAttachment} title={pendingAttachment.name}>
-          <span className={styles.chatPendingAttachmentName}>{pendingAttachment.name}</span>
-          <span className={styles.chatPendingAttachmentSize}>
-            {formatFileSize(pendingAttachment.size)}
-          </span>
-          <button
-            type="button"
-            className={styles.chatPendingAttachmentRemove}
-            onClick={handleRemovePendingAttachment}
-            aria-label="Убрать вложение"
-          />
+      {pendingAttachments.length > 0 && pendingGroup ? (
+        <div className={styles.chatPendingPanel}>
+          <div
+            className={styles.chatAttachmentInfoBar}
+            data-state={attachmentError ? "error" : uploadingAttachment ? "loading" : "idle"}
+          >
+            <span className={styles.chatAttachmentInfoBarMessage}>
+              {attachmentError
+                ? attachmentError
+                : uploadingAttachment
+                  ? uploadingAttachmentCount > 1
+                    ? `Загружаем файлы… (${uploadingAttachmentCount})`
+                    : "Загружаем файл…"
+                  : null}
+            </span>
+            <span className={styles.chatAttachmentInfoBarRight}>
+              <span className={styles.chatAttachmentInfoBarCount}>
+                {pendingGroup === "media"
+                  ? `Фото/видео: ${pendingAttachments.length}/${ATTACHMENT_LIMITS.media}`
+                  : `Файлы: ${pendingAttachments.length}/${ATTACHMENT_LIMITS.files}`}
+              </span>
+              <button
+                type="button"
+                className={styles.chatPendingClearAll}
+                onClick={handleClearPendingAttachments}
+              >
+                Убрать все
+              </button>
+            </span>
+          </div>
+          {pendingGroup === "media" ? (
+            <div className={styles.chatPendingGrid} data-count={pendingAttachments.length}>
+              {pendingAttachments.map((att, idx) => (
+                <div className={styles.chatPendingThumb} key={`${att.url}-${idx}`} title={att.name}>
+                  {att.kind === "image" ? (
+                    <img src={att.url} alt={att.name} loading="lazy" />
+                  ) : (
+                    <>
+                      <video src={att.url} muted preload="metadata" />
+                      <span className={styles.chatPendingPlay} aria-hidden="true" />
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.chatPendingRemove}
+                    onClick={() => handleRemovePendingAttachment(idx)}
+                    aria-label={`Убрать ${att.name}`}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.chatPendingList}>
+              {pendingAttachments.map((att, idx) => (
+                <div className={styles.chatPendingFileRow} key={`${att.url}-${idx}`} title={att.name}>
+                  <span className={styles.chatPendingFileIcon} aria-hidden="true" />
+                  <span className={styles.chatPendingFileMeta}>
+                    <span className={styles.chatPendingFileName}>{att.name}</span>
+                    <span className={styles.chatPendingFileSize}>{formatFileSize(att.size)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.chatPendingFileRemove}
+                    onClick={() => handleRemovePendingAttachment(idx)}
+                    aria-label={`Убрать ${att.name}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ) : null}
-      {uploadingAttachment ? (
-        <div className={styles.chatAttachmentStatus}>Загружаем файл…</div>
-      ) : null}
-      {attachmentError ? (
-        <div className={styles.chatAttachmentError}>{attachmentError}</div>
+      ) : uploadingAttachment || attachmentError ? (
+        <div
+          className={`${styles.chatAttachmentInfoBar} ${styles.chatAttachmentInfoBarFloating}`}
+          data-state={attachmentError ? "error" : "loading"}
+        >
+          <span className={styles.chatAttachmentInfoBarMessage}>
+            {attachmentError
+              ? attachmentError
+              : uploadingAttachmentCount > 1
+                ? `Загружаем файлы… (${uploadingAttachmentCount})`
+                : "Загружаем файл…"}
+          </span>
+        </div>
       ) : null}
 
       <button
@@ -3119,7 +3334,7 @@ export function ConferenceRoomContent({
         className={`${styles.chatIconButton} ${styles.chatSendButton}`}
         type="submit"
         aria-label="Отправить сообщение"
-        disabled={isSending || uploadingAttachment || (!message.trim() && !pendingAttachment)}
+        disabled={isSending || uploadingAttachment || (!message.trim() && pendingAttachments.length === 0)}
       >
         <SendIcon />
       </button>
@@ -3581,46 +3796,110 @@ export function ConferenceRoomContent({
       );
     });
 
-  const renderChatAttachment = (attachment: ChatAttachment) => {
+  // Медиа-тайл коллажа сообщения. Клик открывает лайтбокс на текущем индексе
+  // и передаёт всю медиа-группу — чтобы можно было листать стрелками.
+  const renderMediaTile = (
+    attachment: ChatAttachment,
+    mediaItems: LightboxItem[],
+    index: number,
+    badge?: number | null,
+  ) => {
+    const open = () => setLightboxState({ items: mediaItems, index });
+    const overlay = badge && badge > 0 ? (
+      <span className={styles.chatAttachmentMoreBadge} aria-hidden="true">
+        +{badge}
+      </span>
+    ) : null;
     if (attachment.kind === "image") {
       return (
-        <a
+        <button
+          key={index}
+          type="button"
           className={styles.chatAttachmentImage}
-          href={attachment.url}
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={open}
           aria-label={`Открыть ${attachment.name}`}
         >
           <img src={attachment.url} alt={attachment.name} loading="lazy" />
-        </a>
-      );
-    }
-    if (attachment.kind === "video") {
-      return (
-        <video
-          className={styles.chatAttachmentVideo}
-          src={attachment.url}
-          controls
-          preload="metadata"
-        />
+          {overlay}
+        </button>
       );
     }
     return (
-      <a
-        className={styles.chatAttachmentFile}
-        href={attachment.url}
-        download={attachment.name}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        key={index}
+        type="button"
+        className={styles.chatAttachmentVideo}
+        onClick={open}
+        aria-label={`Открыть видео ${attachment.name}`}
       >
-        <span className={styles.chatAttachmentFileIcon} aria-hidden="true" />
-        <span className={styles.chatAttachmentFileMeta}>
-          <span className={styles.chatAttachmentFileName}>{attachment.name}</span>
-          <span className={styles.chatAttachmentFileSize}>
-            {formatFileSize(attachment.size)}
-          </span>
+        <video src={attachment.url} preload="metadata" muted playsInline />
+        <span className={styles.chatAttachmentPlayIcon} aria-hidden="true" />
+        {overlay}
+      </button>
+    );
+  };
+
+  const renderDocumentRow = (attachment: ChatAttachment, key: number) => (
+    <a
+      key={key}
+      className={styles.chatAttachmentFile}
+      href={attachment.url}
+      download={attachment.name}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <span className={styles.chatAttachmentFileIcon} aria-hidden="true" />
+      <span className={styles.chatAttachmentFileMeta}>
+        <span className={styles.chatAttachmentFileName}>{attachment.name}</span>
+        <span className={styles.chatAttachmentFileSize}>
+          {formatFileSize(attachment.size)}
         </span>
-      </a>
+      </span>
+    </a>
+  );
+
+  // Группа вложений в сообщении: фото/видео — коллаж до 4 тайлов с «+N» на
+  // последнем; документы — вертикальный список.
+  const renderChatAttachments = (attachments: ChatAttachment[]) => {
+    if (attachments.length === 0) return null;
+    const group = attachmentGroupOf(attachments[0].kind);
+    if (group === "media") {
+      const mediaItems: LightboxItem[] = attachments.map((a) => ({
+        url: a.url,
+        kind: a.kind === "video" ? "video" : "image",
+        name: a.name,
+      }));
+      if (attachments.length === 1) {
+        return (
+          <div className={styles.chatAttachmentSingle}>
+            {renderMediaTile(attachments[0], mediaItems, 0)}
+          </div>
+        );
+      }
+      const total = attachments.length;
+      const visibleCount = Math.min(total, MEDIA_COLLAGE_VISIBLE);
+      const overflow = total - visibleCount;
+      const visible = attachments.slice(0, visibleCount);
+      return (
+        <div
+          className={styles.chatAttachmentGrid}
+          data-count={visibleCount}
+        >
+          {visible.map((a, i) =>
+            renderMediaTile(
+              a,
+              mediaItems,
+              i,
+              i === visibleCount - 1 && overflow > 0 ? overflow : null,
+            ),
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className={styles.chatAttachmentList}>
+        {attachments.map((a, i) => renderDocumentRow(a, i))}
+      </div>
     );
   };
 
@@ -3653,7 +3932,7 @@ export function ConferenceRoomContent({
               className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote}`}
             >
               {!isLocal ? <div className={styles.chatAuthor}>{authorName}</div> : null}
-              {entry.attachment ? renderChatAttachment(entry.attachment) : null}
+              {entry.attachments.length > 0 ? renderChatAttachments(entry.attachments) : null}
               {entry.message ? <div className={styles.chatBody}>{entry.message}</div> : null}
               <div className={styles.chatTime}>{formatMessageTime(entry.sentAt)}</div>
               {canModerateParticipants && slug ? (
@@ -3668,7 +3947,7 @@ export function ConferenceRoomContent({
                       from: { identity: entry.authorIdentity, name: entry.authorName ?? undefined },
                       timestamp: entry.sentAt,
                       externalId: entry.externalId,
-                      attachment: entry.attachment ?? null,
+                      attachments: entry.attachments,
                     })
                   }
                 />
@@ -3752,15 +4031,25 @@ export function ConferenceRoomContent({
           <button
             type="button"
             className={styles.chatPinnedText}
-            title={pin.originalExternalId ? "Перейти к сообщению" : (pin.message || pin.attachment?.name || "")}
+            title={pin.originalExternalId ? "Перейти к сообщению" : (pin.message || pin.attachments?.[0]?.name || "")}
             onClick={() => handleJumpToPinned(pin)}
             disabled={!pin.originalExternalId}
           >
             {pin.authorName ? (
               <span className={styles.chatPinnedAuthor}>{pin.authorName}: </span>
             ) : null}
-            {pin.attachment && !pin.message ? (
-              <span className={styles.chatPinnedAttachment}>📎 {pin.attachment.name}</span>
+            {(pin.attachments?.length ?? 0) > 0 && !pin.message ? (
+              <span className={styles.chatPinnedAttachment}>
+                {(() => {
+                  const first = pin.attachments![0];
+                  const count = pin.attachments!.length;
+                  if (count > 1) {
+                    const isMedia = attachmentGroupOf(first.kind) === "media";
+                    return `📎 ${isMedia ? "Фото/видео" : "Файлы"}: ${count}`;
+                  }
+                  return `📎 ${first.name}`;
+                })()}
+              </span>
             ) : (
               pin.message
             )}
@@ -3808,9 +4097,17 @@ export function ConferenceRoomContent({
                   <span className={styles.chatPinnedListAuthor}>{item.authorName}: </span>
                 ) : null}
                 <span className={styles.chatPinnedListText}>
-                  {item.attachment && !item.message
-                    ? `📎 ${item.attachment.name}`
-                    : item.message}
+                  {(() => {
+                    const atts = item.attachments ?? [];
+                    if (atts.length > 0 && !item.message) {
+                      if (atts.length > 1) {
+                        const isMedia = attachmentGroupOf(atts[0].kind) === "media";
+                        return `📎 ${isMedia ? "Фото/видео" : "Файлы"}: ${atts.length}`;
+                      }
+                      return `📎 ${atts[0].name}`;
+                    }
+                    return item.message;
+                  })()}
                 </span>
               </button>
             ))}
@@ -3884,6 +4181,72 @@ export function ConferenceRoomContent({
       onPageChange={setTilePage}
     />
   );
+
+  const lightboxOverlay = lightboxItem && lightboxState ? (
+    <div
+      className={styles.lightboxOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label={lightboxItem.name}
+      onClick={closeLightbox}
+    >
+      <button
+        type="button"
+        className={styles.lightboxClose}
+        onClick={(event) => {
+          event.stopPropagation();
+          closeLightbox();
+        }}
+        aria-label="Закрыть"
+      />
+      {lightboxState.items.length > 1 ? (
+        <>
+          <button
+            type="button"
+            className={styles.lightboxPrev}
+            onClick={(event) => {
+              event.stopPropagation();
+              lightboxPrev();
+            }}
+            aria-label="Предыдущее"
+          />
+          <button
+            type="button"
+            className={styles.lightboxNext}
+            onClick={(event) => {
+              event.stopPropagation();
+              lightboxNext();
+            }}
+            aria-label="Следующее"
+          />
+          <div
+            className={styles.lightboxCounter}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {lightboxState.index + 1} / {lightboxState.items.length}
+          </div>
+        </>
+      ) : null}
+      {lightboxItem.kind === "image" ? (
+        <img
+          className={styles.lightboxImage}
+          src={lightboxItem.url}
+          alt={lightboxItem.name}
+          onClick={(event) => event.stopPropagation()}
+        />
+      ) : (
+        <video
+          key={lightboxItem.url}
+          className={styles.lightboxVideo}
+          src={lightboxItem.url}
+          controls
+          autoPlay
+          playsInline
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
+    </div>
+  ) : null;
 
   if (isTabletLayout) {
     return (
@@ -4148,6 +4511,7 @@ export function ConferenceRoomContent({
 
           {sharedLiveKitUi}
         </div>
+        {lightboxOverlay}
       </div>
     );
   }
@@ -4385,6 +4749,7 @@ export function ConferenceRoomContent({
 
           {sharedLiveKitUi}
         </div>
+        {lightboxOverlay}
       </div>
     );
   }
@@ -4654,6 +5019,7 @@ export function ConferenceRoomContent({
 
         {sharedLiveKitUi}
       </div>
+      {lightboxOverlay}
     </div>
   );
 }

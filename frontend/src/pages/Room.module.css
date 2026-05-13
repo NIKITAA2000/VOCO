@@ -710,32 +710,32 @@
 
 .chatClearButton {
   position: absolute;
-  top: 12px;
-  right: 14px;
-  width: 28px;
-  height: 28px;
+  top: 4px;
+  right: 6px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(0, 119, 255, 0.12);
-  color: #0077ff;
+  /* Тот же radial-gradient-стиль, что у кнопок композера и .exitGlow */
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+  color: #000000;
   cursor: pointer;
   display: grid;
   place-items: center;
   z-index: 6;
-  transition: background 0.15s, transform 0.15s;
 }
 
-.chatClearButton:hover {
-  background: rgba(0, 119, 255, 0.22);
-  transform: scale(1.05);
+.chatClearButton:focus,
+.chatClearButton:focus-visible {
+  outline: none;
 }
 
 .chatClearButton::before {
   content: "";
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -1250,33 +1250,89 @@
 .chatPendingAttachmentRemove::before { transform: rotate(45deg); }
 .chatPendingAttachmentRemove::after { transform: rotate(-45deg); }
 
-.chatAttachmentStatus,
-.chatAttachmentError {
+/* Панель прикреплений над композером: info-bar сверху, под ним — сетка/список. */
+.chatPendingPanel {
   position: absolute;
-  left: 60px;
+  left: 8px;
+  right: 8px;
   bottom: 54px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 12px;
+  background: #eef4ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  max-height: 320px;
+}
+
+.chatAttachmentInfoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
   font-size: 12px;
   line-height: 16px;
-  padding: 2px 6px;
-  border-radius: 8px;
-}
-
-.chatAttachmentStatus {
-  background: rgba(0, 119, 255, 0.12);
   color: #003a80;
+  border-bottom: 1px solid rgba(0, 58, 128, 0.08);
 }
 
-.chatAttachmentError {
-  background: rgba(255, 60, 60, 0.12);
+/* Когда есть только ошибка/статус (без превью) — плавающий чип над композером. */
+.chatAttachmentInfoBarFloating {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 54px;
+  z-index: 3;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  border-bottom: 0;
+}
+
+.chatAttachmentInfoBarMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatAttachmentInfoBar[data-state="error"] .chatAttachmentInfoBarMessage {
   color: #b00020;
 }
 
+.chatAttachmentInfoBar[data-state="loading"] .chatAttachmentInfoBarMessage {
+  color: #003a80;
+  opacity: 0.85;
+}
+
+.chatAttachmentInfoBarRight {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.85;
+}
+
+.chatAttachmentInfoBarCount {
+  white-space: nowrap;
+}
+
 .chatAttachmentImage {
+  position: relative;
   display: block;
   margin: 0 -2px 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   border-radius: 8px;
   overflow: hidden;
   max-width: 280px;
+  cursor: pointer;
 }
 
 .chatAttachmentImage img {
@@ -1288,13 +1344,146 @@
 }
 
 .chatAttachmentVideo {
+  position: relative;
   display: block;
   margin: 0 -2px 6px;
+  padding: 0;
+  border: 0;
   border-radius: 8px;
+  overflow: hidden;
   width: 280px;
   max-width: 100%;
   max-height: 220px;
   background: #000;
+  cursor: pointer;
+}
+
+.chatAttachmentVideo video {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chatAttachmentPlayIcon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background:
+    rgba(0, 0, 0, 0.55)
+    url("data:image/svg+xml,%3Csvg width='20' height='24' viewBox='0 0 20 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 1.5 18 12 2 22.5z' fill='%23fff'/%3E%3C/svg%3E")
+    no-repeat center / 20px 24px;
+  pointer-events: none;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.85);
+  animation: lightboxFade 160ms ease-out;
+}
+
+@keyframes lightboxFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lightboxImage,
+.lightboxVideo {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.lightboxClose {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background:
+    rgba(255, 255, 255, 0.18)
+    url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1 L13 13 M13 1 L1 13' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat center / 14px 14px;
+  transition: background-color 120ms ease;
+}
+
+.lightboxClose:hover {
+  background-color: rgba(255, 255, 255, 0.32);
+}
+
+.lightboxClose:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.lightboxPrev,
+.lightboxNext {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.18);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 14px 14px;
+  transition: background-color 120ms ease;
+}
+
+.lightboxPrev {
+  left: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 1 L4 7 L10 13' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+}
+
+.lightboxNext {
+  right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 1 L10 7 L4 13' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+}
+
+.lightboxPrev:hover,
+.lightboxNext:hover {
+  background-color: rgba(255, 255, 255, 0.32);
+}
+
+.lightboxCounter {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  pointer-events: none;
 }
 
 /* Вложение-файл: без отдельной плашки, просто иконка + имя + размер,
@@ -4909,12 +5098,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .chatClearButton {
-  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
-}
-
-:global(:root[data-theme="dark"]) .chatClearButton:hover {
-  background: rgba(255, 255, 255, 0.28);
 }
 
 :global(:root[data-theme="dark"]) .participantRowModerator {
@@ -7387,4 +7571,240 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .settingsPanel {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* ===== Мульти-вложения в композере чата ===== */
+/* Сетка миниатюр для фото/видео (до 5 в сообщении). */
+/* Превью прикреплённых медиа в композере. До 10 элементов — переносим строки
+   автоматически, по 5 в ряд. Внутри .chatPendingPanel — без собственного фона. */
+.chatPendingGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 80px);
+  grid-auto-rows: 80px;
+  justify-content: start;
+  gap: 6px;
+  padding: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chatPendingGrid[data-count="1"] { grid-template-columns: 80px; }
+.chatPendingGrid[data-count="2"] { grid-template-columns: repeat(2, 80px); }
+.chatPendingGrid[data-count="3"] { grid-template-columns: repeat(3, 80px); }
+.chatPendingGrid[data-count="4"] { grid-template-columns: repeat(4, 80px); }
+
+.chatPendingThumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+}
+
+.chatPendingThumb img,
+.chatPendingThumb video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.chatPendingPlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.chatPendingPlay::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 14px solid #fff;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.chatPendingRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.chatPendingRemove::before,
+.chatPendingRemove::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+.chatPendingRemove::before { transform: rotate(45deg); }
+.chatPendingRemove::after { transform: rotate(-45deg); }
+
+/* Список строк для документов (до 10 в сообщении). Внутри .chatPendingPanel. */
+.chatPendingList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chatPendingFileRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #003a80;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.chatPendingFileIcon {
+  width: 16px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 18'><path d='M2 0h7l5 5v13H2z' fill='black'/></svg>") no-repeat center / contain;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 18'><path d='M2 0h7l5 5v13H2z' fill='black'/></svg>") no-repeat center / contain;
+  opacity: 0.75;
+}
+
+.chatPendingFileMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chatPendingFileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatPendingFileSize {
+  opacity: 0.65;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.chatPendingFileRemove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.chatPendingFileRemove::before,
+.chatPendingFileRemove::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+.chatPendingFileRemove::before { transform: rotate(45deg); }
+.chatPendingFileRemove::after { transform: rotate(-45deg); }
+
+.chatPendingClearAll {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #0066cc;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ===== Группа вложений в готовом сообщении чата ===== */
+.chatAttachmentSingle {
+  display: block;
+}
+
+/* Сетка миниатюр для нескольких фото/видео внутри пузыря сообщения. */
+.chatAttachmentGrid {
+  display: grid;
+  gap: 4px;
+  margin: 0 -2px 6px;
+  max-width: 280px;
+}
+
+/* В коллаже сообщения показываем максимум 4 тайла. 2 — в ряд; 3 и 4 — 2×N. */
+.chatAttachmentGrid[data-count="2"] { grid-template-columns: repeat(2, 1fr); }
+.chatAttachmentGrid[data-count="3"] { grid-template-columns: repeat(2, 1fr); }
+.chatAttachmentGrid[data-count="4"] { grid-template-columns: repeat(2, 1fr); }
+
+/* «+N» бэйдж на последней плитке коллажа (когда фото больше 4). */
+.chatAttachmentMoreBadge {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+.chatAttachmentGrid .chatAttachmentImage,
+.chatAttachmentGrid .chatAttachmentVideo {
+  margin: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+  max-height: none;
+}
+
+.chatAttachmentGrid .chatAttachmentImage img,
+.chatAttachmentGrid .chatAttachmentVideo video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+/* Список документов: один под другим, плотно. */
+.chatAttachmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.chatAttachmentList .chatAttachmentFile {
+  margin: 0;
 }

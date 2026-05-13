@@ -10,6 +10,45 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 
+interface AttachmentDto {
+  url: string;
+  name: string;
+  kind: "image" | "video" | "document";
+  size: number | null;
+  mime: string;
+}
+
+function resolveAttachments(row: {
+  attachments?: AttachmentDto[] | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentKind?: AttachmentDto["kind"] | null;
+  attachmentSize?: number | string | null;
+  attachmentMime?: string | null;
+}): AttachmentDto[] {
+  if (Array.isArray(row.attachments) && row.attachments.length > 0) {
+    return row.attachments.map((a) => ({
+      url: a.url,
+      name: a.name,
+      kind: a.kind,
+      size: a.size != null ? Number(a.size) : null,
+      mime: a.mime,
+    }));
+  }
+  if (row.attachmentUrl && row.attachmentKind) {
+    return [
+      {
+        url: row.attachmentUrl,
+        name: row.attachmentName ?? "",
+        kind: row.attachmentKind,
+        size: row.attachmentSize != null ? Number(row.attachmentSize) : null,
+        mime: row.attachmentMime ?? "",
+      },
+    ];
+  }
+  return [];
+}
+
 async function loadPinnedMessages(roomId: string) {
   const result = await db.query(
     `SELECT id, message, author_identity AS "authorIdentity",
@@ -21,6 +60,7 @@ async function loadPinnedMessages(roomId: string) {
             attachment_kind AS "attachmentKind",
             attachment_size AS "attachmentSize",
             attachment_mime AS "attachmentMime",
+            attachments,
             pinned_by AS "pinnedBy", pinned_at AS "pinnedAt"
      FROM pinned_messages
      WHERE room_id = $1
@@ -34,15 +74,7 @@ async function loadPinnedMessages(roomId: string) {
     authorName: p.authorName,
     originalExternalId: p.originalExternalId,
     originalTimestamp: p.originalTimestamp != null ? Number(p.originalTimestamp) : null,
-    attachment: p.attachmentUrl
-      ? {
-          url: p.attachmentUrl,
-          name: p.attachmentName,
-          kind: p.attachmentKind,
-          size: p.attachmentSize != null ? Number(p.attachmentSize) : null,
-          mime: p.attachmentMime,
-        }
-      : null,
+    attachments: resolveAttachments(p),
     pinnedBy: p.pinnedBy,
     pinnedAt: p.pinnedAt,
   }));
@@ -58,7 +90,8 @@ async function loadChatHistory(roomId: string) {
             attachment_name AS "attachmentName",
             attachment_kind AS "attachmentKind",
             attachment_size AS "attachmentSize",
-            attachment_mime AS "attachmentMime"
+            attachment_mime AS "attachmentMime",
+            attachments
      FROM chat_messages
      WHERE room_id = $1
      ORDER BY sent_at ASC`,
@@ -72,15 +105,7 @@ async function loadChatHistory(roomId: string) {
     message: m.message ?? "",
     sentAt: Number(m.sentAt),
     isGuest: m.isGuest,
-    attachment: m.attachmentUrl
-      ? {
-          url: m.attachmentUrl,
-          name: m.attachmentName,
-          kind: m.attachmentKind,
-          size: m.attachmentSize != null ? Number(m.attachmentSize) : null,
-          mime: m.attachmentMime,
-        }
-      : null,
+    attachments: resolveAttachments(m),
   }));
 }
 
