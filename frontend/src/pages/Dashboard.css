@@ -4459,3 +4459,125 @@
   color: #1c1c1c;
   text-decoration: underline;
 }
+
+/* ===== VOCO confirm-modal (диалог подтверждения закрытия комнаты) =====
+   Стилистически совпадает с .reportModal в Room.module.css. */
+.voco-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 24px;
+  animation: voco-modal-fade-in 0.18s ease-out;
+}
+
+@keyframes voco-modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.voco-modal {
+  position: relative;
+  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
+  border-radius: 18px;
+  padding: 28px 28px 24px;
+  width: min(460px, 100%);
+  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #1a1a2e;
+  animation: voco-modal-rise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@keyframes voco-modal-rise {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.voco-modal h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #8000ff;
+}
+
+.voco-modal-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #333344;
+}
+
+.voco-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.voco-modal-primary,
+.voco-modal-ghost {
+  appearance: none;
+  border: 0;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.voco-modal-primary {
+  background: linear-gradient(90deg, #5000bf 0%, #3a0080 100%);
+  color: #ffffff;
+}
+
+.voco-modal-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.voco-modal-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.voco-modal-ghost {
+  background: rgba(128, 0, 255, 0.08);
+  color: #5000bf;
+}
+
+.voco-modal-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Тёмная тема. На дашборде используется .theme-dark на корне (см. screen). */
+.theme-dark .voco-modal,
+:root[data-theme="dark"] .voco-modal {
+  background: linear-gradient(180deg, #1a0035 0%, #161616 100%);
+  color: #e8e8f0;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+.theme-dark .voco-modal h2,
+:root[data-theme="dark"] .voco-modal h2 {
+  color: #b58cff;
+}
+
+.theme-dark .voco-modal-text,
+:root[data-theme="dark"] .voco-modal-text {
+  color: #c5c5d0;
+}
+
+.theme-dark .voco-modal-ghost,
+:root[data-theme="dark"] .voco-modal-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8e8f0;
+}

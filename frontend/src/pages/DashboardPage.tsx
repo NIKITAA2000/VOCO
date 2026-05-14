@@ -107,6 +107,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [joinLoading, setJoinLoading] = useState(false);
   const [closedRoomActionLoading, setClosedRoomActionLoading] = useState("");
   const [closedRoomMenuOpen, setClosedRoomMenuOpen] = useState("");
+  // Закрытая комната, для которой открыт диалог подтверждения удаления.
+  const [deleteRoomConfirm, setDeleteRoomConfirm] = useState<any | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileUsernameInput, setProfileUsernameInput] = useState("");
   const [profileEmailInput, setProfileEmailInput] = useState("");
@@ -989,7 +991,8 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                                       disabled={closedRoomActionLoading === `delete:${room.slug}`}
                                       onClick={(event) => {
                                         event.stopPropagation();
-                                        void handleClosedRoomDelete(room);
+                                        setClosedRoomMenuOpen("");
+                                        setDeleteRoomConfirm(room);
                                       }}
                                     />
                                   </span>
@@ -1201,6 +1204,51 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
           />
         </div>
       </footer>
+
+      {deleteRoomConfirm ? (
+        <div
+          className="voco-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-room-modal-title"
+          onClick={() => {
+            if (!closedRoomActionLoading) setDeleteRoomConfirm(null);
+          }}
+        >
+          <div className="voco-modal" onClick={(event) => event.stopPropagation()}>
+            <h2 id="delete-room-modal-title">Удалить комнату?</h2>
+            <p className="voco-modal-text">
+              Комната «{deleteRoomConfirm.name}» будет удалена полностью: история
+              чата, закрепления, участники и ссылки-приглашения. Это действие
+              нельзя отменить.
+            </p>
+            <div className="voco-modal-actions">
+              <button
+                type="button"
+                className="voco-modal-primary"
+                disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
+                onClick={async () => {
+                  const room = deleteRoomConfirm;
+                  await handleClosedRoomDelete(room);
+                  setDeleteRoomConfirm(null);
+                }}
+              >
+                {closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`
+                  ? "Удаляем…"
+                  : "Удалить"}
+              </button>
+              <button
+                type="button"
+                className="voco-modal-ghost"
+                disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
+                onClick={() => setDeleteRoomConfirm(null)}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
