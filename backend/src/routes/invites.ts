@@ -9,6 +9,7 @@ import {
   buildMetadata,
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
+import { loadRoomPolls } from "../lib/polls.js";
 
 interface AttachmentDto {
   url: string;
@@ -309,9 +310,10 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
-    const [pinnedMessages, chatHistory] = await Promise.all([
+    const [pinnedMessages, chatHistory, polls] = await Promise.all([
       loadPinnedMessages(invite.roomId),
       loadChatHistory(invite.roomId),
+      loadRoomPolls(invite.roomId, req.user!.userId),
     ]);
 
     res.json({
@@ -322,6 +324,7 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
       pinnedMessages,
       chatHistory,
+      polls,
     });
   } catch (error) {
     console.error("Invite join error:", error);
@@ -400,9 +403,10 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
-    const [pinnedMessages, chatHistory] = await Promise.all([
+    const [pinnedMessages, chatHistory, polls] = await Promise.all([
       loadPinnedMessages(invite.roomId),
       loadChatHistory(invite.roomId),
+      loadRoomPolls(invite.roomId, guestIdentity),
     ]);
 
     res.json({
@@ -416,6 +420,7 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
       room: { id: invite.roomId, name: invite.roomName, slug: invite.roomSlug },
       pinnedMessages,
       chatHistory,
+      polls,
     });
   } catch (error) {
     console.error("Invite guest join error:", error);

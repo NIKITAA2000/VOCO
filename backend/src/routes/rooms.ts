@@ -18,6 +18,7 @@ import {
   buildMetadata,
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
+import { loadRoomPolls } from "../lib/polls.js";
 
 interface AttachmentDto {
   url: string;
@@ -259,6 +260,9 @@ router.get("/:slug", async (req: Request, res: Response) => {
       [row.id]
     );
 
+    // Опросы — viewer's identity = userId зарегистрированного смотрящего.
+    const polls = await loadRoomPolls(row.id, req.user!.userId);
+
     res.json({
       room: {
         id: row.id,
@@ -300,6 +304,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
           isGuest: m.isGuest,
           attachments: resolveAttachments(m),
         })),
+        polls,
       },
     });
   } catch (error) {
@@ -1324,6 +1329,8 @@ router.delete("/:slug/messages", async (req: Request, res: Response) => {
     await db.query(`DELETE FROM chat_messages WHERE room_id = $1`, [room.id]);
     // При очистке чата сбрасываем и закрепления — они становятся «пустыми ссылками»
     await db.query(`DELETE FROM pinned_messages WHERE room_id = $1`, [room.id]);
+    // И опросы тоже — они часть чата (CASCADE снесёт options и votes)
+    await db.query(`DELETE FROM chat_polls WHERE room_id = $1`, [room.id]);
     res.json({ message: "Чат очищен" });
   } catch (error) {
     console.error("Clear chat error:", error);

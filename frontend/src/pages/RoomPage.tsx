@@ -111,6 +111,7 @@ interface ConferenceRoomContentProps {
   currentUserAvatarUrl?: string | null;
   initialPinnedMessages?: PinnedMessage[];
   initialChatHistory?: ChatHistoryEntry[];
+  initialPolls?: Poll[];
   // LiveKit-токен для гостей. У зарегистрированных не нужен — берётся наш Bearer.
   livekitToken?: string;
 }
@@ -144,6 +145,36 @@ interface ChatHistoryEntry {
   sentAt: number;
   isGuest?: boolean;
   attachments?: ChatAttachment[] | null;
+}
+
+interface PollVoter {
+  identity: string;
+  name: string | null;
+  userId: string | null;
+  votedAt: number; // epoch ms
+}
+
+interface PollOption {
+  id: string;
+  text: string;
+  position: number;
+  voteCount: number;
+  voters: PollVoter[];
+}
+
+interface Poll {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  isAnonymous: boolean;
+  isClosed: boolean;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: number; // epoch ms
+  closedAt: number | null; // epoch ms
+  options: PollOption[];
+  totalVotes: number;
+  myVote: string[]; // option_id[]
 }
 
 // Группа вложений в сообщении: фото/видео (до 5) или документы (до 10).
@@ -543,6 +574,16 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(safeSeconds / 60);
   const seconds = safeSeconds % 60;
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+// Русское склонение: 1 голос / 2-4 голоса / 5+ голосов.
+function pluralVotes(n: number): string {
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs >= 11 && abs <= 14) return "голосов";
+  if (last === 1) return "голос";
+  if (last >= 2 && last <= 4) return "голоса";
+  return "голосов";
 }
 
 function useCompactRoomLayout() {
@@ -2011,6 +2052,7 @@ export function ConferenceRoomContent({
   currentUserAvatarUrl,
   initialPinnedMessages,
   initialChatHistory,
+  initialPolls,
   livekitToken,
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
@@ -2050,6 +2092,16 @@ export function ConferenceRoomContent({
   const [chatHistory, setChatHistory] = useState<ChatHistoryEntry[]>(
     () => initialChatHistory ?? [],
   );
+  const [polls, setPolls] = useState<Poll[]>(() => initialPolls ?? []);
+  const [pollModalOpen, setPollModalOpen] = useState(false);
+  const [pollResultsId, setPollResultsId] = useState<string | null>(null);
+  const [pollBusyId, setPollBusyId] = useState<string | null>(null);
+  const [pollError, setPollError] = useState("");
+  // Промежуточный выбор пользователя в баблах опросов до клика «Голосовать»:
+  // pollId → массив option_id, которые сейчас отмечены чекбоксами/радио.
+  const [pollDraftVotes, setPollDraftVotes] = useState<Record<string, string[]>>({});
+  // Inline-ошибка под кнопкой «Голосовать» в баббле конкретного опроса.
+  const [pollVoteErrorByPoll, setPollVoteErrorByPoll] = useState<Record<string, string>>({});
   const [chatClearedAt, setChatClearedAt] = useState(0);
   const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
   const savedChatKeysRef = useRef<Set<string>>(new Set());
@@ -2172,6 +2224,9 @@ export function ConferenceRoomContent({
       }
       if (Array.isArray(r?.chatHistory)) {
         setChatHistory(r.chatHistory as ChatHistoryEntry[]);
+      }
+      if (Array.isArray(r?.polls)) {
+        setPolls(r.polls as Poll[]);
       }
       // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
       if (nextRole === "OWNER" || nextRole === "MODERATOR") {
@@ -2324,6 +2379,61 @@ export function ConferenceRoomContent({
     };
   }, [room]);
 
+  // Live-синхронизация опросов: получаем полный объект Poll и мерджим.
+  // myVote — поле «индивидуального просмотра», поэтому его пересчитываем
+  // относительно своей identity, а не берём из payload.
+  useEffect(() => {
+    if (!room) return;
+    const handle = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== "voco-polls") return;
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(payload));
+        if (parsed?.type !== "poll_full" || !parsed.poll) return;
+        const incoming = parsed.poll as Poll;
+        const myIdentity = localParticipant?.identity;
+        setPolls((prev) => {
+          const idx = prev.findIndex((p) => p.id === incoming.id);
+          // Для не-анонимных пересчитываем myVote по списку voters.
+          // Для анонимных — сохраняем локальный (broadcast его не содержит).
+          const recomputeMyVote = (poll: Poll) => {
+            if (!myIdentity) return poll.myVote ?? [];
+            if (poll.isAnonymous) {
+              // Берём предыдущий локальный myVote, если был.
+              return idx === -1 ? [] : prev[idx].myVote ?? [];
+            }
+            const my: string[] = [];
+            for (const opt of poll.options) {
+              if (opt.voters.some((v) => v.identity === myIdentity)) {
+                my.push(opt.id);
+              }
+            }
+            return my;
+          };
+          const next: Poll = { ...incoming, myVote: recomputeMyVote(incoming) };
+          if (idx === -1) {
+            return [...prev, next].sort((a, b) =>
+              a.createdAt - b.createdAt,
+            );
+          }
+          const copy = prev.slice();
+          copy[idx] = next;
+          return copy;
+        });
+      } catch {
+        // ignore
+      }
+    };
+    room.on(RoomEvent.DataReceived, handle);
+    return () => {
+      room.off(RoomEvent.DataReceived, handle);
+    };
+  }, [room, localParticipant]);
+
   // Очистка чата от модератора: clearedAt — это серверное «отсечение»,
   // все сообщения с sentAt <= clearedAt больше не показываются ни у кого.
   useEffect(() => {
@@ -2341,10 +2451,12 @@ export function ConferenceRoomContent({
         setChatClearedAt((prev) => Math.max(prev, at));
         setChatHistory([]);
         setPinnedMessages([]);
+        setPolls([]);
       } catch {
         setChatClearedAt(Date.now());
         setChatHistory([]);
         setPinnedMessages([]);
+        setPolls([]);
       }
     };
     room.on(RoomEvent.DataReceived, handle);
@@ -2466,6 +2578,7 @@ export function ConferenceRoomContent({
     setChatHistory([]);
     setChatClearedAt(at);
     setPinnedMessages([]);
+    setPolls([]);
     if (localParticipant) {
       try {
         const payload = new TextEncoder().encode(
@@ -2480,6 +2593,165 @@ export function ConferenceRoomContent({
       }
     }
   }, [slug, localParticipant]);
+
+  // === Опросы ===
+  // Рассылка изменений опросов через LiveKit data-channel.
+  // Тип "poll_full" — полный объект Poll (после создания/закрытия/голосования).
+  // Тип "poll_removed" — pollId, чтобы убрать из локального состояния (при очистке).
+  const broadcastPoll = useCallback(
+    async (poll: Poll) => {
+      if (!localParticipant) return;
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ type: "poll_full", poll }),
+        );
+        await localParticipant.publishData(payload, {
+          reliable: true,
+          topic: "voco-polls",
+        });
+      } catch (err) {
+        console.error("Не удалось разослать опрос", err);
+      }
+    },
+    [localParticipant],
+  );
+
+  const upsertPoll = useCallback((poll: Poll) => {
+    setPolls((prev) => {
+      const idx = prev.findIndex((p) => p.id === poll.id);
+      if (idx === -1) return [...prev, poll].sort((a, b) => a.createdAt - b.createdAt);
+      const next = prev.slice();
+      next[idx] = poll;
+      return next;
+    });
+  }, []);
+
+  const handleCreatePoll = useCallback(
+    async (input: {
+      question: string;
+      options: string[];
+      allowMultiple: boolean;
+      isAnonymous: boolean;
+    }) => {
+      if (!slug) return;
+      setPollError("");
+      setPollBusyId("__create__");
+      try {
+        const data: any = await api.createPoll(slug, input);
+        const poll = data?.poll as Poll | undefined;
+        if (!poll) throw new Error("Сервер не вернул опрос");
+        upsertPoll(poll);
+        void broadcastPoll(poll);
+        setPollModalOpen(false);
+      } catch (err: any) {
+        setPollError(err?.message || "Не удалось создать опрос");
+      } finally {
+        setPollBusyId(null);
+      }
+    },
+    [slug, upsertPoll, broadcastPoll],
+  );
+
+  const handleVotePoll = useCallback(
+    async (pollId: string, optionIds: string[]) => {
+      if (!slug || !localParticipant) return;
+      // Гости (нет нашего JWT) — голосование запрещено.
+      if (!api.getToken()) {
+        setPollVoteErrorByPoll((prev) => ({
+          ...prev,
+          [pollId]: "Голосование доступно только зарегистрированным",
+        }));
+        return;
+      }
+      const voterIdentity = localParticipant.identity;
+      const voterName = localParticipant.name || voterIdentity;
+      setPollError("");
+      setPollVoteErrorByPoll((prev) => {
+        const copy = { ...prev };
+        delete copy[pollId];
+        return copy;
+      });
+      setPollBusyId(pollId);
+      try {
+        await api.votePoll(
+          slug,
+          pollId,
+          { optionIds, voterIdentity, voterName },
+        );
+        // Локально проставляем голос. Сервер отдаст полное состояние позже
+        // через broadcast (если это сделал владелец) — иначе сами обновим.
+        setPolls((prev) =>
+          prev.map((p) => {
+            if (p.id !== pollId) return p;
+            if (p.myVote.length > 0) return p; // защита от двойного клика
+            const myVote = [...optionIds];
+            const options = p.options.map((o) => {
+              if (!optionIds.includes(o.id)) return o;
+              const voted = !p.isAnonymous
+                ? [
+                    ...o.voters,
+                    {
+                      identity: voterIdentity,
+                      name: voterName,
+                      userId: null,
+                      votedAt: Date.now(),
+                    },
+                  ]
+                : o.voters;
+              return { ...o, voteCount: o.voteCount + 1, voters: voted };
+            });
+            const updated: Poll = {
+              ...p,
+              options,
+              totalVotes: p.totalVotes + optionIds.length,
+              myVote,
+            };
+            // Рассылаем обновлённый опрос всем (с включением моего голоса в .voters,
+            // если не анонимный). Для других смотрящих "myVote" будет пересчитан
+            // в их upsert-логике (нет — оставим как есть; их myVote не зависит от нас).
+            void broadcastPoll(updated);
+            return updated;
+          }),
+        );
+      } catch (err: any) {
+        setPollVoteErrorByPoll((prev) => ({
+          ...prev,
+          [pollId]: err?.message || "Не удалось проголосовать",
+        }));
+      } finally {
+        setPollBusyId(null);
+      }
+    },
+    [slug, localParticipant, broadcastPoll],
+  );
+
+  const handleClosePoll = useCallback(
+    async (pollId: string) => {
+      if (!slug) return;
+      setPollError("");
+      setPollBusyId(pollId);
+      try {
+        await api.closePoll(slug, pollId);
+        setPolls((prev) =>
+          prev.map((p) => {
+            if (p.id !== pollId) return p;
+            const updated: Poll = {
+              ...p,
+              isClosed: true,
+              closedAt: Date.now(),
+            };
+            void broadcastPoll(updated);
+            return updated;
+          }),
+        );
+      } catch (err: any) {
+        setPollError(err?.message || "Не удалось закрыть опрос");
+      } finally {
+        setPollBusyId(null);
+      }
+    },
+    [slug, broadcastPoll],
+  );
 
   const handleUnpinMessage = useCallback(
     async (pinId: string) => {
@@ -2866,7 +3138,8 @@ export function ConferenceRoomContent({
   // LiveKit-id (externalId на сервере = entry.id у live). Если id вдруг нет — fallback
   // на identity+sentAt, но это резервный путь.
   const combinedChatEntries = useMemo(() => {
-    type Entry = {
+    type MessageEntry = {
+      kind: "message";
       key: string;
       externalId?: string;
       sentAt: number;
@@ -2876,6 +3149,16 @@ export function ConferenceRoomContent({
       isGuest: boolean;
       attachments: ChatAttachment[];
     };
+    type PollEntry = {
+      kind: "poll";
+      key: string;
+      sentAt: number;
+      authorIdentity: string;
+      authorName?: string | null;
+      isGuest: boolean;
+      poll: Poll;
+    };
+    type Entry = MessageEntry | PollEntry;
     const map = new Map<string, Entry>();
     for (const item of chatHistory) {
       if (!item.authorIdentity) continue;
@@ -2886,6 +3169,7 @@ export function ConferenceRoomContent({
         ? `ext:${item.externalId}`
         : `ts:${item.authorIdentity}|${item.sentAt}`;
       map.set(key, {
+        kind: "message",
         key,
         externalId: item.externalId ?? undefined,
         sentAt: item.sentAt,
@@ -2905,6 +3189,7 @@ export function ConferenceRoomContent({
       const key = externalId ? `ext:${externalId}` : `ts:${identity}|${sentAt}`;
       const { text, attachments } = parseChatPayload(entry.message);
       map.set(key, {
+        kind: "message",
         key,
         externalId: externalId || undefined,
         sentAt,
@@ -2915,14 +3200,42 @@ export function ConferenceRoomContent({
         attachments,
       });
     }
+    // Опросы вписываются в общий timeline по createdAt (epoch ms с бэка).
+    for (const poll of polls) {
+      const sentAt = typeof poll.createdAt === "number" ? poll.createdAt : 0;
+      if (sentAt <= chatClearedAt) continue;
+      map.set(`poll:${poll.id}`, {
+        kind: "poll",
+        key: `poll:${poll.id}`,
+        sentAt,
+        authorIdentity: poll.createdBy ?? "",
+        authorName: poll.createdByName,
+        isGuest: false,
+        poll,
+      });
+    }
     return Array.from(map.values()).sort((a, b) => a.sentAt - b.sentAt);
-  }, [chatHistory, chatMessages, chatClearedAt]);
+  }, [chatHistory, chatMessages, polls, chatClearedAt]);
 
+  // Авто-скролл вниз: только когда добавлена новая запись (счётчик/последний key
+  // изменились) И пользователь уже находится у нижнего края (≤80px). Иначе
+  // обновления внутри уже видимых записей (например, пересчёт голосов в опросе)
+  // не дёргают позицию — респектим то, что юзер скроллит руками.
+  const lastEntryKeyRef = useRef<string>("");
+  const lastEntryCountRef = useRef<number>(0);
   useEffect(() => {
-    chatScrollRef.current?.scrollTo({
-      top: chatScrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const lastKey = combinedChatEntries[combinedChatEntries.length - 1]?.key ?? "";
+    const isNewEntry =
+      combinedChatEntries.length !== lastEntryCountRef.current ||
+      lastKey !== lastEntryKeyRef.current;
+    lastEntryCountRef.current = combinedChatEntries.length;
+    lastEntryKeyRef.current = lastKey;
+    if (!isNewEntry) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom > 80) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [combinedChatEntries]);
 
   useEffect(() => {
@@ -2943,7 +3256,8 @@ export function ConferenceRoomContent({
   }, []);
 
   const handleOpenPolls = useCallback(() => {
-    // TODO: подключить экран опросов, когда фича будет готова
+    setPollError("");
+    setPollModalOpen(true);
     setComposerMenuOpen(false);
   }, []);
 
@@ -3178,14 +3492,16 @@ export function ConferenceRoomContent({
               title="Прикрепить файл"
               onClick={handlePickFile}
             />
-            <button
-              type="button"
-              className={`${styles.chatAttachMenuButton} ${styles.chatAttachMenuButtonPoll}`}
-              role="menuitem"
-              aria-label="Создать опрос"
-              title="Опрос (скоро)"
-              onClick={handleOpenPolls}
-            />
+            {canModerateParticipants ? (
+              <button
+                type="button"
+                className={`${styles.chatAttachMenuButton} ${styles.chatAttachMenuButtonPoll}`}
+                role="menuitem"
+                aria-label="Создать опрос"
+                title="Опрос"
+                onClick={handleOpenPolls}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -3903,6 +4219,108 @@ export function ConferenceRoomContent({
     );
   };
 
+  const renderPollBubble = (poll: Poll, sentAt: number, _isLocal: boolean) => {
+    const hasVoted = poll.myVote.length > 0;
+    const draft = pollDraftVotes[poll.id] ?? [];
+    const canVote = !hasVoted && !poll.isClosed;
+    const showResults = hasVoted || poll.isClosed;
+    const total = Math.max(poll.totalVotes, 1);
+    const sortedOptions = [...poll.options].sort((a, b) => a.position - b.position);
+    const toggleDraft = (optionId: string) => {
+      setPollDraftVotes((prev) => {
+        const cur = prev[poll.id] ?? [];
+        if (poll.allowMultiple) {
+          const next = cur.includes(optionId)
+            ? cur.filter((x) => x !== optionId)
+            : [...cur, optionId];
+          return { ...prev, [poll.id]: next };
+        }
+        return { ...prev, [poll.id]: [optionId] };
+      });
+    };
+    const submitVote = () => {
+      if (draft.length === 0) return;
+      void handleVotePoll(poll.id, draft);
+      setPollDraftVotes((prev) => {
+        const copy = { ...prev };
+        delete copy[poll.id];
+        return copy;
+      });
+    };
+    return (
+      <div className={styles.pollContent}>
+        <div className={styles.pollQuestion}>{poll.question}</div>
+        <ul className={styles.pollOptionList}>
+          {sortedOptions.map((opt) => {
+            const myChoice = poll.myVote.includes(opt.id);
+            const draftChoice = draft.includes(opt.id);
+            const percent = poll.totalVotes > 0 ? Math.round((opt.voteCount / total) * 100) : 0;
+            return (
+              <li key={opt.id} className={styles.pollOptionRow}>
+                {showResults ? (
+                  <div className={styles.pollOptionResult} aria-label={`${opt.text}: ${percent}%`}>
+                    <div className={styles.pollOptionBarTrack}>
+                      <div
+                        className={styles.pollOptionBarFill}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <div className={styles.pollOptionResultMeta}>
+                      <span className={`${styles.pollOptionText} ${myChoice ? styles.pollOptionMine : ""}`}>
+                        {opt.text}
+                      </span>
+                      <span className={styles.pollOptionPercent}>{percent}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  <label className={styles.pollOptionPick}>
+                    <input
+                      type={poll.allowMultiple ? "checkbox" : "radio"}
+                      name={`poll-${poll.id}`}
+                      checked={draftChoice}
+                      disabled={!canVote || pollBusyId === poll.id}
+                      onChange={() => toggleDraft(opt.id)}
+                    />
+                    <span className={styles.pollOptionText}>{opt.text}</span>
+                  </label>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <div className={styles.pollAction}>
+          {canVote ? (
+            <button
+              type="button"
+              className={styles.pollVoteButton}
+              onClick={submitVote}
+              disabled={draft.length === 0 || pollBusyId === poll.id}
+            >
+              {pollBusyId === poll.id ? "Голосуем…" : "Голосовать"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.pollResultsButton}
+              onClick={() => setPollResultsId(poll.id)}
+            >
+              {poll.isClosed
+                ? `Завершён · Посмотреть голоса (${poll.totalVotes})`
+                : `Посмотреть голоса (${poll.totalVotes})`}
+            </button>
+          )}
+        </div>
+        {pollVoteErrorByPoll[poll.id] ? (
+          <div className={styles.pollVoteError}>{pollVoteErrorByPoll[poll.id]}</div>
+        ) : null}
+        <div className={styles.pollFooter}>
+          <span className={styles.pollLabel}>Опрос</span>
+          <span className={styles.pollTime}>{formatMessageTime(sentAt)}</span>
+        </div>
+      </div>
+    );
+  };
+
   const renderChatMessages = (emptyClass?: string) =>
     combinedChatEntries.length === 0 ? (
       <div className={emptyClass ?? styles.chatEmpty}>Сообщений пока нет</div>
@@ -3914,6 +4332,49 @@ export function ConferenceRoomContent({
         const isGuestAuthor =
           entry.isGuest ||
           (typeof authorMeta?.user.id === "string" && authorMeta.user.id.startsWith("guest_"));
+        if (entry.kind === "poll") {
+          return (
+            <div
+              className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
+              key={entry.key}
+              data-message-id={entry.key}
+            >
+              {!isLocal ? (
+                <ParticipantAvatar
+                  name={authorName}
+                  avatarUrl={authorMeta?.user.avatarUrl}
+                  className={styles.chatAvatar}
+                  isGuest={isGuestAuthor}
+                />
+              ) : null}
+              <article
+                className={`${styles.chatBubble} ${isLocal ? styles.chatBubbleOwn : styles.chatBubbleRemote} ${styles.chatBubblePoll}`}
+              >
+                {!isLocal ? <div className={styles.chatAuthor}>{authorName}</div> : null}
+                {renderPollBubble(entry.poll, entry.sentAt, isLocal)}
+                {canModerateParticipants && slug ? (
+                  <button
+                    type="button"
+                    className={styles.chatPinTrigger}
+                    aria-label="Закрепить опрос"
+                    title="Закрепить"
+                    onClick={() =>
+                      void handlePinChatMessage({
+                        message: `Опрос: ${entry.poll.question}`,
+                        from: {
+                          identity: entry.authorIdentity,
+                          name: entry.authorName ?? undefined,
+                        },
+                        timestamp: entry.sentAt,
+                        externalId: entry.key,
+                      })
+                    }
+                  />
+                ) : null}
+              </article>
+            </div>
+          );
+        }
         return (
           <div
             className={`${styles.chatMessageRow} ${isLocal ? styles.chatMessageOwn : styles.chatMessageRemote}`}
@@ -4007,6 +4468,33 @@ export function ConferenceRoomContent({
         </div>
       </div>
     ) : null;
+
+  const renderPollModal = () =>
+    pollModalOpen ? (
+      <NewPollModal
+        busy={pollBusyId === "__create__"}
+        error={pollError}
+        onClose={() => setPollModalOpen(false)}
+        onSubmit={handleCreatePoll}
+      />
+    ) : null;
+
+  const renderPollResults = () => {
+    if (!pollResultsId) return null;
+    const poll = polls.find((p) => p.id === pollResultsId);
+    if (!poll) return null;
+    return (
+      <PollResultsModal
+        poll={poll}
+        canClose={canModerateParticipants && !poll.isClosed}
+        onClose={() => setPollResultsId(null)}
+        onClosePoll={() => {
+          void handleClosePoll(poll.id);
+        }}
+        busy={pollBusyId === poll.id}
+      />
+    );
+  };
 
   const renderPinnedBanner = () => {
     if (pinnedMessages.length === 0) return null;
@@ -4327,6 +4815,8 @@ export function ConferenceRoomContent({
           {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
           {renderSettingsPanel(styles.tabletSettingsPanel)}
           {renderClearChatConfirm()}
+          {renderPollModal()}
+          {renderPollResults()}
 
           <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
             {roomTitle}
@@ -4615,6 +5105,8 @@ export function ConferenceRoomContent({
           {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
           {renderSettingsPanel(styles.mobileSettingsPanel)}
           {renderClearChatConfirm()}
+          {renderPollModal()}
+          {renderPollResults()}
 
           {canEndRoom ? (
             <button
@@ -4834,6 +5326,8 @@ export function ConferenceRoomContent({
         {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
         {renderSettingsPanel(styles.desktopSettingsPanel)}
         {renderClearChatConfirm()}
+        {renderPollModal()}
+        {renderPollResults()}
 
         <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
           {roomTitle}
@@ -5406,4 +5900,342 @@ export function RoomPage({ user }: Props) {
             ) : null}
         </div>
     );
+}
+
+// ====== Опросы ======
+
+interface NewPollModalProps {
+  busy: boolean;
+  error: string;
+  onClose: () => void;
+  onSubmit: (data: {
+    question: string;
+    options: string[];
+    allowMultiple: boolean;
+    isAnonymous: boolean;
+  }) => void;
+}
+
+function NewPollModal({ busy, error, onClose, onSubmit }: NewPollModalProps) {
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState<{ id: string; text: string }[]>([
+    { id: "opt-1", text: "" },
+    { id: "opt-2", text: "" },
+  ]);
+  const [allowMultiple, setAllowMultiple] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // При наборе текста в последней (пустой) строке — добавляем новую пустую строку
+  // (если ещё не на лимите 10).
+  const ensureEmptyTail = (next: { id: string; text: string }[]) => {
+    if (next.length >= 10) return next;
+    const last = next[next.length - 1];
+    if (last && last.text.trim() === "") return next;
+    return [...next, { id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: "" }];
+  };
+
+  const handleOptionInput = (id: string, value: string) => {
+    setOptions((prev) => {
+      const updated = prev.map((o) => (o.id === id ? { ...o, text: value } : o));
+      return ensureEmptyTail(updated);
+    });
+  };
+
+  const handleRemoveOption = (id: string) => {
+    setOptions((prev) => {
+      // Минимум 2 заполненных + 1 пустая строка-«добавить».
+      if (prev.length <= 2) return prev;
+      return prev.filter((o) => o.id !== id);
+    });
+  };
+
+  // Кнопка «+» у последней пустой строки: добавляет ещё одну пустую снизу
+  // (если ещё не на лимите 10).
+  const handleAddOption = () => {
+    setOptions((prev) => {
+      if (prev.length >= 10) return prev;
+      return [
+        ...prev,
+        {
+          id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          text: "",
+        },
+      ];
+    });
+  };
+
+  // HTML5 drag-n-drop для перестановки вариантов.
+  const handleDragStart = (id: string) => () => setDraggingId(id);
+  const handleDragOver = (overId: string) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggingId || draggingId === overId) return;
+    setOptions((prev) => {
+      const fromIdx = prev.findIndex((o) => o.id === draggingId);
+      const toIdx = prev.findIndex((o) => o.id === overId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+  const handleDragEnd = () => setDraggingId(null);
+
+  const submit = () => {
+    setLocalError("");
+    const q = question.trim();
+    if (!q) {
+      setLocalError("Введите вопрос");
+      return;
+    }
+    const filled = options.map((o) => o.text.trim()).filter((t) => t.length > 0);
+    if (filled.length < 2) {
+      setLocalError("Нужно минимум 2 варианта");
+      return;
+    }
+    onSubmit({ question: q, options: filled, allowMultiple, isAnonymous });
+  };
+
+  const showError = localError || error;
+
+  return (
+    <div
+      className={styles.reportModalOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-poll-title"
+    >
+      <div className={styles.pollModal}>
+        <button
+          type="button"
+          className={styles.pollModalClose}
+          aria-label="Закрыть"
+          title="Закрыть"
+          disabled={busy}
+          onClick={onClose}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <h2 id="new-poll-title" className={styles.pollModalTitle}>
+          Новый опрос
+        </h2>
+
+        <label className={styles.pollFieldLabel}>Вопрос</label>
+        <input
+          className={styles.pollQuestionInput}
+          type="text"
+          maxLength={500}
+          placeholder="Вопрос?"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          disabled={busy}
+        />
+
+        <div className={styles.pollFieldLabel}>Варианты ответа</div>
+        <ul className={styles.pollOptionEditList}>
+          {options.map((opt, idx) => {
+            const isLastEmpty =
+              idx === options.length - 1 && opt.text.trim() === "";
+            return (
+              <li
+                key={opt.id}
+                className={`${styles.pollOptionEditRow} ${
+                  draggingId === opt.id ? styles.pollOptionEditDragging : ""
+                }`}
+                draggable={!isLastEmpty && !busy}
+                onDragStart={handleDragStart(opt.id)}
+                onDragOver={handleDragOver(opt.id)}
+                onDragEnd={handleDragEnd}
+              >
+                <input
+                  className={styles.pollOptionEditInput}
+                  type="text"
+                  maxLength={200}
+                  placeholder={isLastEmpty ? "Ответ" : `Ответ ${idx + 1}`}
+                  value={opt.text}
+                  onChange={(e) => handleOptionInput(opt.id, e.target.value)}
+                  disabled={busy}
+                  draggable={false}
+                />
+                {isLastEmpty ? (
+                  <button
+                    type="button"
+                    className={styles.pollOptionEditAddIcon}
+                    aria-label="Добавить ещё вариант"
+                    title="Добавить ещё вариант"
+                    onClick={handleAddOption}
+                    disabled={busy || options.length >= 10}
+                  >
+                    {/* Плюс 26×26 как в svg.txt: вертикальная и горизонтальная по 26px. */}
+                    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+                      <path d="M0 13H26" stroke="currentColor" strokeWidth="2" />
+                      <path d="M13 0V26" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.pollOptionEditDragHandle}
+                    aria-label="Переместить"
+                    title="Удалить (двойной клик)"
+                    onDoubleClick={() => handleRemoveOption(opt.id)}
+                  >
+                    {/* ≡ — три параллельные линии 20px по дизайну svg.txt. */}
+                    <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden="true">
+                      <path d="M0 1H20" stroke="currentColor" strokeWidth="2" />
+                      <path d="M0 7H20" stroke="currentColor" strokeWidth="2" />
+                      <path d="M0 13H20" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        <button
+          type="button"
+          className={`${styles.pollToggleRow}`}
+          onClick={() => setAllowMultiple((v) => !v)}
+          aria-pressed={allowMultiple}
+          disabled={busy}
+        >
+          <span>Несколько ответов</span>
+          <span
+            className={`${styles.pollToggleDot} ${allowMultiple ? styles.pollToggleDotOn : ""}`}
+            aria-hidden="true"
+          />
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.pollToggleRow}`}
+          onClick={() => setIsAnonymous((v) => !v)}
+          aria-pressed={isAnonymous}
+          disabled={busy}
+        >
+          <span>Анонимные ответы</span>
+          <span
+            className={`${styles.pollToggleDot} ${isAnonymous ? styles.pollToggleDotOn : ""}`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {showError ? <div className={styles.pollModalError}>{showError}</div> : null}
+
+        <button
+          type="button"
+          className={styles.pollCreateButton}
+          onClick={submit}
+          disabled={busy}
+        >
+          {busy ? "Создаём…" : "Создать"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface PollResultsModalProps {
+  poll: Poll;
+  canClose: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onClosePoll: () => void;
+}
+
+function PollResultsModal({ poll, canClose, busy, onClose, onClosePoll }: PollResultsModalProps) {
+  const sorted = [...poll.options].sort((a, b) => a.position - b.position);
+  return (
+    <div
+      className={styles.reportModalOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="poll-results-title"
+    >
+      <div className={styles.pollResultsModal}>
+        <button
+          type="button"
+          className={styles.pollModalClose}
+          aria-label="Закрыть"
+          title="Закрыть"
+          onClick={onClose}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <h2 id="poll-results-title" className={styles.pollResultsHeader}>
+          Результаты
+        </h2>
+        <div className={styles.pollResultsQuestion}>{poll.question}</div>
+        <div className={styles.pollResultsTotal}>
+          {poll.totalVotes} {pluralVotes(poll.totalVotes)}
+        </div>
+        <ul className={styles.pollResultsList}>
+          {sorted.map((opt) => {
+            const percent =
+              poll.totalVotes > 0
+                ? Math.round((opt.voteCount / poll.totalVotes) * 100)
+                : 0;
+            return (
+              <li key={opt.id} className={styles.pollResultsOption}>
+                <div className={styles.pollResultsOptionHeader}>
+                  <span className={styles.pollResultsOptionName}>{opt.text}</span>
+                  <span className={styles.pollResultsOptionCount}>
+                    {opt.voteCount} {pluralVotes(opt.voteCount)}
+                  </span>
+                </div>
+                {!poll.isAnonymous && opt.voters.length > 0 ? (
+                  <ul className={styles.pollVoterList}>
+                    {opt.voters.map((v) => {
+                      const d = new Date(v.votedAt);
+                      const time = d.toLocaleTimeString("ru-RU", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const date = d.toLocaleDateString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                      });
+                      return (
+                        <li key={`${v.identity}-${v.votedAt}`} className={styles.pollVoterRow}>
+                          <ParticipantAvatar
+                            name={v.name || v.identity}
+                            avatarUrl={null}
+                            isGuest={v.identity.startsWith("guest_")}
+                          />
+                          <span className={styles.pollVoterName}>
+                            {v.name || v.identity}
+                          </span>
+                          <span className={styles.pollVoterTime}>{`${time}\n${date}`}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                <div className={styles.pollVoterPercent}>{percent} %</div>
+              </li>
+            );
+          })}
+        </ul>
+        {canClose ? (
+          <button
+            type="button"
+            className={styles.pollResultsCloseButton}
+            onClick={onClosePoll}
+            disabled={busy}
+          >
+            {busy ? "Закрываем…" : "Закрыть опрос"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 }

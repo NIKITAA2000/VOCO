@@ -1,9 +1,186 @@
-/* Ellipse 15 */
+/* Group 239 */
 
 position: absolute;
-width: 50px;
-height: 50px;
-left: 340px;
-top: 693px;
+width: 304px;
+height: 198px;
 
-background: radial-gradient(50% 50% at 50% 50%, #0077FF 0%, rgba(68, 68, 68, 0) 100%);
+
+
+/* Group 39 */
+
+position: absolute;
+width: 304px;
+height: 198px;
+
+
+
+/* Rectangle 111 */
+
+position: absolute;
+width: 304px;
+height: 198px;
+
+background: #0077FF;
+border-radius: 10px 10px 0px 10px;
+
+
+/* 23:01 */
+
+position: absolute;
+width: 49px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #DDDDDD;
+
+
+
+/* Вопросительный вопрос? */
+
+position: absolute;
+width: 284px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 500;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+
+color: #FFFFFF;
+
+
+
+/* Опрос */
+
+position: absolute;
+width: 60px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #DDDDDD;
+
+
+
+/* Ellipse 30 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 10px;
+height: 10px;
+
+border: 1px solid #FFFFFF;
+
+
+/* Ответ 1 */
+
+position: absolute;
+width: 161px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+
+color: #FFFFFF;
+
+
+
+/* Ellipse 31 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 10px;
+height: 10px;
+
+border: 1px solid #FFFFFF;
+
+
+/* Неправильный ответ */
+
+position: absolute;
+width: 161px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+
+color: #FFFFFF;
+
+
+
+/* Непес Гарлыев */
+
+position: absolute;
+width: 161px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+
+color: #FFFFFF;
+
+
+
+/* Ellipse 32 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 10px;
+height: 10px;
+
+border: 1px solid #FFFFFF;
+
+
+/* Голосовать */
+
+position: absolute;
+width: 161px;
+height: 23px;
+
+font-family: 'Jost';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 23px;
+display: flex;
+align-items: center;
+text-align: center;
+
+color: #FFFFFF;
+

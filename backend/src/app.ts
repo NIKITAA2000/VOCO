@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.js";
 import roomRoutes from "./routes/rooms.js";
 import inviteRoutes from "./routes/invites.js";
 import uploadRoutes, { UPLOAD_DIR } from "./routes/uploads.js";
+import pollRoutes from "./routes/polls.js";
 
 const app = express();
 
@@ -26,6 +27,9 @@ app.use("/api/auth", authRoutes);
 // для гостей) обрабатывал запрос раньше, чем roomRoutes' authenticate
 // (который понимает только наш Bearer и отбивает гостей 401-м).
 app.use("/api/rooms", uploadRoutes);
+// Опросы — гибридная auth (наш JWT либо LiveKit JWT для гостей-голосующих).
+// Регистрируем до roomRoutes по той же причине, что и uploadRoutes.
+app.use("/api/rooms", pollRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/invite", inviteRoutes);
 

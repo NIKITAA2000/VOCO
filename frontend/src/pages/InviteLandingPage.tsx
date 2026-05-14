@@ -23,6 +23,7 @@ export function InviteLandingPage({ user }: Props) {
   const [ownerName, setOwnerName] = useState("");
   const [initialPins, setInitialPins] = useState<any[]>([]);
   const [initialChat, setInitialChat] = useState<any[]>([]);
+  const [initialPolls, setInitialPolls] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
   const [inQueue, setInQueue] = useState(false);
@@ -89,6 +90,7 @@ export function InviteLandingPage({ user }: Props) {
       setRoomSlug(data.room.slug);
       setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
       setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
+      setInitialPolls(Array.isArray(data.polls) ? data.polls : []);
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -115,6 +117,7 @@ export function InviteLandingPage({ user }: Props) {
       setRoomSlug(data.room.slug);
       setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
       setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
+      setInitialPolls(Array.isArray(data.polls) ? data.polls : []);
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -230,6 +233,7 @@ export function InviteLandingPage({ user }: Props) {
               currentUserAvatarUrl={user?.avatarUrl ?? null}
               initialPinnedMessages={initialPins}
               initialChatHistory={initialChat}
+              initialPolls={initialPolls}
               livekitToken={token}
             />
           )}

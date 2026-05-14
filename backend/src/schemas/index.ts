@@ -153,6 +153,30 @@ export const pinMessageSchema = z
     },
   );
 
+export const createPollSchema = z.object({
+  question: z
+    .string()
+    .min(1, "Вопрос обязателен")
+    .max(500, "Вопрос — максимум 500 символов"),
+  options: z
+    .array(
+      z
+        .string()
+        .min(1, "Вариант не может быть пустым")
+        .max(200, "Вариант — максимум 200 символов"),
+    )
+    .min(2, "Нужно минимум 2 варианта")
+    .max(10, "Максимум 10 вариантов"),
+  allowMultiple: z.boolean().optional().default(false),
+  isAnonymous: z.boolean().optional().default(false),
+});
+
+export const votePollSchema = z.object({
+  optionIds: z.array(z.string().uuid()).min(1, "Выберите хотя бы один вариант"),
+  voterIdentity: z.string().min(1).max(120),
+  voterName: z.string().max(120).optional(),
+});
+
 export const joinGuestSchema = z.object({
   displayName: z
     .string()

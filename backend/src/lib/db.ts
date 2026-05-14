@@ -132,6 +132,44 @@ export async function initDatabase() {
         PRIMARY KEY (user_id, room_id)
       );
 
+      CREATE TABLE IF NOT EXISTS chat_polls (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        question VARCHAR(500) NOT NULL,
+        allow_multiple BOOLEAN NOT NULL DEFAULT false,
+        is_anonymous BOOLEAN NOT NULL DEFAULT false,
+        is_closed BOOLEAN NOT NULL DEFAULT false,
+        created_by UUID REFERENCES users(id),
+        created_by_name VARCHAR(120),
+        created_at TIMESTAMP DEFAULT NOW(),
+        closed_at TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_chat_polls_room ON chat_polls(room_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS poll_options (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        poll_id UUID NOT NULL REFERENCES chat_polls(id) ON DELETE CASCADE,
+        text VARCHAR(200) NOT NULL,
+        position INT NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON poll_options(poll_id, position);
+
+      CREATE TABLE IF NOT EXISTS poll_votes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        poll_id UUID NOT NULL REFERENCES chat_polls(id) ON DELETE CASCADE,
+        option_id UUID NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
+        voter_user_id UUID REFERENCES users(id),
+        voter_identity VARCHAR(120) NOT NULL,
+        voter_name VARCHAR(120),
+        voted_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(poll_id, option_id, voter_identity)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id);
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_voter ON poll_votes(poll_id, voter_identity);
+
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),

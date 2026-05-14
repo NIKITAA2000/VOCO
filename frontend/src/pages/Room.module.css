@@ -375,6 +375,30 @@
   flex-direction: column;
   gap: 10px;
   padding: 0 0 16px;
+  /* VOCO-фиолетовый скроллбар, в тон бренду. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 0, 255, 0.5) transparent;
+}
+
+.participantsScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.participantsScroll::-webkit-scrollbar-thumb {
+  background: rgba(128, 0, 255, 0.5);
+  border-radius: 3px;
+}
+
+.participantsScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .participantsScroll {
+  scrollbar-color: rgba(181, 140, 255, 0.5) transparent;
+}
+
+:global(:root[data-theme="dark"]) .participantsScroll::-webkit-scrollbar-thumb {
+  background: rgba(181, 140, 255, 0.5);
 }
 
 .stageParticipantRow {
@@ -7997,4 +8021,849 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .chatAttachmentList .chatAttachmentFile {
   margin: 0;
+}
+
+/* === Опросы — бабл в чате (по svg.txt/css.txt) === */
+
+.chatBubblePoll {
+  min-width: 304px;
+}
+
+.pollContent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Лейбл «Опрос» — Jost normal 16px, светло-серый #DDDDDD на синем bubble. */
+.pollLabel {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #dddddd;
+}
+
+.chatBubbleRemote .pollLabel {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* Вопрос — Jost weight 500, белый. */
+.pollQuestion {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 23px;
+  color: #ffffff;
+  word-break: break-word;
+}
+
+.chatBubbleRemote .pollQuestion {
+  color: #000;
+}
+
+.pollOptionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pollOptionRow {
+  width: 100%;
+}
+
+/* Радио-кружок и текст в одну строку. */
+.pollOptionPick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+
+/* Прячем нативный input — рисуем круг сами через ::before на label. */
+.pollOptionPick input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.pollOptionPick::before {
+  content: "";
+  flex: 0 0 auto;
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+/* Несколько ответов — квадратные чекбоксы вместо круглых радио. */
+.pollOptionPick:has(input[type="checkbox"])::before {
+  border-radius: 2px;
+}
+
+/* Отмеченный (через CSS-сосед :checked) — белая точка/квадрат внутри. */
+.pollOptionPick:has(input:checked)::before {
+  background: currentColor;
+}
+
+.pollOptionText {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #ffffff;
+  word-break: break-word;
+}
+
+.chatBubbleRemote .pollOptionText {
+  color: #000;
+}
+
+.pollOptionMine {
+  font-weight: 500;
+}
+
+.pollOptionResult {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.pollOptionBarTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.chatBubbleRemote .pollOptionBarTrack {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.pollOptionBarFill {
+  height: 100%;
+  background: currentColor;
+  opacity: 0.85;
+  transition: width 0.25s ease;
+}
+
+.pollOptionResultMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #fff;
+}
+
+.chatBubbleRemote .pollOptionResultMeta {
+  color: #000;
+}
+
+.pollOptionPercent {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Голосовать/Результаты — на отдельной строке, центрировано (по svg.txt). */
+.pollAction {
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+/* Inline-ошибка под кнопкой голосования (например, для гостей). */
+.pollVoteError {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 18px;
+  color: #ffe0e0;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.chatBubbleRemote .pollVoteError {
+  color: #b00020;
+}
+
+/* Нижняя строка: «Опрос» слева + время справа. */
+.pollFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* «Голосовать» / «Результаты» — Jost weight 300, белый, без подчёркивания.
+   На своём (синем) бабле — белый, на чужом (серый) — чёрный. */
+.pollVoteButton,
+.pollResultsButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 23px;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.chatBubbleRemote .pollVoteButton,
+.chatBubbleRemote .pollResultsButton {
+  color: #000;
+}
+
+.pollVoteButton:hover:not(:disabled),
+.pollResultsButton:hover:not(:disabled) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pollVoteButton:disabled,
+.pollResultsButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pollMeta {
+  font-family: "Jost", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  color: #dddddd;
+}
+
+.chatBubbleRemote .pollMeta {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.pollTime {
+  text-align: right;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #dddddd;
+}
+
+.chatBubbleRemote .pollTime {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* === Модалка «Новый опрос» === */
+
+.pollModal {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  /* Высота под контент: маленький опрос — компактная карточка; большой —
+     внутренняя scroll-зона у списка вариантов, заголовок и кнопка остаются. */
+  max-height: min(90vh, 760px);
+  padding: 32px 10px 16px;
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  border-radius: 10px;
+  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #000000;
+  animation: vocoModalRise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.pollResultsModal {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  max-height: min(90vh, 760px);
+  padding: 32px 10px 16px;
+  background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
+  border-radius: 10px;
+  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #000000;
+  animation: vocoModalRise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.pollModalClose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  /* Halo фейдится в верх карточки (#DDFFDD у нового опроса). */
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 255, 221, 0) 100%);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 50%;
+  color: #000;
+}
+
+.pollModalClose svg {
+  display: block;
+}
+
+.pollModalClose:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pollModalTitle {
+  margin: 0 0 6px;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000;
+}
+
+.pollFieldLabel {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  padding: 0 14px;
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+
+.pollQuestionInput {
+  appearance: none;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  flex: 0 0 auto;
+  align-self: center;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 100px;
+  padding: 0 20px;
+  background: #dddddd;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  /* line-height = height, чтобы placeholder/текст были вертикально по центру pill. */
+  line-height: 50px;
+  color: #000;
+}
+
+.pollQuestionInput::placeholder {
+  color: #999;
+}
+
+.pollQuestionInput:focus,
+.pollQuestionInput:focus-visible,
+.pollOptionEditInput:focus,
+.pollOptionEditInput:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.pollOptionEditList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* Список вариантов — единственная гибкая по высоте зона: получает скролл,
+     заголовок/тогглы/кнопка остаются прижатыми. Цвет скроллбара под фон карты. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 200, 0, 0.5) transparent;
+}
+
+.pollOptionEditList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pollOptionEditList::-webkit-scrollbar-thumb {
+  background: rgba(0, 200, 0, 0.5);
+  border-radius: 3px;
+}
+
+.pollOptionEditList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:global(:root[data-theme="dark"]) .pollOptionEditList {
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+:global(:root[data-theme="dark"]) .pollOptionEditList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.pollOptionEditRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 20px;
+  border-radius: 100px;
+  background: #dddddd;
+  cursor: grab;
+}
+
+.pollOptionEditRow:active {
+  cursor: grabbing;
+}
+
+.pollOptionEditDragging {
+  opacity: 0.5;
+}
+
+.pollOptionEditInput {
+  appearance: none;
+  /* `<input>` имеет дефолтный size=20 → intrinsic width ~150px, который
+     перебивает flex-grow:1 при flex-basis:auto. Используем basis:0 + width:100%
+     чтобы поле растянулось на всю свободную ширину pill-row. */
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  /* Растягиваем инпут на всю высоту pill-row, чтобы клик-зона была 50px,
+     а текст был вертикально по центру через line-height. */
+  height: 100%;
+  border: 0;
+  background: transparent;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 50px;
+  color: #000;
+  padding: 0;
+}
+
+.pollOptionEditInput::placeholder {
+  color: #999;
+}
+
+.pollOptionEditDragHandle,
+.pollOptionEditAddIcon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000;
+  cursor: pointer;
+}
+
+.pollOptionEditAddIcon {
+  cursor: pointer;
+}
+
+.pollOptionEditAddIcon:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pollToggleRow {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 300px;
+  max-width: 100%;
+  align-self: center;
+  height: 50px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 0 0 20px;
+  border: 0;
+  border-radius: 100px;
+  background: #dddddd;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  cursor: pointer;
+}
+
+.pollToggleDot {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  margin-right: 7px;
+  border-radius: 50%;
+  /* Красный «выключенный» halo (как у «Вход по запросу»), бленд с фоном pill. */
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.pollToggleDotOn {
+  /* Зелёный «включённый» halo. */
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 221, 221, 0) 100%);
+}
+
+.pollModalError {
+  font-size: 13px;
+  line-height: 16px;
+  color: #c00000;
+  text-align: center;
+}
+
+.pollCreateButton {
+  appearance: none;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: 100%;
+  align-self: center;
+  height: 50px;
+  flex: 0 0 auto;
+  border-radius: 100px;
+  /* 5px градиентная обводка как в svg.txt — двойной фон через padding/border-box. */
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  cursor: pointer;
+}
+
+.pollCreateButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* === Модалка «Результаты» === */
+
+.pollResultsModal {
+  width: 360px;
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+}
+
+.pollResultsHeader {
+  margin: 0;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000;
+}
+
+.pollResultsQuestion {
+  text-align: center;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+}
+
+.pollResultsTotal {
+  text-align: center;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  opacity: 1;
+}
+
+.pollResultsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Колонка опций может расти — даём ей скролл, заголовок/тоталь/закрывающая
+     кнопка остаются прижатыми. */
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 200, 0, 0.5) transparent;
+}
+
+.pollResultsList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pollResultsList::-webkit-scrollbar-thumb {
+  background: rgba(0, 200, 0, 0.5);
+  border-radius: 3px;
+}
+
+.pollResultsList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pollResultsOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pollResultsOptionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 300px;
+  max-width: 100%;
+  padding: 0 4px;
+}
+
+.pollResultsOptionName {
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  word-break: break-word;
+}
+
+.pollResultsOptionCount {
+  flex: 0 0 auto;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  font-variant-numeric: tabular-nums;
+}
+
+.pollVoterList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.pollVoterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  box-sizing: border-box;
+  padding: 0 14px 0 0;
+  background: #dddddd;
+  border-radius: 100px;
+}
+
+.pollVoterRow > :first-child {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  font-size: 16px;
+}
+
+.pollVoterName {
+  flex: 1 1 auto;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  word-break: break-word;
+}
+
+.pollVoterTime {
+  flex: 0 0 auto;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 18px;
+  color: #000;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  /* Время в две строки: HH:MM сверху, DD.MM снизу. */
+  white-space: pre-line;
+}
+
+.pollVoterPercent {
+  width: 300px;
+  max-width: 100%;
+  padding: 0 4px;
+  text-align: right;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+}
+
+.pollResultsCloseButton {
+  appearance: none;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: 100%;
+  align-self: center;
+  height: 50px;
+  flex: 0 0 auto;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #ff3333 0%, #ffdddd 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #ffdddd 0%, #ff3333 50%, #ffdddd 100%) border-box;
+  font-family: "Jost", sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.pollResultsCloseButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* === Тёмная тема — «Новый опрос» (по svg.txt/css.txt) === */
+:global(:root[data-theme="dark"]) .pollModal {
+  background: linear-gradient(180deg, #005000 0%, #222222 100%);
+  color: #ffffff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+/* «Результаты» — та же палитра #005000 → #222222, что и «Новый опрос». */
+:global(:root[data-theme="dark"]) .pollResultsModal {
+  background: linear-gradient(180deg, #005000 0%, #222222 100%);
+  color: #ffffff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+:global(:root[data-theme="dark"]) .pollModalTitle,
+:global(:root[data-theme="dark"]) .pollFieldLabel,
+:global(:root[data-theme="dark"]) .pollResultsHeader,
+:global(:root[data-theme="dark"]) .pollResultsQuestion {
+  color: #ffffff;
+}
+
+/* Pill-плашки: тёмно-серые #444444 как в дизайне, белый текст. */
+:global(:root[data-theme="dark"]) .pollQuestionInput,
+:global(:root[data-theme="dark"]) .pollOptionEditRow,
+:global(:root[data-theme="dark"]) .pollToggleRow {
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .pollQuestionInput::placeholder,
+:global(:root[data-theme="dark"]) .pollOptionEditInput::placeholder {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .pollOptionEditInput,
+:global(:root[data-theme="dark"]) .pollOptionEditDragHandle,
+:global(:root[data-theme="dark"]) .pollOptionEditAddIcon {
+  color: #ffffff;
+}
+
+/* Toggle: halo-пуля бленд с фоном pill #444444. */
+:global(:root[data-theme="dark"]) .pollToggleDot {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .pollToggleDotOn {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(68, 68, 68, 0) 100%);
+}
+
+/* Halo крестика-закрытия фейдится в верх карты «Новый опрос» (#005000). */
+:global(:root[data-theme="dark"]) .pollModalClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 80, 0, 0) 100%);
+  color: #fff;
+}
+
+/* «Результаты» — карта #005000, halo фейдится в неё. */
+:global(:root[data-theme="dark"]) .pollResultsModal .pollModalClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 80, 0, 0) 100%);
+}
+
+/* Текст в результатах — белый (тоталь, перцент, имя голосовавшего, время). */
+:global(:root[data-theme="dark"]) .pollResultsTotal,
+:global(:root[data-theme="dark"]) .pollResultsOptionName,
+:global(:root[data-theme="dark"]) .pollResultsOptionCount,
+:global(:root[data-theme="dark"]) .pollVoterName,
+:global(:root[data-theme="dark"]) .pollVoterTime,
+:global(:root[data-theme="dark"]) .pollVoterPercent {
+  color: #ffffff;
+}
+
+/* Voter-row pill в #444444. */
+:global(:root[data-theme="dark"]) .pollVoterRow {
+  background: #444444;
+}
+
+/* Список опций в результатах — тот же светлый scrollbar, что и у редактора. */
+:global(:root[data-theme="dark"]) .pollResultsList {
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+:global(:root[data-theme="dark"]) .pollResultsList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+:global(:root[data-theme="dark"]) .pollCreateButton {
+  background:
+    linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .pollResultsCloseButton {
+  background:
+    linear-gradient(90deg, #ff3333 0%, #800000 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #800000 0%, #ff3333 50%, #800000 100%) border-box;
+  color: #fff;
 }

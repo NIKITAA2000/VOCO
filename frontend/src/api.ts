@@ -276,6 +276,54 @@ class ApiClient {
     return this.request(`/rooms/${slug}/messages`, { method: "DELETE" });
   }
 
+  // Polls
+  async createPoll(
+    slug: string,
+    payload: {
+      question: string;
+      options: string[];
+      allowMultiple?: boolean;
+      isAnonymous?: boolean;
+    },
+  ) {
+    return this.request(`/rooms/${slug}/polls`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // Голосование. Для гостей передаём LiveKit JWT через guestToken.
+  async votePoll(
+    slug: string,
+    pollId: string,
+    payload: {
+      optionIds: string[];
+      voterIdentity: string;
+      voterName?: string;
+    },
+    guestToken?: string,
+  ) {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const tok = this.token || guestToken;
+    if (tok) headers["Authorization"] = `Bearer ${tok}`;
+    const res = await fetch(`${API_URL}/rooms/${slug}/polls/${pollId}/vote`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Не удалось проголосовать");
+    }
+    return data;
+  }
+
+  async closePoll(slug: string, pollId: string) {
+    return this.request(`/rooms/${slug}/polls/${pollId}/close`, {
+      method: "POST",
+    });
+  }
+
   async hideRoom(slug: string) {
     return this.request(`/rooms/${slug}/hide`, { method: "POST" });
   }
