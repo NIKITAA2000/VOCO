@@ -1216,36 +1216,39 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
           }}
         >
           <div className="voco-modal" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="voco-modal-close"
+              aria-label="Отмена"
+              title="Отмена"
+              disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
+              onClick={() => setDeleteRoomConfirm(null)}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M1 1L13 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+                <path d="M13 1L1 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
             <h2 id="delete-room-modal-title">Удалить комнату?</h2>
             <p className="voco-modal-text">
               Комната «{deleteRoomConfirm.name}» будет удалена полностью: история
               чата, закрепления, участники и ссылки-приглашения. Это действие
-              нельзя отменить.
+              нельзя отменить!
             </p>
-            <div className="voco-modal-actions">
-              <button
-                type="button"
-                className="voco-modal-primary"
-                disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
-                onClick={async () => {
-                  const room = deleteRoomConfirm;
-                  await handleClosedRoomDelete(room);
-                  setDeleteRoomConfirm(null);
-                }}
-              >
-                {closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`
-                  ? "Удаляем…"
-                  : "Удалить"}
-              </button>
-              <button
-                type="button"
-                className="voco-modal-ghost"
-                disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
-                onClick={() => setDeleteRoomConfirm(null)}
-              >
-                Отмена
-              </button>
-            </div>
+            <button
+              type="button"
+              className="voco-modal-primary"
+              disabled={closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`}
+              onClick={async () => {
+                const room = deleteRoomConfirm;
+                await handleClosedRoomDelete(room);
+                setDeleteRoomConfirm(null);
+              }}
+            >
+              {closedRoomActionLoading === `delete:${deleteRoomConfirm.slug}`
+                ? "Удаляем…"
+                : "Удалить"}
+            </button>
           </div>
         </div>
       ) : null}

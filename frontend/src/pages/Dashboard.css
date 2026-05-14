@@ -4460,8 +4460,7 @@
   text-decoration: underline;
 }
 
-/* ===== VOCO confirm-modal (диалог подтверждения закрытия комнаты) =====
-   Стилистически совпадает с .reportModal в Room.module.css. */
+/* ===== VOCO confirm-modal (подтверждение удаления комнаты) — по svg.txt/css.txt ===== */
 .voco-modal-overlay {
   position: fixed;
   inset: 0;
@@ -4482,15 +4481,18 @@
 
 .voco-modal {
   position: relative;
-  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
-  border-radius: 18px;
-  padding: 28px 28px 24px;
-  width: min(460px, 100%);
+  width: 320px;
+  max-width: 100%;
+  min-height: 259px;
+  padding: 28px 10px 16.5px;
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+  border-radius: 10px;
   box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  color: #1a1a2e;
+  align-items: center;
+  gap: 12px;
+  color: #000000;
   animation: voco-modal-rise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
@@ -4501,42 +4503,54 @@
 
 .voco-modal h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #8000ff;
+  width: 100%;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
 }
 
 .voco-modal-text {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #333344;
-}
-
-.voco-modal-actions {
+  width: 300px;
+  max-width: 100%;
+  flex: 1 0 auto;
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 6px;
-}
-
-.voco-modal-primary,
-.voco-modal-ghost {
-  appearance: none;
-  border: 0;
-  padding: 11px 20px;
-  border-radius: 10px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: transform 0.12s;
+  align-items: center;
+  justify-content: center;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
 }
 
 .voco-modal-primary {
-  background: linear-gradient(90deg, #5000bf 0%, #3a0080 100%);
-  color: #ffffff;
+  appearance: none;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  /* Двойной градиент: фон pill + 5px градиентная обводка через прозрачную рамку.
+     По дизайну: красный→светло-красный→красный, обводка зеркально. */
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #ff3333 0%, #ffdddd 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #ffdddd 0%, #ff3333 50%, #ffdddd 100%) border-box;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.15s ease;
 }
 
 .voco-modal-primary:active:not(:disabled) {
@@ -4548,36 +4562,61 @@
   cursor: not-allowed;
 }
 
-.voco-modal-ghost {
-  background: rgba(128, 0, 255, 0.08);
-  color: #5000bf;
+.voco-modal-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(222, 238, 255, 0) 100%);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 50%;
 }
 
-.voco-modal-ghost:disabled {
+.voco-modal-close:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-/* Тёмная тема. На дашборде используется .theme-dark на корне (см. screen). */
+.voco-modal-close svg {
+  display: block;
+}
+
+/* Тёмная тема — по svg.txt/css.txt: глубокий синий → тёмно-серый, белый текст,
+   красная кнопка с тёмно-красной серединой (#800000), белый X.
+   На дашборде используется .theme-dark на корне (см. screen). */
 .theme-dark .voco-modal,
 :root[data-theme="dark"] .voco-modal {
-  background: linear-gradient(180deg, #1a0035 0%, #161616 100%);
-  color: #e8e8f0;
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 }
 
 .theme-dark .voco-modal h2,
-:root[data-theme="dark"] .voco-modal h2 {
-  color: #b58cff;
-}
-
+:root[data-theme="dark"] .voco-modal h2,
 .theme-dark .voco-modal-text,
 :root[data-theme="dark"] .voco-modal-text {
-  color: #c5c5d0;
+  color: #ffffff;
 }
 
-.theme-dark .voco-modal-ghost,
-:root[data-theme="dark"] .voco-modal-ghost {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8e8f0;
+.theme-dark .voco-modal-primary,
+:root[data-theme="dark"] .voco-modal-primary {
+  background:
+    linear-gradient(90deg, #ff3333 0%, #800000 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #800000 0%, #ff3333 50%, #800000 100%) border-box;
+  color: #ffffff;
+}
+
+.theme-dark .voco-modal-close,
+:root[data-theme="dark"] .voco-modal-close {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 37, 80, 0) 100%);
+}
+
+.theme-dark .voco-modal-close svg path,
+:root[data-theme="dark"] .voco-modal-close svg path {
+  stroke: #ffffff;
 }

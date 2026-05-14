@@ -870,16 +870,17 @@ function SendIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       className={iconClassName(styles.roomIcon, styles.sendSvg, className)}
-      viewBox="0 0 27 14"
+      viewBox="0 0 50 50"
       fill="none"
       aria-hidden="true"
       {...props}
     >
+      <path d="M25 38.5L25 13.5" stroke="currentColor" strokeWidth="2" />
       <line
         y1="-1"
         x2="10.2591"
         y2="-1"
-        transform="matrix(0.731055 -0.682318 0.731055 0.682318 19 14)"
+        transform="matrix(-0.682318 -0.731055 0.682318 -0.731055 32 19.5)"
         stroke="currentColor"
         strokeWidth="2"
       />
@@ -887,11 +888,10 @@ function SendIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
         y1="-1"
         x2="10.2591"
         y2="-1"
-        transform="matrix(-0.731055 -0.682318 0.731055 -0.682318 26.5 7)"
+        transform="matrix(-0.682318 0.731055 -0.682318 -0.731055 25 12)"
         stroke="currentColor"
         strokeWidth="2"
       />
-      <path d="M0 7L25 7" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -3977,28 +3977,33 @@ export function ConferenceRoomContent({
         aria-modal="true"
         aria-labelledby="clear-chat-modal-title"
       >
-        <div className={styles.reportModal}>
-          <h2 id="clear-chat-modal-title">Очистить чат?</h2>
-          <p className={styles.reportModalText}>
+        <div className={styles.chatClearModal}>
+          <button
+            type="button"
+            className={styles.chatClearClose}
+            aria-label="Отмена"
+            title="Отмена"
+            onClick={() => setClearChatConfirmOpen(false)}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M1 1L13 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+              <path d="M13 1L1 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+          <h2 id="clear-chat-modal-title" className={styles.chatClearTitle}>
+            Очистить чат?
+          </h2>
+          <p className={styles.chatClearText}>
             Все сообщения будут удалены для всех участников. Это действие нельзя
-            отменить.
+            отменить!
           </p>
-          <div className={styles.reportModalActions}>
-            <button
-              type="button"
-              className={styles.reportModalPrimary}
-              onClick={() => void handleClearChatConfirm()}
-            >
-              Очистить
-            </button>
-            <button
-              type="button"
-              className={styles.reportModalGhost}
-              onClick={() => setClearChatConfirmOpen(false)}
-            >
-              Отмена
-            </button>
-          </div>
+          <button
+            type="button"
+            className={styles.chatClearAction}
+            onClick={() => void handleClearChatConfirm()}
+          >
+            Очистить
+          </button>
         </div>
       </div>
     ) : null;
@@ -5137,23 +5142,24 @@ export function RoomPage({ user }: Props) {
     }, [slug]);
 
     const [downloadingReport, setDownloadingReport] = useState(false);
-    const handleDownloadReport = useCallback(async () => {
-        if (!reportData || downloadingReport) return;
-        setDownloadingReport(true);
-        try {
-            await downloadRoomReportPdf(reportData);
-        } catch (err) {
-            console.error("Ошибка при формировании PDF-отчёта:", err);
-        } finally {
-            setDownloadingReport(false);
-        }
-    }, [reportData, downloadingReport]);
-
     const handleReportModalExit = useCallback(() => {
         setReportModalOpen(false);
         leaveRequestedRef.current = true;
         void leaveRoomAndNavigate();
     }, [leaveRoomAndNavigate]);
+
+    const handleDownloadReport = useCallback(async () => {
+        if (!reportData || downloadingReport) return;
+        setDownloadingReport(true);
+        try {
+            await downloadRoomReportPdf(reportData);
+            handleReportModalExit();
+        } catch (err) {
+            console.error("Ошибка при формировании PDF-отчёта:", err);
+        } finally {
+            setDownloadingReport(false);
+        }
+    }, [reportData, downloadingReport, handleReportModalExit]);
 
     const handleConferenceDisconnected = useCallback(
         (reason?: DisconnectReason) => {
@@ -5361,35 +5367,40 @@ export function RoomPage({ user }: Props) {
                     aria-modal="true"
                     aria-labelledby="report-modal-title"
                 >
-                    <div className={styles.reportModal}>
-                        <h2 id="report-modal-title">Комната завершена</h2>
+                    <div className={styles.roomEndedModal}>
+                        <button
+                            type="button"
+                            className={styles.roomEndedClose}
+                            aria-label="Выйти"
+                            title="Выйти"
+                            onClick={handleReportModalExit}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                                <path d="M1 1L13 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+                                <path d="M13 1L1 13" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                        </button>
+                        <h2 id="report-modal-title" className={styles.roomEndedTitle}>
+                            Комната завершена
+                        </h2>
                         {reportLoading ? (
-                            <p className={styles.reportModalText}>Готовим отчёт о конференции…</p>
+                            <p className={styles.roomEndedText}>Готовим отчёт о конференции…</p>
                         ) : reportError ? (
-                            <p className={styles.reportModalText}>Не удалось загрузить отчёт: {reportError}</p>
+                            <p className={styles.roomEndedText}>Не удалось загрузить отчёт: {reportError}</p>
                         ) : (
-                            <p className={styles.reportModalText}>
+                            <p className={styles.roomEndedText}>
                                 Можно скачать PDF-отчёт о прошедшей конференции: участники, длительность, пик
-                                одновременных.
+                                одновременных и т.д.
                             </p>
                         )}
-                        <div className={styles.reportModalActions}>
-                            <button
-                                type="button"
-                                className={styles.reportModalPrimary}
-                                onClick={handleDownloadReport}
-                                disabled={!reportData || reportLoading || downloadingReport}
-                            >
-                                {downloadingReport ? "Формируем PDF…" : "Скачать PDF"}
-                            </button>
-                            <button
-                                type="button"
-                                className={styles.reportModalGhost}
-                                onClick={handleReportModalExit}
-                            >
-                                Выйти
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            className={styles.roomEndedDownload}
+                            onClick={handleDownloadReport}
+                            disabled={!reportData || reportLoading || downloadingReport}
+                        >
+                            {downloadingReport ? "Формируем PDF…" : "Скачать PDF"}
+                        </button>
                     </div>
                 </div>
             ) : null}

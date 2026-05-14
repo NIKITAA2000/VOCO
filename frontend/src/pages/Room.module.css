@@ -89,10 +89,14 @@
   overflow: visible;
 }
 
-.exitArrowSvg,
-.sendSvg {
+.exitArrowSvg {
   width: 27px;
   height: 14px;
+}
+
+.sendSvg {
+  width: 50px;
+  height: 50px;
 }
 
 .chevronDownSvg {
@@ -737,8 +741,8 @@
   width: 24px;
   height: 24px;
   background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6' stroke='black' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 9H23' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M17.9998 8C17.9998 4 12 4 12 8' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M20.1768 26H9.82324L7 12H23L20.1768 26ZM12 24H14V14H12V24ZM16 14V24H18V14H16Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 9H23' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M17.9998 8C17.9998 4 12 4 12 8' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M20.1768 26H9.82324L7 12H23L20.1768 26ZM12 24H14V14H12V24ZM16 14V24H18V14H16Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatPinnedBanner {
@@ -795,14 +799,16 @@
 .chatPinnedUnpin::before {
   content: "";
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   background: currentColor;
 }
 
 .chatPinnedListButton::before {
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='5' width='16' height='2' fill='black'/%3E%3Crect x='4' y='11' width='16' height='2' fill='black'/%3E%3Crect x='4' y='17' width='16' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='5' width='16' height='2' fill='black'/%3E%3Crect x='4' y='11' width='16' height='2' fill='black'/%3E%3Crect x='4' y='17' width='16' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  /* Стопка из трёх «листочков» (по svg.txt): нижний с рамкой 2px, выше — две
+     более узкие полоски-крышки, имитирующие смещённые сверху листы. */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='8' y='17' width='14' height='8' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M23 14H21V12H9V14H7V10H23V14Z' fill='black'/%3E%3Cpath d='M21 8H19V6H11V8H9V4H21V8Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='8' y='17' width='14' height='8' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M23 14H21V12H9V14H7V10H23V14Z' fill='black'/%3E%3Cpath d='M21 8H19V6H11V8H9V4H21V8Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatPinnedArrowPrev::before {
@@ -816,8 +822,10 @@
 }
 
 .chatPinnedUnpin::before {
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 6 L18 18 M18 6 L6 18' stroke='black' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  /* Та же иголка-кнопка, что у .chatPinTrigger, но перечёркнутая диагональным
+     штрихом — визуальное «открепить». */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 26L13.2679 13.25H16.7321L15 26Z' fill='black'/%3E%3Cpath d='M15 12H13L13.7273 5H16.2727L17 12H15Z' fill='black'/%3E%3Cpath d='M12 4C12 5.10457 13.3431 6 15 6C16.6569 6 18 5.10457 18 4H12Z' fill='black'/%3E%3Cpath d='M15 11C17.7614 11 20 12.3431 20 14H10C10 12.3431 12.2386 11 15 11Z' fill='black'/%3E%3Cpath d='M5 5L25 25' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 26L13.2679 13.25H16.7321L15 26Z' fill='black'/%3E%3Cpath d='M15 12H13L13.7273 5H16.2727L17 12H15Z' fill='black'/%3E%3Cpath d='M12 4C12 5.10457 13.3431 6 15 6C16.6569 6 18 5.10457 18 4H12Z' fill='black'/%3E%3Cpath d='M15 11C17.7614 11 20 12.3431 20 14H10C10 12.3431 12.2386 11 15 11Z' fill='black'/%3E%3Cpath d='M5 5L25 25' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatPinnedText {
@@ -960,12 +968,14 @@
 .chatPinTrigger::before {
   content: "";
   display: block;
-  width: 14px;
-  height: 14px;
-  margin: 4px auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px auto;
   background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 3 L21 10 L17 14 L17 17 L13 13 L7 19 L5 19 L5 17 L11 11 L7 7 L10 7 Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 3 L21 10 L17 14 L17 17 L13 13 L7 19 L5 19 L5 17 L11 11 L7 7 L10 7 Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  /* Канцелярская кнопка-иголка по svg.txt: «шляпка» сверху, плечи, тонкое
+     горлышко и треугольное жало вниз. */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 26L13.2679 13.25H16.7321L15 26Z' fill='black'/%3E%3Cpath d='M15 12H13L13.7273 5H16.2727L17 12H15Z' fill='black'/%3E%3Cpath d='M12 4C12 5.10457 13.3431 6 15 6C16.6569 6 18 5.10457 18 4H12Z' fill='black'/%3E%3Cpath d='M15 11C17.7614 11 20 12.3431 20 14H10C10 12.3431 12.2386 11 15 11Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 26L13.2679 13.25H16.7321L15 26Z' fill='black'/%3E%3Cpath d='M15 12H13L13.7273 5H16.2727L17 12H15Z' fill='black'/%3E%3Cpath d='M12 4C12 5.10457 13.3431 6 15 6C16.6569 6 18 5.10457 18 4H12Z' fill='black'/%3E%3Cpath d='M15 11C17.7614 11 20 12.3431 20 14H10C10 12.3431 12.2386 11 15 11Z' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatEmpty {
@@ -1089,7 +1099,7 @@
   background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
-.chatSendButton:not(:disabled) {
+.chatSendButton {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
 
@@ -1496,8 +1506,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 2px -2px 6px;
-  padding: 4px 6px;
+  margin: 0 -2px 0;
+  padding: 0 6px;
   border-radius: 8px;
   color: inherit;
   text-decoration: none;
@@ -1519,13 +1529,13 @@
 
 .chatAttachmentFileIcon {
   flex: 0 0 auto;
-  width: 36px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   background: currentColor;
   color: #0077ff;
-  /* Силуэт документа с уголком и тремя строчками внутри (вырезы — текст). */
-  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 36 40' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' clip-rule='evenodd'%3E%3Cpath d='M4 2 H22 L32 12 V36 a2 2 0 0 1-2 2 H4 a2 2 0 0 1-2-2 V4 a2 2 0 0 1 2-2 Z M22 2 V12 H32 L22 2 Z M8 19 H26 V21 H8 Z M8 24 H26 V26 H8 Z M8 29 H20 V31 H8 Z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 36 40' xmlns='http://www.w3.org/2000/svg' fill-rule='evenodd' clip-rule='evenodd'%3E%3Cpath d='M4 2 H22 L32 12 V36 a2 2 0 0 1-2 2 H4 a2 2 0 0 1-2-2 V4 a2 2 0 0 1 2-2 Z M22 2 V12 H32 L22 2 Z M8 19 H26 V21 H8 Z M8 24 H26 V26 H8 Z M8 29 H20 V31 H8 Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  /* Силуэт документа со скошенным уголком и четырьмя строчками внутри (по svg.txt). */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 4V6H9V24H21V12H23V26H7V4H15Z' fill='black'/%3E%3Cpath d='M23 9.97754V10H17V4H17.0225L23 9.97754Z' fill='black'/%3E%3Cpath d='M11 21H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 17H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 13H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 9H15' stroke='black' stroke-width='2' fill='none'/%3E%3Crect x='15' y='4' width='2' height='2' fill='black'/%3E%3Crect x='21' y='10' width='2' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 4V6H9V24H21V12H23V26H7V4H15Z' fill='black'/%3E%3Cpath d='M23 9.97754V10H17V4H17.0225L23 9.97754Z' fill='black'/%3E%3Cpath d='M11 21H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 17H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 13H19' stroke='black' stroke-width='2' fill='none'/%3E%3Cpath d='M11 9H15' stroke='black' stroke-width='2' fill='none'/%3E%3Crect x='15' y='4' width='2' height='2' fill='black'/%3E%3Crect x='21' y='10' width='2' height='2' fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chatBubbleOwn .chatAttachmentFileIcon {
@@ -2433,103 +2443,261 @@ button.stageRoomCode:disabled {
   to { opacity: 1; }
 }
 
-.reportModal {
-  position: relative;
-  /* Сигнатурный VOCO-градиент: бледно-фиолетовый → белый. Тот же приём,
-     что у emoji-picker и owner/moderator-плашек. */
-  background: linear-gradient(180deg, #eedcff 0%, #ffffff 100%);
-  border-radius: 18px;
-  padding: 28px 28px 24px;
-  width: min(460px, 100%);
-  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  color: #1a1a2e;
-  animation: vocoModalRise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
-}
-
 @keyframes vocoModalRise {
   from { transform: translateY(10px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-.reportModal h2 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #8000ff;
-}
-
-.reportModalText {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #333344;
-}
-
-.reportModalActions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 6px;
-}
-
-.reportModalPrimary,
-.reportModalGhost {
-  appearance: none;
-  border: 0;
-  padding: 11px 20px;
+/* === Модалка «Очистить чат?» — по svg.txt/css.txt === */
+.chatClearModal {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  min-height: 235px;
+  padding: 28px 10px 16.5px;
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
   border-radius: 10px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
+  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #000000;
+  animation: vocoModalRise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.chatClearTitle {
+  margin: 0;
+  width: 100%;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
+}
+
+.chatClearText {
+  margin: 0;
+  width: 300px;
+  max-width: 100%;
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
+}
+
+.chatClearAction {
+  appearance: none;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #ff3333 0%, #ffdddd 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #ffdddd 0%, #ff3333 50%, #ffdddd 100%) border-box;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
   cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s, background 0.15s;
+  transition: transform 0.12s ease, filter 0.15s ease;
 }
 
-.reportModalPrimary {
-  /* Глубокий фиолетовый, в тон тёмного фона модалки. Без свечения. */
-  background: linear-gradient(90deg, #5000bf 0%, #3a0080 100%);
-  color: #ffffff;
-}
-
-.reportModalPrimary:active:not(:disabled) {
+.chatClearAction:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-.reportModalPrimary:disabled {
+.chatClearAction:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  filter: none;
 }
 
-.reportModalGhost {
-  background: rgba(128, 0, 255, 0.08);
-  color: #5000bf;
+.chatClearClose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(222, 238, 255, 0) 100%);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 50%;
 }
 
-/* Тёмная тема: глубокий фиолетовый → почти-чёрный градиент. */
-:global(:root[data-theme="dark"]) .reportModal {
-  /* Глубже исходного svg.txt: верх #1a0035, низ #161616 — модалка маленькая,
-     стопы из svg на короткой высоте выглядели «разбавленно». */
-  background: linear-gradient(180deg, #1a0035 0%, #161616 100%);
-  color: #e8e8f0;
+.chatClearClose svg {
+  display: block;
+}
+
+/* Тёмная тема — по svg.txt/css.txt: глубокий синий → тёмно-серый, белый текст,
+   красная кнопка с тёмно-красной серединой (#800000), белый X. */
+:global(:root[data-theme="dark"]) .chatClearModal {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 }
 
-:global(:root[data-theme="dark"]) .reportModal h2 {
-  color: #b58cff;
+:global(:root[data-theme="dark"]) .chatClearTitle,
+:global(:root[data-theme="dark"]) .chatClearText {
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .reportModalText {
-  color: #c5c5d0;
+:global(:root[data-theme="dark"]) .chatClearAction {
+  background:
+    linear-gradient(90deg, #ff3333 0%, #800000 50%, #ff3333 100%) padding-box,
+    linear-gradient(90deg, #800000 0%, #ff3333 50%, #800000 100%) border-box;
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .reportModalGhost {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8e8f0;
+:global(:root[data-theme="dark"]) .chatClearClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 37, 80, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .chatClearClose svg path {
+  stroke: #ffffff;
+}
+
+/* === Модалка «Комната завершена» — отдельный дизайн (см. svg.txt/css.txt) === */
+.roomEndedModal {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  min-height: 235px;
+  padding: 28px 10px 16.5px;
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+  border-radius: 10px;
+  box-shadow: 0 30px 80px rgba(40, 0, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #000000;
+  animation: vocoModalRise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.roomEndedTitle {
+  margin: 0;
+  width: 100%;
+  font-family: "Jost", sans-serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
+}
+
+.roomEndedText {
+  margin: 0;
+  width: 300px;
+  max-width: 100%;
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  color: #000000;
+}
+
+.roomEndedDownload {
+  appearance: none;
+  box-sizing: border-box;
+  width: 300px;
+  max-width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  /* Двойной градиент: фон pill + 5px градиентная обводка через прозрачную рамку.
+     border-image не дружит с border-radius — этот трюк работает корректно.
+     По дизайну: фон зелёный→тёмно-зелёный→зелёный, рамка зеркально. */
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+  font-family: "Jost", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.15s ease;
+}
+
+.roomEndedDownload:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.roomEndedDownload:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.roomEndedClose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(222, 238, 255, 0) 100%);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.roomEndedClose svg {
+  display: block;
+}
+
+/* Тёмная тема — по svg.txt/css.txt: глубокий синий → тёмно-серый, белый текст. */
+:global(:root[data-theme="dark"]) .roomEndedModal {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+:global(:root[data-theme="dark"]) .roomEndedTitle,
+:global(:root[data-theme="dark"]) .roomEndedText {
+  color: #ffffff;
+}
+
+/* Dark — по svg.txt: середина кнопки тёмно-зелёная (#005000), белый текст,
+   красный halo фейдится в цвет верха карточки (#002550), белый X. */
+:global(:root[data-theme="dark"]) .roomEndedDownload {
+  background:
+    linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .roomEndedClose {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(0, 37, 80, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .roomEndedClose svg path {
+  stroke: #ffffff;
 }
 
 .deviceButton {
@@ -5500,7 +5668,7 @@ button.stageRoomCode .roomCodeCopyHint {
   background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
-:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled) {
+:global(:root[data-theme="dark"]) .chatSendButton {
   background: radial-gradient(50% 50% at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
 
@@ -6038,7 +6206,7 @@ button.stageRoomCode .roomCodeCopyHint {
 
 .utilityButton:nth-child(2)[aria-pressed="true"]::before,
 .mobileToolbarChatActive::before,
-.chatSendButton:not(:disabled),
+.chatSendButton,
 .compactUtilityChat.utilityButtonActive::before {
   --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #0077ff 0%, rgba(221, 221, 221, 0) 100%);
 }
@@ -6063,7 +6231,7 @@ button.stageRoomCode .roomCodeCopyHint {
 .stageParticipantStatus,
 .chatAttachButton,
 .chatEmojiButton,
-.chatSendButton:not(:disabled),
+.chatSendButton,
 .recordingGlow,
 .exitGlow,
 .exitMenu,
@@ -6114,7 +6282,7 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .utilityButton:nth-child(2)[aria-pressed="true"]::before,
 :global(:root[data-theme="dark"]) .mobileToolbarChatActive::before,
-:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled),
+:global(:root[data-theme="dark"]) .chatSendButton,
 :global(:root[data-theme="dark"]) .compactUtilityChat.utilityButtonActive::before {
   --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #0077ff 0%, rgba(68, 68, 68, 0) 100%);
 }
@@ -6139,7 +6307,7 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .stageParticipantStatus,
 :global(:root[data-theme="dark"]) .chatAttachButton,
 :global(:root[data-theme="dark"]) .chatEmojiButton,
-:global(:root[data-theme="dark"]) .chatSendButton:not(:disabled),
+:global(:root[data-theme="dark"]) .chatSendButton,
 :global(:root[data-theme="dark"]) .recordingGlow,
 :global(:root[data-theme="dark"]) .exitGlow,
 :global(:root[data-theme="dark"]) .exitMenu,
@@ -7824,7 +7992,7 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin: 0 0 6px;
+  margin: 0 0 2px;
 }
 
 .chatAttachmentList .chatAttachmentFile {
