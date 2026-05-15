@@ -945,19 +945,27 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
       }
     }
 
-    // Peak concurrent participants via event timeline
-    const events: { time: number; delta: number }[] = [];
+    // Peak concurrent unique users via event timeline.
+    // A single user can have overlapping sessions after reconnects, so count
+    // active user ids instead of raw participant session rows.
+    const events: { time: number; delta: number; userId: string }[] = [];
     for (const s of sessions) {
       const end = s.leftAt ?? closedAt;
-      events.push({ time: s.joinedAt.getTime(), delta: 1 });
-      events.push({ time: end.getTime(), delta: -1 });
+      events.push({ time: s.joinedAt.getTime(), delta: 1, userId: s.userId });
+      events.push({ time: end.getTime(), delta: -1, userId: s.userId });
     }
-    events.sort((a, b) => a.time - b.time || b.delta - a.delta);
+    events.sort((a, b) => a.time - b.time || a.delta - b.delta);
     let peak = 0;
-    let current = 0;
+    const activeUsers = new Map<string, number>();
     for (const e of events) {
-      current += e.delta;
-      if (current > peak) peak = current;
+      const current = activeUsers.get(e.userId) ?? 0;
+      const next = current + e.delta;
+      if (next > 0) {
+        activeUsers.set(e.userId, next);
+      } else {
+        activeUsers.delete(e.userId);
+      }
+      if (activeUsers.size > peak) peak = activeUsers.size;
     }
 
     const participants = Array.from(byUser.values()).map((u) => ({
