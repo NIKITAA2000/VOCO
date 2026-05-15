@@ -36,6 +36,13 @@ export async function initDatabase() {
       ALTER TABLE rooms ADD COLUMN IF NOT EXISTS allow_guests BOOLEAN DEFAULT true;
       ALTER TABLE rooms ADD COLUMN IF NOT EXISTS require_approval BOOLEAN DEFAULT false;
 
+      -- Начало текущей сессии. Сессия = открытая комната от создания/восстановления
+      -- до следующего закрытия. Отчёт строится по последней (только что закрытой)
+      -- сессии. Для старых строк бэкфилл = created_at.
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS current_session_started_at TIMESTAMP;
+      UPDATE rooms SET current_session_started_at = created_at
+        WHERE current_session_started_at IS NULL;
+
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id),

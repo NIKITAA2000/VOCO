@@ -152,6 +152,7 @@ interface PollVoter {
   identity: string;
   name: string | null;
   userId: string | null;
+  avatarUrl?: string | null;
   votedAt: number; // epoch ms
 }
 
@@ -1307,7 +1308,7 @@ interface RoomMeta {
 
 interface BlockedUserEntry {
   id: string;
-  user: { id: string; username: string };
+  user: { id: string; username: string; avatarUrl?: string | null };
   reason?: string | null;
 }
 
@@ -1862,7 +1863,10 @@ function SettingsPanel({
             ) : (
               blockedUsers.map((entry) => (
                 <div key={entry.id} className={styles.settingsBanRow}>
-                  <ParticipantAvatar name={entry.user.username} avatarUrl={null} />
+                  <ParticipantAvatar
+                    name={entry.user.username}
+                    avatarUrl={entry.user.avatarUrl ?? null}
+                  />
                   <span className={styles.settingsBanName}>{entry.user.username}</span>
                   <button
                     type="button"
@@ -2749,6 +2753,9 @@ export function ConferenceRoomContent({
                       identity: voterIdentity,
                       name: voterName,
                       userId: null,
+                      // Свою аватарку берём из текущего профиля — чтобы в результатах
+                      // сразу был корректный аватар, не дожидаясь refreshRoomState.
+                      avatarUrl: currentUserAvatarUrl ?? null,
                       votedAt: Date.now(),
                     },
                   ]
@@ -2777,7 +2784,7 @@ export function ConferenceRoomContent({
         setPollBusyId(null);
       }
     },
-    [slug, localParticipant, broadcastPoll],
+    [slug, localParticipant, broadcastPoll, currentUserAvatarUrl],
   );
 
   const handleClosePoll = useCallback(
@@ -6351,7 +6358,7 @@ function PollResultsModal({ poll, canClose, busy, onClose, onClosePoll }: PollRe
                         <li key={`${v.identity}-${v.votedAt}`} className={styles.pollVoterRow}>
                           <ParticipantAvatar
                             name={v.name || v.identity}
-                            avatarUrl={null}
+                            avatarUrl={v.avatarUrl ?? null}
                             isGuest={v.identity.startsWith("guest_")}
                           />
                           <span className={styles.pollVoterName}>

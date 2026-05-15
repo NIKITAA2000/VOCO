@@ -721,8 +721,12 @@
   position: absolute;
   left: 10px;
   right: 10px;
-  top: 88px;
-  bottom: 62px;
+  /* Scroll тянется от низа заголовка до верха композера — сообщения
+     проскальзывают под датой и плашкой пина (они оверлеят сверху). Под
+     композер не заходим: `bottom: 50px` = высота композера, упираемся ровно
+     в его верхнюю кромку. */
+  top: 47px;
+  bottom: 50px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -762,7 +766,9 @@
 }
 
 .chatPanelHasPin .chatScroll {
-  top: 143px;
+  /* С пином scroll не сдвигается — пин (z-index 5) висит поверх и сообщения
+     скроллятся за ним. */
+  top: 47px;
 }
 
 .chatClearButton {
@@ -1128,7 +1134,23 @@
   display: grid;
   grid-template-columns: 50px 50px minmax(0, 1fr) 50px;
   align-items: center;
-  background: linear-gradient(360deg, #ddd 0%, rgba(255, 255, 255, 0) 100%);
+  /* Нижние 25px (под инпутом/кнопками) — сплошной фон, перекрывает
+     сообщения скролла (chatScroll bottom: 25px заходит сюда). Верхние 25px —
+     плавный fade в прозрачность: сообщения немного заглядывают под композер
+     с затуханием, а не упираются в твёрдую кромку. */
+  background: linear-gradient(
+    0deg,
+    #ddd 0%,
+    #ddd 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* В чате убираем фоновый fade под заголовком/датой и сверху композера —
+   верх отправки сообщения должен быть прозрачным; sideHeaderFade в панели
+   участников остаётся (там нужен fade под "Участники"). */
+.chatPanel .sideHeaderFade {
+  display: none;
 }
 
 .chatIconButton {
@@ -3880,7 +3902,10 @@ button.stageRoomCode:disabled {
      и cqw для font-size. */
   width: 100%;
   height: 100%;
-  font-size: min(50cqw, 180px);
+  /* Кэп ~110px: при 100% от карточки и font-size: 50cqw отдельные символы
+     смайликов (точки, подчёркивание в "._.") становятся гигантскими и
+     визуально разваливаются. На большом тайле текст всё равно крупный. */
+  font-size: clamp(40px, 22cqw, 110px);
   line-height: 1;
   border-radius: 0;
   background: transparent;
@@ -5314,9 +5339,17 @@ button.stageRoomCode .roomCodeCopyHint {
   background: linear-gradient(180deg, rgba(34, 34, 34, 0) 0%, #444444 100%);
 }
 
-:global(:root[data-theme="dark"]) .sideFooterFade,
-:global(:root[data-theme="dark"]) .chatComposer {
+:global(:root[data-theme="dark"]) .sideFooterFade {
   background: linear-gradient(0deg, #444444 0%, rgba(34, 34, 34, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .chatComposer {
+  background: linear-gradient(
+    0deg,
+    #444444 0%,
+    #444444 50%,
+    rgba(34, 34, 34, 0) 100%
+  );
 }
 
 :global(:root[data-theme="dark"]) .sideTitle,

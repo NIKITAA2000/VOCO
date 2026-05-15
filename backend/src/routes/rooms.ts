@@ -81,8 +81,8 @@ router.post("/", async (req: Request, res: Response) => {
     const slug = nanoid(10);
 
     const result = await db.query(
-      `INSERT INTO rooms (name, slug, max_users, owner_id, allow_guests, require_approval)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO rooms (name, slug, max_users, owner_id, allow_guests, require_approval, current_session_started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
        RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
                  owner_id AS "ownerId", created_at AS "createdAt",
                  allow_guests AS "allowGuests", require_approval AS "requireApproval"`,
@@ -764,7 +764,7 @@ router.get("/:slug/blocked", async (req: Request, res: Response) => {
 
     const result = await db.query(
       `SELECT bu.id, bu.reason, bu.blocked_at AS "blockedAt",
-              u.id AS "userId", u.username,
+              u.id AS "userId", u.username, u.avatar_url AS "avatarUrl",
               b.username AS "blockedByUsername"
        FROM blocked_users bu
        JOIN users u ON bu.user_id = u.id
@@ -779,7 +779,7 @@ router.get("/:slug/blocked", async (req: Request, res: Response) => {
         id: row.id,
         reason: row.reason,
         blockedAt: row.blockedAt,
-        user: { id: row.userId, username: row.username },
+        user: { id: row.userId, username: row.username, avatarUrl: row.avatarUrl },
         blockedBy: { username: row.blockedByUsername },
       })),
     });
@@ -849,13 +849,16 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
   }
 });
 
-// GET /api/rooms/:slug/report — отчёт о конференции (только владелец/модератор)
+// GET /api/rooms/:slug/report — отчёт о последней сессии (только владелец/модератор).
+// Сессия = период от создания (или восстановления) до ближайшего закрытия.
+// Доступен только когда комната закрыта; для активной отдаём 400.
 router.get("/:slug/report", async (req: Request, res: Response) => {
   try {
     const roomResult = await db.query(
       `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
               r.max_users AS "maxUsers", r.owner_id AS "ownerId",
               r.created_at AS "createdAt", r.closed_at AS "closedAt",
+              r.current_session_started_at AS "sessionStartedAt",
               u.id AS "owner_id", u.username AS "owner_username"
        FROM rooms r
        JOIN users u ON r.owner_id = u.id
@@ -885,14 +888,31 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
       }
     }
 
+    if (room.isActive) {
+      res.status(400).json({
+        error: "Отчёт доступен только после закрытия комнаты",
+      });
+      return;
+    }
+
+    // Окно последней сессии: [sessionStartedAt, closedAt].
+    // sessionStartedAt всегда заполнен миграцией (для старых строк = created_at),
+    // closedAt — закрытая комната гарантирует, что он не NULL.
+    const sessionStart: Date = new Date(room.sessionStartedAt ?? room.createdAt);
+    const sessionEnd: Date = new Date(room.closedAt);
+
+    // В отчёт попадают только те участники, чьи сессии (joined_at..left_at)
+    // пересеклись с окном последней сессии комнаты.
     const sessionsResult = await db.query(
       `SELECT p.user_id AS "userId", p.role, p.joined_at AS "joinedAt", p.left_at AS "leftAt",
               u.username, u.email
        FROM participants p
        JOIN users u ON p.user_id = u.id
        WHERE p.room_id = $1
+         AND p.joined_at < $3
+         AND (p.left_at IS NULL OR p.left_at > $2)
        ORDER BY p.joined_at ASC`,
-      [room.id]
+      [room.id, sessionStart, sessionEnd]
     );
 
     type Session = {
@@ -904,14 +924,23 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
       email: string;
     };
 
-    const sessions: Session[] = sessionsResult.rows.map((row: any) => ({
-      userId: row.userId,
-      role: row.role,
-      joinedAt: new Date(row.joinedAt),
-      leftAt: row.leftAt ? new Date(row.leftAt) : null,
-      username: row.username,
-      email: row.email,
-    }));
+    // Подрезаем joined_at / left_at по окну сессии — участник, заходивший раньше
+    // restore-а, в окне видится как «зашёл в момент sessionStart»; тот, кто не
+    // успел выйти до закрытия, — как «вышел в момент sessionEnd».
+    const sessions: Session[] = sessionsResult.rows.map((row: any) => {
+      const rawJoined = new Date(row.joinedAt);
+      const rawLeft = row.leftAt ? new Date(row.leftAt) : null;
+      const joinedAt = rawJoined < sessionStart ? sessionStart : rawJoined;
+      const leftAt = !rawLeft || rawLeft > sessionEnd ? sessionEnd : rawLeft;
+      return {
+        userId: row.userId,
+        role: row.role,
+        joinedAt,
+        leftAt,
+        username: row.username,
+        email: row.email,
+      };
+    });
 
     // Aggregate by user
     const byUser = new Map<string, {
@@ -923,10 +952,8 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
       totalMs: number;
     }>();
 
-    const closedAt = room.closedAt ? new Date(room.closedAt) : new Date();
-
     for (const s of sessions) {
-      const end = s.leftAt ?? closedAt;
+      const end = s.leftAt ?? sessionEnd;
       const durationMs = Math.max(0, end.getTime() - s.joinedAt.getTime());
       const existing = byUser.get(s.userId);
       if (existing) {
@@ -950,7 +977,7 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
     // active user ids instead of raw participant session rows.
     const events: { time: number; delta: number; userId: string }[] = [];
     for (const s of sessions) {
-      const end = s.leftAt ?? closedAt;
+      const end = s.leftAt ?? sessionEnd;
       events.push({ time: s.joinedAt.getTime(), delta: 1, userId: s.userId });
       events.push({ time: end.getTime(), delta: -1, userId: s.userId });
     }
@@ -981,8 +1008,9 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
       totalMs: u.totalMs,
     }));
 
-    const createdAt = new Date(room.createdAt);
-    const durationMs = Math.max(0, closedAt.getTime() - createdAt.getTime());
+    // В отчёте «Начало» = начало последней сессии (а не первое создание комнаты),
+    // «Завершение» = closed_at, длительность — между ними.
+    const durationMs = Math.max(0, sessionEnd.getTime() - sessionStart.getTime());
 
     res.json({
       report: {
@@ -991,8 +1019,8 @@ router.get("/:slug/report", async (req: Request, res: Response) => {
           name: room.name,
           slug: room.slug,
           isActive: room.isActive,
-          createdAt: room.createdAt,
-          closedAt: room.closedAt,
+          createdAt: sessionStart.toISOString(),
+          closedAt: sessionEnd.toISOString(),
           durationMs,
           owner: { id: room.owner_id, username: room.owner_username },
         },
@@ -1100,8 +1128,10 @@ router.post("/:slug/restore", async (req: Request, res: Response) => {
       }
     }
 
+    // Восстановление открывает новую сессию: сдвигаем current_session_started_at
+    // на текущий момент — отчёт после следующего закрытия покажет только эту сессию.
     const result = await db.query(
-      `UPDATE rooms SET is_active = true, closed_at = NULL
+      `UPDATE rooms SET is_active = true, closed_at = NULL, current_session_started_at = NOW()
        WHERE id = $1
        RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
                  owner_id AS "ownerId", created_at AS "createdAt", closed_at AS "closedAt",
@@ -1576,6 +1606,13 @@ router.delete("/:slug", async (req: Request, res: Response) => {
 
       await client.query(
         "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
+        [room.id]
+      );
+      // Фиксируем выход всех, кто оставался в комнате — нужно для корректной
+      // длительности сессий в отчёте и чтобы «зависшие» participants с left_at IS NULL
+      // не торчали в следующих сессиях.
+      await client.query(
+        "UPDATE participants SET left_at = NOW() WHERE room_id = $1 AND left_at IS NULL",
         [room.id]
       );
       // Закрытие комнаты завершает встречу — чат и закрепления стираются

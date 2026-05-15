@@ -12,6 +12,7 @@ export interface PollVoterDto {
   identity: string;
   name: string | null;
   userId: string | null;
+  avatarUrl: string | null; // эмодзи из profileAvatarOptions / "/uploads/avatars/<file>" / null
   votedAt: number; // epoch ms
 }
 
@@ -71,16 +72,21 @@ export async function loadRoomPolls(
     [pollIds],
   );
 
+  // LEFT JOIN users — для зарегистрированных voter'ов тянем актуальный avatar_url
+  // (он может поменяться после голосования). Для гостей JOIN не сматчится и
+  // avatarUrl будет null — на фронте отрисуется guest-аватар по identity.
   const votesResult = await db.query(
-    `SELECT poll_id AS "pollId",
-            option_id AS "optionId",
-            voter_user_id AS "voterUserId",
-            voter_identity AS "voterIdentity",
-            voter_name AS "voterName",
-            (EXTRACT(EPOCH FROM voted_at) * 1000)::bigint AS "votedAtMs"
-       FROM poll_votes
-      WHERE poll_id = ANY($1::uuid[])
-      ORDER BY voted_at ASC`,
+    `SELECT pv.poll_id AS "pollId",
+            pv.option_id AS "optionId",
+            pv.voter_user_id AS "voterUserId",
+            pv.voter_identity AS "voterIdentity",
+            pv.voter_name AS "voterName",
+            u.avatar_url AS "voterAvatarUrl",
+            (EXTRACT(EPOCH FROM pv.voted_at) * 1000)::bigint AS "votedAtMs"
+       FROM poll_votes pv
+       LEFT JOIN users u ON pv.voter_user_id = u.id
+      WHERE pv.poll_id = ANY($1::uuid[])
+      ORDER BY pv.voted_at ASC`,
     [pollIds],
   );
 
@@ -120,6 +126,7 @@ export async function loadRoomPolls(
           identity: v.voterIdentity,
           name: v.voterName,
           userId: v.voterUserId,
+          avatarUrl: v.voterAvatarUrl ?? null,
           votedAt: v.votedAtMs != null ? Number(v.votedAtMs) : 0,
         });
       }
