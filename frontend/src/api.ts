@@ -85,6 +85,23 @@ class ApiClient {
     return data;
   }
 
+  // Загрузка фото-аватарки. Возвращает {avatarUrl: "/uploads/avatars/<file>"}.
+  // Привязку к профилю делает следующий updateProfile({avatarUrl}).
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const res = await fetch(`${API_URL}/auth/avatar`, {
+      method: "POST",
+      body: form,
+      headers,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Не удалось загрузить аватарку");
+    return data;
+  }
+
   // Rooms
   async createRoom(
     name: string,
@@ -284,6 +301,7 @@ class ApiClient {
       options: string[];
       allowMultiple?: boolean;
       isAnonymous?: boolean;
+      createdByName?: string;
     },
   ) {
     return this.request(`/rooms/${slug}/polls`, {

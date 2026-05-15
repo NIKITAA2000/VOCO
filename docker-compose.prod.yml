@@ -41,6 +41,8 @@ services:
       LIVEKIT_PUBLIC_URL: wss://voco-meet.ru:7880
       CORS_ORIGIN: https://voco-meet.ru,https://voco.su
       DATABASE_URL: postgresql://voco:I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=@postgres:5432/voco_db
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - postgres
       - livekit
@@ -70,3 +72,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:

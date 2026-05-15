@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { VocoLogo } from "../components/VocoLogo";
@@ -119,6 +119,11 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [profileInitialAvatar, setProfileInitialAvatar] = useState("");
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  // Загруженное фото-аватарка: файл ждёт «Сохранить», превью — object URL.
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
+  const [profileAvatarError, setProfileAvatarError] = useState("");
+  const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(false);
   const [showHiddenRooms, setShowHiddenRooms] = useState(false);
@@ -441,10 +446,13 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     setSettingsOpen(false);
     const initialUsername = user?.username || "";
     const initialEmail = user?.email || "";
+    // Аватарка: эмодзи из набора ИЛИ загруженный URL (/uploads/avatars/...).
+    // Всё прочее — сбрасываем в "" (инициалы).
+    const rawAvatar = typeof user?.avatarUrl === "string" ? user.avatarUrl : "";
     const initialAvatar =
-      typeof user?.avatarUrl === "string" &&
-      PROFILE_AVATAR_OPTIONS.includes(user.avatarUrl as (typeof PROFILE_AVATAR_OPTIONS)[number])
-        ? user.avatarUrl
+      PROFILE_AVATAR_OPTIONS.includes(rawAvatar as (typeof PROFILE_AVATAR_OPTIONS)[number]) ||
+      rawAvatar.startsWith("/uploads/avatars/")
+        ? rawAvatar
         : "";
     setProfileInitialUsername(initialUsername);
     setProfileInitialEmail(initialEmail);
@@ -454,6 +462,11 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     setProfilePasswordInput("");
     setProfileAvatarInput(initialAvatar);
     setAvatarPickerOpen(false);
+    // Сбрасываем pending-фото от предыдущего открытия профиля.
+    if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+    setProfileAvatarError("");
     setProfileOpen(true);
   };
 
@@ -481,28 +494,48 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     if (trimmedPassword) {
       payload.password = trimmedPassword;
     }
+    // Аватарка: либо ждёт upload (pendingAvatarFile), либо это эмодзи/"".
+    const avatarIsEmojiOrEmpty =
+      profileAvatarInput === "" ||
+      PROFILE_AVATAR_OPTIONS.includes(profileAvatarInput as (typeof PROFILE_AVATAR_OPTIONS)[number]);
     const avatarChanged =
-      profileAvatarInput !== profileInitialAvatar &&
-      (profileAvatarInput === "" ||
-        PROFILE_AVATAR_OPTIONS.includes(profileAvatarInput as (typeof PROFILE_AVATAR_OPTIONS)[number]));
-    if (avatarChanged) {
-      payload.avatarUrl = profileAvatarInput || null;
-    }
+      pendingAvatarFile !== null ||
+      (avatarIsEmojiOrEmpty && profileAvatarInput !== profileInitialAvatar);
 
-    if (Object.keys(payload).length === 0) {
+    if (
+      Object.keys(payload).length === 0 &&
+      !avatarChanged
+    ) {
       setProfileOpen(false);
       return;
     }
 
     setError("");
+    setProfileAvatarError("");
     setProfileSaving(true);
     try {
+      // Сначала грузим файл, если он есть — получаем URL и кладём в payload.
+      if (pendingAvatarFile) {
+        const uploaded = await api.uploadAvatar(pendingAvatarFile);
+        payload.avatarUrl = uploaded.avatarUrl;
+      } else if (avatarChanged) {
+        payload.avatarUrl = profileAvatarInput || null;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        setProfileOpen(false);
+        return;
+      }
+
       const data: any = await api.updateProfile(payload);
       if (data?.user) {
         onUserUpdate?.(data.user);
       }
       setProfilePasswordInput("");
       setAvatarPickerOpen(false);
+      if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+      setPendingAvatarFile(null);
+      setPendingAvatarPreview(null);
       setProfileOpen(false);
     } catch (err: any) {
       setError(err?.message || "Не удалось сохранить профиль");
@@ -510,6 +543,34 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
       setProfileSaving(false);
     }
   };
+
+  // Выбор фото из «+»-плитки: валидация + превью без загрузки.
+  const handleAvatarFilePicked = (file: File | null) => {
+    setProfileAvatarError("");
+    if (!file) return;
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setProfileAvatarError("Только JPG, PNG или WebP");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileAvatarError("Файл слишком большой (максимум 5 МБ)");
+      return;
+    }
+    if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+    const preview = URL.createObjectURL(file);
+    setPendingAvatarFile(file);
+    setPendingAvatarPreview(preview);
+    setAvatarPickerOpen(false);
+  };
+
+  // Освобождаем object URL при размонтировании.
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const profileName = profileUsernameInput.trim() || user?.username || "Иван Иванов";
   const profileNameParts = profileName.split(/\s+/).filter(Boolean);
@@ -522,6 +583,13 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     }
     return "ИИ";
   })();
+  // Что рисовать в круглом аватаре профиля:
+  //  - pendingAvatarPreview / уже-загруженный URL → <img>
+  //  - эмодзи из набора → текст эмодзи
+  //  - иначе → инициалы.
+  const profileAvatarImageSrc =
+    pendingAvatarPreview ??
+    (profileAvatarInput.startsWith("/uploads/") ? profileAvatarInput : null);
   const profileAvatarText = PROFILE_AVATAR_OPTIONS.includes(
     profileAvatarInput as (typeof PROFILE_AVATAR_OPTIONS)[number],
   )
@@ -532,20 +600,11 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     profileUsernameInput.trim() !== profileInitialUsername.trim() ||
     profileEmailInput.trim() !== profileInitialEmail.trim() ||
     profileAvatarInput.trim() !== profileInitialAvatar.trim() ||
-    profilePasswordInput.trim().length > 0;
-
-  const isStaging = window.location.hostname === "voco.su";
+    profilePasswordInput.trim().length > 0 ||
+    pendingAvatarFile !== null;
 
   return (
     <main className={`screen ${resolvedTheme === "dark" ? "theme-dark" : "theme-light"}`}>
-      {isStaging && (
-        <div className="staging-banner">
-          ТЕСТОВЫЙ СЕРВЕР — стабильная версия проекта на{" "}
-          <a href="https://voco-meet.ru" target="_blank" rel="noopener noreferrer">
-            voco-meet.ru
-          </a>
-        </div>
-      )}
       {error && <div className="menu-error">{error}</div>}
 
       <section className="content" aria-label="Главная зона">
@@ -1087,26 +1146,68 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                 aria-expanded={avatarPickerOpen}
                 onClick={() => setAvatarPickerOpen((current) => !current)}
               >
-                {profileAvatarText}
+                {profileAvatarImageSrc ? (
+                  <img
+                    className="profile-avatar-image"
+                    src={profileAvatarImageSrc}
+                    alt=""
+                    draggable={false}
+                  />
+                ) : (
+                  profileAvatarText
+                )}
               </button>
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: "none" }}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  handleAvatarFilePicked(file);
+                  // Сбрасываем value, чтобы выбор того же файла повторно срабатывал.
+                  event.target.value = "";
+                }}
+              />
               {avatarPickerOpen && (
                 <div className="profile-avatar-picker" role="listbox" aria-label="Аватарки">
                   {profileAvatarPickerOptions.map((avatar) => (
                     <button
                       key={avatar || "initials"}
-                      className={`profile-avatar-option${avatar === profileAvatarInput ? " is-selected" : ""}`}
+                      className={`profile-avatar-option${avatar === profileAvatarInput && !pendingAvatarFile ? " is-selected" : ""}`}
                       type="button"
                       role="option"
-                      aria-selected={avatar === profileAvatarInput}
+                      aria-selected={avatar === profileAvatarInput && !pendingAvatarFile}
                       aria-label={avatar ? `Выбрать аватарку ${avatar}` : "Использовать инициалы"}
                       onClick={() => {
                         setProfileAvatarInput(avatar);
+                        if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+                        setPendingAvatarFile(null);
+                        setPendingAvatarPreview(null);
+                        setProfileAvatarError("");
                         setAvatarPickerOpen(false);
                       }}
                     >
                       {avatar || profileInitials}
                     </button>
                   ))}
+                  <button
+                    key="upload"
+                    className={`profile-avatar-option profile-avatar-option--upload${pendingAvatarFile ? " is-selected" : ""}`}
+                    type="button"
+                    role="option"
+                    aria-selected={pendingAvatarFile !== null}
+                    aria-label="Загрузить фото"
+                    title="Загрузить фото"
+                    onClick={() => avatarFileInputRef.current?.click()}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+              {profileAvatarError && (
+                <div className="profile-avatar-error" role="alert">
+                  {profileAvatarError}
                 </div>
               )}
               <p className="profile-name">

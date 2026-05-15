@@ -49,6 +49,8 @@ services:
       LIVEKIT_PUBLIC_URL: wss://voco.su/livekit/
       CORS_ORIGIN: https://voco.su
       DATABASE_URL: postgresql://voco_staging:083458251cf84153a535346ba991f86407ae1e182ee08343@voco-postgres-staging:5432/voco_staging_db
+    volumes:
+      - uploads_staging_data:/app/uploads
     depends_on:
       - postgres-staging
       - livekit-staging
@@ -57,6 +59,7 @@ services:
 
 volumes:
   postgres_staging_data:
+  uploads_staging_data:
 
 networks:
   voco-net:

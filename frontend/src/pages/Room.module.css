@@ -37,16 +37,32 @@
   --stage-content-top-ratio: 0.09765625;
   --stage-content-height-ratio: 0.8046875;
   --stage-content-height: max(1px, calc(100vh - var(--stage-safe-top) - var(--stage-safe-bottom)));
-  --stage-height: min(
+  /* Резерв под боковые панели (участники слева / чат справа). JS выставляет
+     реальную ширину каждой открытой панели; для закрытой — 0px.
+     Множитель 1.74744 = 1440 / (586 * 1.40625): ограничивает высоту сцены так,
+     чтобы сетка тайлов (586 из 1440 по ширине, по центру) не залезала под
+     панели. Сцену центрируем в зазоре между панелями, а не в окне — иначе при
+     разной ширине панелей (470 vs 420) сетка уезжает в сторону участников. */
+  --stage-reserve-left: 470px;
+  --stage-reserve-right: 420px;
+  --stage-gap-width: max(
+    1px,
+    calc(100vw - var(--stage-reserve-left) - var(--stage-reserve-right))
+  );
+  --stage-height: max(1px, min(
     calc(var(--stage-content-height) / var(--stage-content-height-ratio)),
     calc(100vw * 0.7111111111),
+    calc(var(--stage-gap-width) * 1.74744),
     1564.4444px
-  );
+  ));
   --stage-width: calc(var(--stage-height) * 1.40625);
   --stage-content-screen-height: calc(var(--stage-height) * var(--stage-content-height-ratio));
 
   position: fixed;
-  left: calc((100vw - var(--stage-width)) / 2);
+  left: calc(
+    var(--stage-reserve-left) +
+    (var(--stage-gap-width) - var(--stage-width)) / 2
+  );
   top: calc(
     var(--stage-safe-top) +
     ((var(--stage-content-height) - var(--stage-content-screen-height)) / 2) -
@@ -292,7 +308,7 @@
 
 .desktopChatPanel {
   right: 0;
-  width: 384px;
+  width: 420px;
 }
 
 .participantsPanel::after,
@@ -491,10 +507,19 @@
   line-height: 23px;
   font-weight: 900;
   text-align: center;
+  overflow: hidden;
 }
 
 .participantAvatarFallback {
   display: inline;
+}
+
+/* Фото-аватарка: тянется на весь круг, центр-кроп. */
+.participantAvatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .participantAvatarGuest {
@@ -709,6 +734,10 @@
   flex-direction: column;
   gap: 10px;
   min-height: 100%;
+  /* Запас сверху/справа, чтобы hover-кнопка закрепа (.chatPinTrigger выступает
+     на -8px за бабл) не обрезалась overflow:hidden у .chatScroll. */
+  box-sizing: border-box;
+  padding: 8px 8px 0 0;
 }
 
 .chatScroll::-webkit-scrollbar {
@@ -3813,6 +3842,85 @@ button.stageRoomCode:disabled {
 .livekitTile {
   width: 100%;
   height: 100%;
+}
+
+/* Обёртка для tile + аватар-оверлей. container-type включает container queries —
+   аватарка внутри использует cqw для адаптивного font-size под размер тайла. */
+.tileMediaWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+}
+
+/* Оверлей с аватаркой: показываем поверх плейсхолдера LiveKit, когда камера off. */
+.tileAvatarOverlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: #eedcff;
+  z-index: 2;
+}
+
+:global(:root[data-theme="dark"]) .tileAvatarOverlay {
+  background: #1a0035;
+}
+
+/* Большой смайлик по центру тайла — без круга-подложки, просто поверх карточки.
+   Через .tileAvatarOverlay .tileAvatar повышаем специфичность, чтобы перебить
+   базовый .participantAvatar (50×50, фиолетовый круг). */
+.tileAvatarOverlay .tileAvatar {
+  /* Контейнер аватарки занимает всю карточку. Фото-аватарка внутри идёт
+     с object-fit: cover и заполняет тайл целиком; смайлик-текст центруется
+     через grid place-items от базового .participantAvatar; SVG-иконка гостя
+     растягивается на всю ширину/высоту (см. правило ниже). cqh в контейнере
+     с container-type: inline-size не работает — поэтому только проценты
+     и cqw для font-size. */
+  width: 100%;
+  height: 100%;
+  font-size: min(50cqw, 180px);
+  line-height: 1;
+  border-radius: 0;
+  background: transparent;
+  color: #8000ff;
+}
+
+:global(:root[data-theme="dark"]) .tileAvatarOverlay .tileAvatar {
+  color: #b58cff;
+}
+
+/* SVG-иконка гостя задана фиксированными 50×50 атрибутами и базовым правилом;
+   на тайле растягиваем её на весь .tileAvatar, чтобы она была такого же
+   размера, как смайлики зарегистрированных. */
+.tileAvatarOverlay .tileAvatar .participantGuestAvatarIcon {
+  width: 100%;
+  height: 100%;
+}
+
+/* В составе иконки гостя есть подложка-круг #8000FF (первый <circle> в SVG).
+   На тайле прячем его — оставляем только силуэт-привидение, как смайлики
+   зарегистрированных размещаются без круга. Глаза и контур перекрашиваем
+   в тот же цвет, что и текстовый смайлик (см. .tileAvatarOverlay .tileAvatar). */
+.tileAvatarOverlay .tileAvatar .participantGuestAvatarIcon > circle {
+  display: none;
+}
+
+.tileAvatarOverlay .tileAvatar .participantGuestAvatarFace {
+  fill: #8000ff;
+}
+
+.tileAvatarOverlay .tileAvatar .participantGuestAvatarStroke {
+  stroke: #8000ff;
+}
+
+:global(:root[data-theme="dark"]) .tileAvatarOverlay .tileAvatar .participantGuestAvatarFace {
+  fill: #b58cff;
+}
+
+:global(:root[data-theme="dark"]) .tileAvatarOverlay .tileAvatar .participantGuestAvatarStroke {
+  stroke: #b58cff;
 }
 
 .placeholderTile {

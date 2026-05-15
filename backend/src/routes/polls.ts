@@ -120,12 +120,16 @@ router.post("/:slug/polls", async (req: Request, res: Response) => {
     }
     const { question, options, allowMultiple, isAnonymous } = parse.data;
 
-    // Имя автора берём из users (для отображения в чате/результатах).
-    const userResult = await db.query(
-      `SELECT username FROM users WHERE id = $1`,
-      [req.user.userId],
-    );
-    const createdByName = userResult.rows[0]?.username ?? null;
+    // Имя автора — отображаемое имя в комнате (как у чат-сообщений).
+    // Если клиент его не передал — fallback на username из users.
+    let createdByName: string | null = parse.data.createdByName ?? null;
+    if (!createdByName) {
+      const userResult = await db.query(
+        `SELECT username FROM users WHERE id = $1`,
+        [req.user.userId],
+      );
+      createdByName = userResult.rows[0]?.username ?? null;
+    }
 
     const client = await db.connect();
     try {

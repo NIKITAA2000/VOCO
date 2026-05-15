@@ -169,6 +169,7 @@ export const createPollSchema = z.object({
     .max(10, "Максимум 10 вариантов"),
   allowMultiple: z.boolean().optional().default(false),
   isAnonymous: z.boolean().optional().default(false),
+  createdByName: z.string().min(1).max(120).optional(),
 });
 
 export const votePollSchema = z.object({
@@ -197,7 +198,20 @@ export const updateProfileSchema = z
       .optional(),
     email: z.string().email("Некорректный email").optional(),
     password: z.string().min(6, "Пароль — минимум 6 символов").optional(),
-    avatarUrl: z.enum(profileAvatarOptions).nullable().optional(),
+    // Аватарка — либо текстовая «эмодзи» из набора, либо относительный URL
+    // загруженного фото вида /uploads/avatars/<hex>.<ext>.
+    avatarUrl: z
+      .union([
+        z.enum(profileAvatarOptions),
+        z
+          .string()
+          .regex(
+            /^\/uploads\/avatars\/[A-Za-z0-9._-]+$/,
+            "Некорректный URL аватарки",
+          ),
+      ])
+      .nullable()
+      .optional(),
   })
   .refine(
     (data) =>

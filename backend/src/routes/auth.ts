@@ -1,11 +1,68 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
 import { db } from "../lib/db.js";
 import { generateToken } from "../middleware/auth.js";
 import { registerSchema, loginSchema, updateProfileSchema } from "../schemas/index.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
+
+// Аватарки лежат рядом с чатовыми загрузками — backend/uploads/avatars/.
+// Тот же Docker-volume в проде, что и для чата.
+const AVATAR_DIR = path.resolve(process.cwd(), "uploads", "avatars");
+if (!fs.existsSync(AVATAR_DIR)) {
+  fs.mkdirSync(AVATAR_DIR, { recursive: true });
+}
+
+const AVATAR_ALLOWED: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024; // 5 МБ
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
+  filename: (_req, file, cb) => {
+    const ext = AVATAR_ALLOWED[file.mimetype] ?? ".bin";
+    const safe = crypto.randomBytes(16).toString("hex");
+    cb(null, `${safe}${ext}`);
+  },
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: AVATAR_MAX_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!AVATAR_ALLOWED[file.mimetype]) {
+      cb(new Error("Только JPG, PNG или WebP"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+function avatarSingleSafe(field: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    avatarUpload.single(field)(req, res, (err: any) => {
+      if (err) {
+        const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+        res.status(status).json({
+          error:
+            err.code === "LIMIT_FILE_SIZE"
+              ? "Файл слишком большой (максимум 5 МБ)"
+              : err.message || "Не удалось загрузить файл",
+        });
+        return;
+      }
+      next();
+    });
+  };
+}
 
 // POST /api/auth/register
 router.post("/register", async (req: Request, res: Response) => {
@@ -221,5 +278,28 @@ router.patch("/me", authenticate, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
   }
 });
+
+// POST /api/auth/avatar — загрузить фото-аватарку.
+// Файл сохраняется в uploads/avatars/<hex>.<ext>, возвращается относительный URL.
+// Привязка к users.avatar_url делается следующим PATCH /api/auth/me.
+router.post(
+  "/avatar",
+  authenticate,
+  avatarSingleSafe("file"),
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ error: "Файл не загружен" });
+        return;
+      }
+      const url = `/uploads/avatars/${file.filename}`;
+      res.status(201).json({ avatarUrl: url });
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      res.status(500).json({ error: "Не удалось загрузить аватарку" });
+    }
+  },
+);
 
 export default router;

@@ -19,6 +19,7 @@ import {
   RoomAudioRenderer,
   TrackToggle,
   useChat,
+  useIsMuted,
   useLocalParticipant,
   useMediaDeviceSelect,
   useParticipants,
@@ -41,7 +42,7 @@ const DESKTOP_TILE_COLUMN_WIDTH = 293;
 const DESKTOP_TILE_GRID_WIDTH = DESKTOP_TILE_COLUMN_WIDTH * 2;
 const DESKTOP_TILE_GRID_LEFT = (STAGE_WIDTH - DESKTOP_TILE_GRID_WIDTH) / 2;
 const DESKTOP_PARTICIPANTS_PANEL_WIDTH = 470;
-const DESKTOP_CHAT_PANEL_WIDTH = 384;
+const DESKTOP_CHAT_PANEL_WIDTH = 420;
 const TILE_FOOTER_HEIGHT = 50;
 const TABLET_ROOM_LAYOUT_MEDIA_QUERY =
   "(min-width: 641px) and (max-width: 900px) and (min-height: 900px) and (orientation: portrait)";
@@ -1257,6 +1258,42 @@ function PlaceholderLogo() {
   );
 }
 
+// Tile с видео или с аватаркой пользователя поверх (когда камера выключена).
+// useIsMuted реактивно следит за mute-стейтом текущего трека и переключает оверлей.
+function TileMedia({
+  trackRef,
+  displayName,
+  avatarUrl,
+  isGuest,
+}: {
+  trackRef: any;
+  displayName: string;
+  avatarUrl: string | null;
+  isGuest: boolean;
+}) {
+  const isMuted = useIsMuted(trackRef);
+  // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
+  const source = trackRef?.publication?.source ?? trackRef?.source;
+  const isCamera = source === Track.Source.Camera;
+  const showAvatar = isCamera && isMuted;
+
+  return (
+    <div className={styles.tileMediaWrapper}>
+      <ParticipantTile className={styles.livekitTile} trackRef={trackRef} />
+      {showAvatar ? (
+        <div className={styles.tileAvatarOverlay}>
+          <ParticipantAvatar
+            name={displayName}
+            avatarUrl={avatarUrl}
+            isGuest={isGuest}
+            className={styles.tileAvatar}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
 
 type SettingsTab = "settings" | "link" | "ban";
@@ -1965,7 +2002,10 @@ function ParticipantAvatar({
   isGuest?: boolean;
 }) {
   const avatarLabel = typeof avatarUrl === "string" && avatarUrl.trim() ? avatarUrl : null;
-  const fallbackLabel = avatarLabel ?? getInitials(name);
+  // Если в avatarUrl лежит относительный URL загруженного фото — рендерим <img>.
+  const isImageAvatar =
+    typeof avatarLabel === "string" && avatarLabel.startsWith("/uploads/");
+  const fallbackLabel = isImageAvatar ? null : (avatarLabel ?? getInitials(name));
 
   return (
     <span
@@ -2010,7 +2050,16 @@ function ParticipantAvatar({
           />
         </svg>
       ) : null}
-      <span className={styles.participantAvatarFallback}>{fallbackLabel}</span>
+      {isImageAvatar ? (
+        <img
+          src={avatarLabel ?? ""}
+          alt=""
+          className={styles.participantAvatarImage}
+          draggable={false}
+        />
+      ) : (
+        <span className={styles.participantAvatarFallback}>{fallbackLabel}</span>
+      )}
     </span>
   );
 }
@@ -2074,6 +2123,11 @@ export function ConferenceRoomContent({
   const [emojiScrollThumbTop, setEmojiScrollThumbTop] = useState(10);
   const [outputEnabled, setOutputEnabled] = useState(true);
   const [handRaisedMap, setHandRaisedMap] = useState<Record<string, boolean>>({});
+  // identity → avatarUrl, синхронизируется через LiveKit participant attributes.
+  // Нужно, чтобы гости (у них нет Bearer-токена для GET /api/rooms/:slug, т.е.
+  // нет participantMetaByUserId) видели аватарки зарегистрированных, а все
+  // клиенты видели свежий аватар после смены в профиле без переподключения.
+  const [avatarAttrMap, setAvatarAttrMap] = useState<Record<string, string>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
@@ -2637,7 +2691,8 @@ export function ConferenceRoomContent({
       setPollError("");
       setPollBusyId("__create__");
       try {
-        const data: any = await api.createPoll(slug, input);
+        const createdByName = localParticipant?.name || undefined;
+        const data: any = await api.createPoll(slug, { ...input, createdByName });
         const poll = data?.poll as Poll | undefined;
         if (!poll) throw new Error("Сервер не вернул опрос");
         upsertPoll(poll);
@@ -2649,7 +2704,7 @@ export function ConferenceRoomContent({
         setPollBusyId(null);
       }
     },
-    [slug, upsertPoll, broadcastPoll],
+    [slug, upsertPoll, broadcastPoll, localParticipant],
   );
 
   const handleVotePoll = useCallback(
@@ -3702,30 +3757,53 @@ export function ConferenceRoomContent({
       const raw = p?.attributes?.handRaised;
       return raw === "true" || raw === true;
     };
+    const readAvatar = (p: any): string => {
+      const raw = p?.attributes?.avatarUrl;
+      return typeof raw === "string" ? raw : "";
+    };
 
     const snapshot = () => {
-      const next: Record<string, boolean> = {};
-      if (room.localParticipant?.identity) {
-        next[room.localParticipant.identity] = readFlag(room.localParticipant);
-      }
+      const hand: Record<string, boolean> = {};
+      const avatar: Record<string, string> = {};
+      const visit = (p: any) => {
+        if (!p?.identity) return;
+        hand[p.identity] = readFlag(p);
+        const a = readAvatar(p);
+        if (a) avatar[p.identity] = a;
+      };
+      visit(room.localParticipant);
       const remotes: Iterable<any> =
         (room.remoteParticipants && typeof room.remoteParticipants.values === "function"
           ? room.remoteParticipants.values()
           : room.remoteParticipants) ?? [];
-      for (const p of remotes) {
-        if (p?.identity) next[p.identity] = readFlag(p);
-      }
-      return next;
+      for (const p of remotes) visit(p);
+      return { hand, avatar };
     };
-    setHandRaisedMap(snapshot());
+    const initial = snapshot();
+    setHandRaisedMap(initial.hand);
+    setAvatarAttrMap(initial.avatar);
 
     const handleAttributes = (changed: Record<string, string>, participant: any) => {
       if (!participant?.identity) return;
-      if (!changed || !("handRaised" in changed)) return;
-      setHandRaisedMap((prev) => ({
-        ...prev,
-        [participant.identity]: changed.handRaised === "true",
-      }));
+      if (changed && "handRaised" in changed) {
+        setHandRaisedMap((prev) => ({
+          ...prev,
+          [participant.identity]: changed.handRaised === "true",
+        }));
+      }
+      if (changed && "avatarUrl" in changed) {
+        const next = typeof changed.avatarUrl === "string" ? changed.avatarUrl : "";
+        setAvatarAttrMap((prev) => {
+          if (!next) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          if (prev[participant.identity] === next) return prev;
+          return { ...prev, [participant.identity]: next };
+        });
+      }
     };
     const handleConnected = (participant: any) => {
       if (!participant?.identity) return;
@@ -3733,10 +3811,22 @@ export function ConferenceRoomContent({
         ...prev,
         [participant.identity]: readFlag(participant),
       }));
+      const a = readAvatar(participant);
+      setAvatarAttrMap((prev) => {
+        if (!a) return prev;
+        if (prev[participant.identity] === a) return prev;
+        return { ...prev, [participant.identity]: a };
+      });
     };
     const handleDisconnected = (participant: any) => {
       if (!participant?.identity) return;
       setHandRaisedMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setAvatarAttrMap((prev) => {
         if (!(participant.identity in prev)) return prev;
         const next = { ...prev };
         delete next[participant.identity];
@@ -3754,6 +3844,22 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
     };
   }, [room]);
+
+  // Публикуем свою аватарку через LiveKit-аттрибут, чтобы её видели остальные
+  // (в т.ч. гости, которым недоступен GET /api/rooms/:slug с participantMetaByUserId).
+  // Пустая строка = нет аватарки (показывать инициалы / иконку гостя).
+  useEffect(() => {
+    if (!localParticipant) return;
+    const value =
+      typeof currentUserAvatarUrl === "string" && currentUserAvatarUrl
+        ? currentUserAvatarUrl
+        : "";
+    void Promise.resolve(localParticipant.setAttributes({ avatarUrl: value })).catch(
+      (err) => {
+        console.error("setAttributes(avatarUrl) failed", err);
+      },
+    );
+  }, [localParticipant, currentUserAvatarUrl]);
 
   const toggleRaisedHand = useCallback(() => {
     if (!localParticipant) return;
@@ -3842,14 +3948,45 @@ export function ConferenceRoomContent({
     return true;
   };
 
-  const renderTrackMedia = (trackRef: any) =>
-    trackRef ? (
-      <ParticipantTile className={styles.livekitTile} trackRef={trackRef} />
-    ) : (
-      <div className={styles.placeholderTile}>
-        <PlaceholderLogo />
-      </div>
+  const renderTrackMedia = (trackRef: any) => {
+    if (!trackRef) {
+      return (
+        <div className={styles.placeholderTile}>
+          <PlaceholderLogo />
+        </div>
+      );
+    }
+    const participant = trackRef.participant;
+    const identity = participant?.identity ?? "";
+    const isLocal = identity === localIdentity;
+    // Лукап: 1) по identity (= userId для зарегистрированных), 2) резерв — по
+    // participant.name (LiveKit display name == username), 3) у local — последний
+    // fallback на currentUserAvatarUrl (мы знаем свой свежий выбор аватарки).
+    let meta = participantMetaByUserId.get(identity);
+    if (!meta && participant?.name) {
+      meta = roomParticipants.find((p) => p.user.username === participant.name);
+    }
+    const displayName =
+      meta?.user.username || participant?.name || identity || "Участник";
+    // Аватарка: 1) метадата с сервера (для тех, кто звал GET /api/rooms/:slug),
+    // 2) LiveKit-атрибут avatarUrl (работает и для гостей — единственный источник),
+    // 3) свой свежий выбор у локального участника.
+    const liveAvatar = avatarAttrMap[identity];
+    const avatarUrl =
+      (meta?.user.avatarUrl ?? null) ||
+      (liveAvatar || null) ||
+      (isLocal ? currentUserAvatarUrl ?? null : null);
+    const isGuest =
+      typeof identity === "string" && identity.startsWith("guest_");
+    return (
+      <TileMedia
+        trackRef={trackRef}
+        displayName={displayName}
+        avatarUrl={avatarUrl}
+        isGuest={isGuest}
+      />
     );
+  };
 
   const renderParticipantMenu = (meta: RoomParticipantMeta, isLocal: boolean) => {
     const isOpen = openParticipantMenu === meta.user.id;
@@ -5252,7 +5389,13 @@ export function ConferenceRoomContent({
   }
   return (
     <div className={styles.stageViewport}>
-      <div className={styles.stage}>
+      <div
+        className={styles.stage}
+        style={{
+          "--stage-reserve-left": `${expandedTileLeft}px`,
+          "--stage-reserve-right": `${expandedTileRight}px`,
+        } as CSSProperties}
+      >
         <div className={styles.topBar} />
         <div className={styles.bottomBar} />
         {renderViewIndicator(styles.desktopToolbarIndicator)}
