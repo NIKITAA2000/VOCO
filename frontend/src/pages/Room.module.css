@@ -4250,8 +4250,8 @@ button.stageRoomCode:disabled {
 }
 
 .mobileToolbarMoreActive::before {
-  opacity: 1;
-  background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(221, 221, 221, 0) 100%);
+  opacity: 0;
+  background: none;
 }
 
 .mobileMoreMenu {
@@ -5688,8 +5688,8 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarMoreActive::before {
-  opacity: 1;
-  background: radial-gradient(50% 50% at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
+  opacity: 0;
+  background: none;
 }
 
 :global(:root[data-theme="dark"]) .chatSendButton {
@@ -6245,7 +6245,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .mobileToolbarMoreActive::before {
-  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ffffff 0%, rgba(221, 221, 221, 0) 100%);
+  --room-toolbar-glow: none;
 }
 
 .compactUtilitySettings.utilityButtonActive::before {
@@ -6321,7 +6321,7 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarMoreActive::before {
-  --room-toolbar-glow: radial-gradient(circle 20px at 50% 50%, #ffffff 0%, rgba(68, 68, 68, 0) 100%);
+  --room-toolbar-glow: none;
 }
 
 :global(:root[data-theme="dark"]) .compactUtilitySettings.utilityButtonActive::before {

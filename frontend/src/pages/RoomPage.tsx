@@ -5195,7 +5195,7 @@ export function ConferenceRoomContent({
             </button>
 
             <button
-              className={`${styles.mobileToolbarButton} ${mobileMoreOpen ? styles.mobileToolbarMoreActive : ""}`}
+              className={styles.mobileToolbarButton}
               type="button"
               aria-label="Ещё"
               aria-haspopup="menu"

@@ -4076,6 +4076,10 @@
     gap: 20px;
   }
 
+  .join-room-item {
+    width: 290px;
+  }
+
   .join-room-item--empty {
     padding-top: 116px;
   }
