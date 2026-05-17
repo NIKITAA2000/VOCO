@@ -287,7 +287,9 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
 
     try {
       const data: any = await api.createRoom(roomNameInput.trim(), options);
-      setCreateOpen(false);
+      // setCreateOpen(false) намеренно НЕ вызываем — иначе React сначала
+      // отрисует дашборд без модалки, и юзер увидит флэш голого дашборда
+      // до перехода в RoomPage. Размонтирование Dashboard сделает это само.
       navigate(`/room/${data.room.slug}`);
     } catch (err: any) {
       setError(err?.message || "Не удалось создать комнату");
@@ -311,8 +313,11 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     try {
       const slug = joinCodeInput.trim();
       await api.getRoom(slug);
+      // setJoinOpen(false) намеренно НЕ вызываем — иначе React успеет
+      // закоммитить закрытие модалки до перехода роута, и в этот кадр
+      // станет виден «голый» дашборд. Размонтирование Dashboard на
+      // navigate само утилизирует joinOpen.
       navigate(`/room/${slug}`);
-      setJoinOpen(false);
     } catch (err: any) {
       setJoinError(err?.message || "Ошибка входа");
     } finally {
@@ -1079,10 +1084,12 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                                 <button
                                   type="button"
                                   className="join-room-link"
-                                  onClick={() => {
-                                    navigate(`/room/${room.slug}`);
-                                    setJoinOpen(false);
-                                  }}
+                                  // setJoinOpen(false) намеренно НЕ вызываем: React успевает
+                                  // закоммитить закрытие модалки до того как router обновит
+                                  // URL — получался кадр «голого» дашборда между модалкой
+                                  // и RoomPage. Dashboard всё равно размонтируется на navigate,
+                                  // вместе с ним умирает и joinOpen.
+                                  onClick={() => navigate(`/room/${room.slug}`)}
                                 >
                                   <span className="join-room-name">{room.name}</span>
                                   <span className="join-room-code">{room.slug}</span>

@@ -4874,7 +4874,12 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 .loading {
+  /* Fallback-экран на случай прямого URL-захода или F5 — когда префетч из
+     дашборда не приехал и приходится подождать api.joinRoom. Тот же светлый
+     фон что у .waitingScreen (через body background просвечивал #0a0a0f
+     — отсюда и была чёрная вспышка). */
   min-height: 100vh;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;

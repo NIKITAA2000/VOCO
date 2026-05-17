@@ -5681,7 +5681,6 @@ export function RoomPage({ user }: Props) {
     const [roomName, setRoomName] = useState("");
     const [ownerName, setOwnerName] = useState("");
     const [error, setError] = useState("");
-    const [loading, setLoading] = useState(true);
     const [conferenceReady, setConferenceReady] = useState(false);
     const [inQueue, setInQueue] = useState(false);
     const [rejectionToast, setRejectionToast] = useState<string | null>(null);
@@ -5715,6 +5714,12 @@ export function RoomPage({ user }: Props) {
     useEffect(() => {
         if (!slug) return;
 
+        // Mount-side joinRoom выполняется ФОНОМ — без блокировки UI loading-экраном.
+        // Форма «Комната ожидания» рендерится сразу (ниже в return), а этот запрос
+        // нужен только чтобы подставить имя комнаты, роль и owner_id для UI.
+        // Сам вход в LiveKit (с токеном) происходит позже — на клик «Войти» в форме,
+        // там делается отдельный joinRoom через handleEnter. Так что задержка этого
+        // фонового запроса не мешает пользователю увидеть форму мгновенно.
         const joinRoom = async () => {
             try {
                 const data = await api.joinRoom(slug);
@@ -5731,8 +5736,6 @@ export function RoomPage({ user }: Props) {
                 }
             } catch (err: any) {
                 setError(err.message);
-            } finally {
-                setLoading(false);
             }
         };
 
@@ -5878,15 +5881,6 @@ export function RoomPage({ user }: Props) {
         leaveRequestedRef.current = false;
         setConferenceReady(true);
     }, []);
-
-    if (loading) {
-        return (
-            <div className={styles.loading}>
-                <div className={styles.spinner} />
-                <p>Подключение к комнате...</p>
-            </div>
-        );
-    }
 
     const liveKitConnection =
         token && livekitUrl && (inQueue || conferenceReady) ? (
