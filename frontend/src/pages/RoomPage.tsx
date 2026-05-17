@@ -1152,8 +1152,15 @@ function getConnectionQualityLevel(quality: ConnectionQuality) {
       return 2;
     case ConnectionQuality.Poor:
       return 1;
-    default:
+    case ConnectionQuality.Lost:
       return 0;
+    default:
+      // ConnectionQuality.Unknown означает «LiveKit ещё не накопил статистику»
+      // (у участника нет опубликованных треков для замера). Сам RTC-коннект
+      // при этом активен — поэтому показываем 3 бара, а не пустой индикатор.
+      // Раньше Unknown падал в дефолт → 0, и создавалось впечатление будто
+      // сигнал «зажигается» в момент включения микрофона.
+      return 3;
   }
 }
 

@@ -766,9 +766,9 @@
 }
 
 .chatPanelHasPin .chatScroll {
-  /* С пином scroll не сдвигается — пин (z-index 5) висит поверх и сообщения
-     скроллятся за ним. */
-  top: 47px;
+  /* Когда есть закреплённое сообщение — сдвигаем верх скролла ниже плашки пина,
+     иначе пин (z-index 5) накрывает верхние сообщения и они нечитаемы. */
+  top: 100px;
 }
 
 .chatClearButton {
@@ -1222,7 +1222,11 @@
   position: absolute;
   left: 0;
   bottom: 60px;
-  width: 100px;
+  /* Ширина подстраивается под кол-во кнопок: 50px (только файл) для
+     обычного участника или 100px (файл + опрос) для owner/moderator.
+     Раньше было зашито 100px, и у участника без прав справа от скрепки
+     висела пустая половина зелёного фона. */
+  width: fit-content;
   height: 50px;
   border-radius: 10px;
   background: linear-gradient(180deg, #ddffdd 0%, #ffffff 100%);
@@ -5409,6 +5413,31 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .chatBubbleRemote {
   background: linear-gradient(0deg, #444444 0%, rgba(34, 34, 34, 0) 100%);
   color: #ffffff;
+}
+
+/* Опросы внутри чужого баббла в dark-теме. Базовые .chatBubbleRemote .poll*
+   ставят тёмный текст (рассчитано на светлый фон в светлой теме), а в dark
+   фон стал тёмным — отсюда «чёрный на чёрном». Возвращаем светлые цвета. */
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollQuestion,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollOptionText,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollOptionResultMeta,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollVoteButton,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollResultsButton {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollLabel,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollMeta,
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollTime {
+  color: #dddddd;
+}
+
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollOptionBarTrack {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+:global(:root[data-theme="dark"]) .chatBubbleRemote .pollVoteError {
+  color: #ffe0e0;
 }
 
 :global(:root[data-theme="dark"]) .chatBubbleOwn {
