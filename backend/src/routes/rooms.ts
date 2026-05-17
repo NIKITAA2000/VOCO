@@ -831,7 +831,7 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
     // Синхронизируем роль в LiveKit-метаданных, чтобы все клиенты (включая гостей)
     // увидели изменение немедленно — иначе пришлось бы ждать переподключения.
     try {
-      await roomService.updateParticipant(req.params.slug as string, req.params.userId, {
+      await roomService.updateParticipant(req.params.slug as string, req.params.userId as string, {
         metadata: buildMetadata({
           status: PARTICIPANT_STATUS_ACTIVE,
           role: parsed.data.role,
