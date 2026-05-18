@@ -230,6 +230,16 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     document.documentElement.dataset.theme = resolvedTheme;
   }, [resolvedTheme]);
 
+  // Закрываем шестерёночное меню комнаты по клику вне него. Сама кнопка
+  // шестерёнки и пункты меню вызывают event.stopPropagation() в onClick —
+  // до document-листенера они не долетают, только «внешние» клики закрывают.
+  useEffect(() => {
+    if (!closedRoomMenuOpen) return;
+    const handler = () => setClosedRoomMenuOpen("");
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [closedRoomMenuOpen]);
+
   useEffect(() => {
     if (!joinOpen) {
       setClosedRoomMenuOpen("");
