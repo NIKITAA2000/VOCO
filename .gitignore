@@ -27,6 +27,10 @@ frontend/dist/
 CLAUDE.md
 .claude/
 
+# Локальные скретчи дизайна — пасты CSS/SVG для разговоров с Claude
+css.txt
+svg.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
