@@ -3793,9 +3793,12 @@ export function ConferenceRoomContent({
       for (const p of remotes) visit(p);
       return { hand, avatar };
     };
-    const initial = snapshot();
-    setHandRaisedMap(initial.hand);
-    setAvatarAttrMap(initial.avatar);
+    const applySnapshot = () => {
+      const { hand, avatar } = snapshot();
+      setHandRaisedMap(hand);
+      setAvatarAttrMap(avatar);
+    };
+    applySnapshot();
 
     const handleAttributes = (changed: Record<string, string>, participant: any) => {
       if (!participant?.identity) return;
@@ -3851,29 +3854,46 @@ export function ConferenceRoomContent({
     room.on(RoomEvent.ParticipantAttributesChanged, handleAttributes);
     room.on(RoomEvent.ParticipantConnected, handleConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
+    // ParticipantConnected не срабатывает для участников, которые уже в комнате
+    // на момент подключения local — их атрибуты надо перечитать после Connected.
+    room.on(RoomEvent.Connected, applySnapshot);
+    room.on(RoomEvent.Reconnected, applySnapshot);
 
     return () => {
       room.off(RoomEvent.ParticipantAttributesChanged, handleAttributes);
       room.off(RoomEvent.ParticipantConnected, handleConnected);
       room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
+      room.off(RoomEvent.Connected, applySnapshot);
+      room.off(RoomEvent.Reconnected, applySnapshot);
     };
   }, [room]);
 
   // Публикуем свою аватарку через LiveKit-аттрибут, чтобы её видели остальные
   // (в т.ч. гости, которым недоступен GET /api/rooms/:slug с participantMetaByUserId).
   // Пустая строка = нет аватарки (показывать инициалы / иконку гостя).
+  // setAttributes требует, чтобы участник был полностью присоединён — иначе
+  // сервер не сохранит атрибут. Поэтому пере-публикуем на Connected/Reconnected.
   useEffect(() => {
-    if (!localParticipant) return;
+    if (!room || !localParticipant) return;
     const value =
       typeof currentUserAvatarUrl === "string" && currentUserAvatarUrl
         ? currentUserAvatarUrl
         : "";
-    void Promise.resolve(localParticipant.setAttributes({ avatarUrl: value })).catch(
-      (err) => {
-        console.error("setAttributes(avatarUrl) failed", err);
-      },
-    );
-  }, [localParticipant, currentUserAvatarUrl]);
+    const publish = () => {
+      void Promise.resolve(localParticipant.setAttributes({ avatarUrl: value })).catch(
+        (err) => {
+          console.error("setAttributes(avatarUrl) failed", err);
+        },
+      );
+    };
+    publish();
+    room.on(RoomEvent.Connected, publish);
+    room.on(RoomEvent.Reconnected, publish);
+    return () => {
+      room.off(RoomEvent.Connected, publish);
+      room.off(RoomEvent.Reconnected, publish);
+    };
+  }, [room, localParticipant, currentUserAvatarUrl]);
 
   const toggleRaisedHand = useCallback(() => {
     if (!localParticipant) return;
@@ -3929,28 +3949,39 @@ export function ConferenceRoomContent({
   }, [focusChatInput, isChatPanelOpen, isCompactLayout]);
 
   const getParticipantMeta = (participant: any) => {
-    const existing = participantMetaByUserId.get(participant?.identity);
+    const identity = participant?.identity ?? "";
+    // Аватарка из LiveKit-аттрибута (единственный источник для тех, кто не звал
+    // GET /api/rooms/:slug — например, гостей). Перебивает stale-значение из REST.
+    const liveAvatar = avatarAttrMap[identity] || null;
+    const existing = participantMetaByUserId.get(identity);
     if (existing) {
-      // Если у участника метаданные LiveKit говорят о более актуальной роли —
-      // (например, гость смотрит и не имеет доступа к /api/rooms),
-      // подменим. Для зарегистрированных это обычно одно и то же.
       const metaRole = parseParticipantStatus(participant).role;
+      const mergedAvatar =
+        liveAvatar ||
+        existing.user.avatarUrl ||
+        (identity === localIdentity ? currentUserAvatarUrl ?? null : null);
+      const merged: RoomParticipantMeta = {
+        ...existing,
+        user: { ...existing.user, avatarUrl: mergedAvatar },
+      };
       if (metaRole && metaRole !== existing.role) {
-        return { ...existing, role: metaRole };
+        merged.role = metaRole;
       }
-      return existing;
+      return merged;
     }
     const metaRole = parseParticipantStatus(participant).role;
     const fallbackRole =
       metaRole ??
-      (participant?.identity === localIdentity && isOwner ? "OWNER" : "PARTICIPANT");
+      (identity === localIdentity && isOwner ? "OWNER" : "PARTICIPANT");
     return {
-      id: participant?.identity ?? "",
+      id: identity,
       role: fallbackRole,
       user: {
-        id: participant?.identity ?? "",
-        username: participant?.name || participant?.identity || "Участник",
-        avatarUrl: participant?.identity === localIdentity ? currentUserAvatarUrl ?? null : null,
+        id: identity,
+        username: participant?.name || identity || "Участник",
+        avatarUrl:
+          liveAvatar ||
+          (identity === localIdentity ? currentUserAvatarUrl ?? null : null),
       },
     } satisfies RoomParticipantMeta;
   };

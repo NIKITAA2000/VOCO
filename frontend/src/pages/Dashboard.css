@@ -3146,7 +3146,8 @@
     background: linear-gradient(191.06deg, #002550 0%, #222222 50%, #002550 100%);
   }
 
-  .join-overlay {
+  .join-overlay,
+  .settings-overlay {
     align-items: flex-start;
     overflow-y: auto;
     overflow-x: hidden;
@@ -3154,7 +3155,8 @@
     -ms-overflow-style: none;
   }
 
-  .join-overlay::-webkit-scrollbar {
+  .join-overlay::-webkit-scrollbar,
+  .settings-overlay::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
