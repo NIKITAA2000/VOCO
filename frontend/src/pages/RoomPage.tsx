@@ -5991,7 +5991,7 @@ export function RoomPage({ user }: Props) {
                         </div>
 
                         <label className={styles.waitingLabel} htmlFor="waiting-display-name">
-                            Имя в конференции (или войдите с текущим)
+                            Имя в конференции
                         </label>
 
                         <input

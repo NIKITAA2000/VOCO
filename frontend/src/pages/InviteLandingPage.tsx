@@ -243,9 +243,7 @@ export function InviteLandingPage({ user }: Props) {
 
   const inputLabel = guestsDenied
     ? "Гостям сюда нельзя"
-    : isAuthed
-      ? "Имя в конференции (или войдите с текущим)"
-      : "Имя в конференции";
+    : "Имя в конференции";
 
   const inputPlaceholder = isAuthed
     ? user?.username || "your@email.com"

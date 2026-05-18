@@ -1814,24 +1814,10 @@
   background: #eedcff !important;
 }
 
+/* Speaking-accent border убран по дизайну в светлой теме (SVG карточки без рамки).
+   В тёмной теме рамка возвращается через :root[data-theme="dark"] override ниже. */
 .tileCard::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  padding: 5px;
-  border-radius: inherit;
-  background: linear-gradient(180deg, #00ff00 0%, rgba(238, 220, 255, 0) 100%);
-  opacity: 0;
-  pointer-events: none;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
+  content: none;
 }
 
 .tileSpeaking::after,
@@ -1871,7 +1857,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
+  /* SVG-эквивалент: linearGradient #8000FF → #EEDCFF alpha 0, 50px, к низу.
+     В SVG интерполяция в premultiplied-alpha — fade выходит мягким. CSS по
+     умолчанию интерполирует в straight-alpha sRGB → видна полоса.
+     Имитируем ease-in alpha (α = (1−t)²) multi-stop'ами по тому же hue. */
+  background: linear-gradient(
+    360deg,
+    #8000ff 0%,
+    rgba(128, 0, 255, 0.56) 25%,
+    rgba(128, 0, 255, 0.25) 50%,
+    rgba(128, 0, 255, 0.0625) 75%,
+    rgba(128, 0, 255, 0) 100%
+  );
 }
 
 .tileFooterName {
@@ -3891,7 +3888,7 @@ button.stageRoomCode:disabled {
 }
 
 :global(:root[data-theme="dark"]) .tileAvatarOverlay {
-  background: #1a0035;
+  background: #280050;
 }
 
 /* Большой смайлик по центру тайла — без круга-подложки, просто поверх карточки.
@@ -3971,7 +3968,14 @@ button.stageRoomCode:disabled {
 }
 
 .tabletStage .tileFooter {
-  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
+  background: linear-gradient(
+    360deg,
+    #8000ff 0%,
+    rgba(128, 0, 255, 0.56) 25%,
+    rgba(128, 0, 255, 0.25) 50%,
+    rgba(128, 0, 255, 0.0625) 75%,
+    rgba(128, 0, 255, 0) 100%
+  );
 }
 
 .tabletStage .tileFooterName {
@@ -4150,7 +4154,14 @@ button.stageRoomCode:disabled {
 
 .mobileStage .tileFooter {
   height: 50px;
-  background: linear-gradient(360deg, #8000ff 0%, rgba(238, 220, 255, 0) 100%);
+  background: linear-gradient(
+    360deg,
+    #8000ff 0%,
+    rgba(128, 0, 255, 0.56) 25%,
+    rgba(128, 0, 255, 0.25) 50%,
+    rgba(128, 0, 255, 0.0625) 75%,
+    rgba(128, 0, 255, 0) 100%
+  );
 }
 
 .mobileStage .tileFooterName {
@@ -5944,8 +5955,35 @@ button.stageRoomCode .roomCodeCopyHint {
   mask: none !important;
 }
 
+:global(:root[data-theme="dark"]) .tileCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  padding: 5px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #00ff00 0%, rgba(238, 220, 255, 0) 100%);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
 :global(:root[data-theme="dark"]) .tileFooter {
-  background: linear-gradient(360deg, #8000ff 0%, rgba(40, 0, 80, 0) 100%);
+  background: linear-gradient(
+    360deg,
+    #8000ff 0%,
+    rgba(128, 0, 255, 0.56) 25%,
+    rgba(128, 0, 255, 0.25) 50%,
+    rgba(128, 0, 255, 0.0625) 75%,
+    rgba(128, 0, 255, 0) 100%
+  );
 }
 
 :global(:root[data-theme="dark"]) .participantAvatar {
@@ -6290,7 +6328,14 @@ button.stageRoomCode .roomCodeCopyHint {
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileFooter {
-    background: linear-gradient(360deg, #8000ff 0%, rgba(40, 0, 80, 0) 100%);
+    background: linear-gradient(
+      360deg,
+      #8000ff 0%,
+      rgba(128, 0, 255, 0.56) 25%,
+      rgba(128, 0, 255, 0.25) 50%,
+      rgba(128, 0, 255, 0.0625) 75%,
+      rgba(128, 0, 255, 0) 100%
+    );
   }
 
   :global(:root[data-theme="dark"]) .tabletStage .tileFooterName {
