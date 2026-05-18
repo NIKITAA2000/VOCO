@@ -147,17 +147,6 @@ export function InviteLandingPage({ user }: Props) {
     navigate("/register");
   }, [code, navigate]);
 
-  const goToLogin = useCallback(() => {
-    if (code) {
-      try {
-        sessionStorage.setItem("voco_pending_invite", code);
-      } catch {
-        // noop
-      }
-    }
-    navigate("/login");
-  }, [code, navigate]);
-
   const handleWaitingLeave = useCallback(() => {
     navigate(isAuthed ? "/dashboard" : "/login");
   }, [isAuthed, navigate]);
