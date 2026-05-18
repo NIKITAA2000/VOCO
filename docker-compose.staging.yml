@@ -1,0 +1,67 @@
+version: "3.8"
+
+# Staging-окружение: voco.su
+# Скопируй этот файл: cp docker-compose.staging.yml.example docker-compose.staging.yml
+# Замени все CHANGE_ME_* на реальные значения
+
+services:
+  postgres-staging:
+    image: postgres:15
+    container_name: voco-postgres-staging
+    restart: always
+    environment:
+      POSTGRES_USER: voco_staging
+      POSTGRES_PASSWORD: 083458251cf84153a535346ba991f86407ae1e182ee08343
+      POSTGRES_DB: voco_staging_db
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    networks:
+      - voco-net
+
+  livekit-staging:
+    image: livekit/livekit-server:latest
+    container_name: voco-livekit-staging
+    restart: always
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7890:7880"
+      - "7891:7881"
+      - "7892:7882"
+      - "50100-50160:50100-50160/udp"
+    volumes:
+      - ./livekit.staging.yaml:/etc/livekit.yaml
+    networks:
+      - voco-net
+
+  backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: voco-backend-staging
+    restart: always
+    environment:
+      PORT: 3002
+      NODE_ENV: production
+      JWT_SECRET: 462fc6b5c07c7964fc9ef375f13c84b63429ad5f4a62d9d5b00e27b0f78404ed
+      LIVEKIT_API_KEY: voco_staging_key
+      LIVEKIT_API_SECRET: 604df6e99fd66c5edee0ad839194fe6c7937999a33ec7814cff0d98d2a8ab723
+      LIVEKIT_URL: ws://voco-livekit-staging:7880
+      LIVEKIT_PUBLIC_URL: wss://voco.su/livekit/
+      CORS_ORIGIN: https://voco.su
+      DATABASE_URL: postgresql://voco_staging:083458251cf84153a535346ba991f86407ae1e182ee08343@voco-postgres-staging:5432/voco_staging_db
+    volumes:
+      - uploads_staging_data:/app/uploads
+    depends_on:
+      - postgres-staging
+      - livekit-staging
+    networks:
+      - voco-net
+
+volumes:
+  postgres_staging_data:
+  uploads_staging_data:
+
+networks:
+  voco-net:
+    external: true
+    name: voco_default

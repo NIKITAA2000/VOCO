@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import app from "../app.js";
-import { initDatabase, db } from "../lib/db.js";
+import { initDatabase } from "../lib/db.js";
 
 // Unique test data to avoid conflicts with existing users
 const testId = Date.now().toString(36);
@@ -179,6 +179,39 @@ describe("GET /api/auth/me", () => {
       .set("Authorization", "Bearer invalid_token_123");
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("PATCH /api/auth/me", () => {
+  it("сохраняет выбранную аватарку", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: ":D" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.avatarUrl).toBe(":D");
+    expect(res.body.token).toBeDefined();
+  });
+
+  it("сбрасывает аватарку на инициалы", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.avatarUrl).toBeNull();
+  });
+
+  it("отклоняет аватарку вне списка", async () => {
+    const res = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ avatarUrl: "bad-avatar" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Ошибка валидации");
   });
 });
 

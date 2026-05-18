@@ -2,36 +2,58 @@
 
 .container {
   min-height: 100vh;
+  min-height: 100svh;
   width: 100%;
-  position: relative;
-  background: var(--auth-page-bg);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: url("/voco-register-white-desktop-bg.svg") center / cover no-repeat;
   font-family: "Jost", sans-serif;
+  overflow: auto;
+}
+
+:global(:root[data-theme="dark"]) .container {
+  background: url("/voco-register-dark-desktop-bg.svg") center / cover no-repeat;
 }
 
 .frame {
   position: relative;
   width: 1440px;
   height: 1024px;
+  min-width: 1440px;
+  min-height: 1024px;
   margin: 0 auto;
+  display: block;
 }
 
 .logo {
   position: absolute;
-  left: 482.5px;
-  top: 216.97px;
   width: 475px;
   height: 140px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  left: 482.5px;
+  top: 216.97px;
+  margin: 0;
+  aspect-ratio: auto;
 }
 
 .logoImage {
   position: absolute;
   inset: 0;
-  width: 475px;
-  height: 140px;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.logoImage picture {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.logoGraphic {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -49,16 +71,16 @@
 
 .tagline {
   position: absolute;
-  left: 503.5px;
-  top: 376.97px;
   width: 435px;
   height: 45px;
+  left: 503.5px;
+  top: 376.97px;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: var(--auth-text);
+  color: #000000;
   font-style: italic;
   font-weight: 400;
   font-size: 32px;
@@ -69,55 +91,58 @@
 .form {
   position: absolute;
   inset: 0;
+  margin: 0;
+  display: block;
 }
 
 .field {
   position: absolute;
   width: 475px;
+  left: 482.5px;
+  display: block;
 }
 
 .fieldEmail {
-  left: 482.5px;
   top: 428.97px;
   height: 73.08px;
 }
 
 .fieldUsername {
-  left: 482.5px;
   top: 509.05px;
   height: 73.02px;
 }
 
 .fieldPassword {
-  left: 482.5px;
   top: 589.06px;
   height: 72.97px;
 }
 
 .label {
   position: absolute;
+  margin: 0;
+  padding: 0;
   left: 19.5px;
   top: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  color: var(--auth-text);
+  color: #000000;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
+  display: flex;
+  align-items: center;
 }
 
 .input {
   position: absolute;
+  width: 100%;
+  height: 50px;
+  min-height: 50px;
   left: 0;
   top: 23.08px;
-  width: 475px;
-  height: 50px;
   padding: 0 19.5px;
   border: 0;
-  border-radius: 100px;
-  background: var(--auth-surface);
-  color: var(--auth-input-text);
+  border-radius: 999px;
+  background: #dddddd;
+  color: #000000;
   font-family: "Jost", sans-serif;
   font-weight: 400;
   font-size: 16px;
@@ -127,58 +152,71 @@
 }
 
 .input::placeholder {
-  color: var(--auth-placeholder);
+  color: #999999;
 }
 
 .input:focus {
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.18);
 }
 
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--auth-input-text);
-  -webkit-box-shadow: 0 0 0 1000px #00ff00 inset;
-  caret-color: var(--auth-input-text);
+  background-color: #ddffdd !important;
+  border: 0 !important;
+  -webkit-text-fill-color: #000000;
+  -webkit-box-shadow: 0 0 0 100px #ddffdd inset !important;
+  box-shadow: 0 0 0 100px #ddffdd inset !important;
+  border-radius: 999px;
+  outline: none !important;
+  caret-color: #000000;
   transition: background-color 9999s ease-in-out 0s;
 }
 
 .error {
   position: absolute;
-  left: 482.5px;
-  top: 669.03px;
   width: 475px;
   min-height: 23px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 19.5px;
-  color: #d61f1f;
-  font-size: 14px;
-  line-height: 20px;
+  left: 482.5px;
+  top: 669.03px;
+  margin: 0;
+  padding: 0 19.5px;
+  color: #000000;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.errorHidden {
+  visibility: hidden;
 }
 
 .submit {
   position: absolute;
-  left: 482.5px;
-  top: 692.03px;
   width: 475px;
   height: 50px;
-  border: 5px solid transparent;
-  border-radius: 100px;
-  background: var(--auth-surface);
-  color: var(--auth-button-text);
+  min-height: 50px;
+  left: 482.5px;
+  top: 692.03px;
+  border: 0;
+  border-radius: 999px;
+  background: #dddddd;
+  color: #000000;
   font-family: "Jost", sans-serif;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
   text-align: center;
   cursor: pointer;
+  box-sizing: border-box;
+  transition: opacity 0.2s ease;
 }
 
 .submitActive {
-  border-color: #00ff00;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
 }
 
 .submit:disabled {
@@ -188,18 +226,19 @@
 
 .links {
   position: absolute;
-  left: 635.5px;
-  top: 762.03px;
   width: 169px;
   height: 45px;
+  left: 635.5px;
+  top: 762.03px;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   align-content: center;
   flex-wrap: wrap;
+  gap: 0 0.25ch;
   text-align: center;
-  color: var(--auth-text);
+  color: #000000;
   font-weight: 400;
   font-size: 16px;
   line-height: 23px;
@@ -208,9 +247,8 @@
 .linkButton {
   border: 0;
   padding: 0;
-  margin-left: 0.25ch;
   background: transparent;
-  color: var(--auth-link-text);
+  color: #000000;
   font: inherit;
   cursor: pointer;
 }
@@ -228,143 +266,549 @@
   height: 0;
 }
 
-@media (max-width: 1023px) {
+:global(:root[data-theme="dark"]) .input {
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .input::placeholder {
+  color: #999999;
+}
+
+:global(:root[data-theme="dark"]) .input:-webkit-autofill,
+:global(:root[data-theme="dark"]) .input:-webkit-autofill:hover,
+:global(:root[data-theme="dark"]) .input:-webkit-autofill:focus {
+  background-color: #1b4d1b !important;
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 100px #1b4d1b inset !important;
+  box-shadow: 0 0 0 100px #1b4d1b inset !important;
+  caret-color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .submit {
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .submitActive {
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #00ff00 0%, #1b4d1b 50%, #00ff00 100%) padding-box,
+    linear-gradient(90deg, #1b4d1b 0%, #00ff00 50%, #1b4d1b 100%) border-box;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .tagline,
+:global(:root[data-theme="dark"]) .label,
+:global(:root[data-theme="dark"]) .links,
+:global(:root[data-theme="dark"]) .error {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .linkButton {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .linkLogin {
+  color: #0077ff;
+}
+
+:global(:root[data-theme="dark"]) .linkGuest {
+  color: #8000ff;
+}
+
+@media (max-width: 767px) {
+  .container {
+    min-height: 100vh;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #ffffff;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .container::-webkit-scrollbar {
+    display: none;
+  }
+
   .frame {
+    position: relative;
+    width: 390px;
+    min-width: 390px;
+    max-width: 390px;
+    height: 844px;
+    min-height: 844px;
+    margin: 0;
+    display: block;
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .logo {
+    position: absolute;
+    left: 48px;
+    top: 114.5px;
+    width: 295px;
+    height: 215px;
+    margin: 0;
+    aspect-ratio: auto;
+  }
+
+  .logoImageDark {
+    display: none !important;
+  }
+
+  .logoImageLight {
+    display: block !important;
+  }
+
+  .tagline {
+    display: none;
+  }
+
+  .form {
+    margin: 0;
+    display: block;
+  }
+
+  .field {
+    position: absolute;
+    left: 0;
+    width: 390px;
+    display: block;
+  }
+
+  .field + .field {
+    margin-top: 0;
+  }
+
+  .fieldEmail {
+    top: 0;
+  }
+
+  .fieldUsername {
+    top: 0;
+  }
+
+  .fieldPassword {
+    top: 0;
+  }
+
+  .label {
+    position: absolute;
+    left: 49.5px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .fieldEmail .label {
+    top: 351.5px;
+    width: auto;
+    height: 23px;
+  }
+
+  .fieldUsername .label {
+    top: 431.58px;
+    width: auto;
+    height: 23px;
+  }
+
+  .fieldPassword .label {
+    left: 49px;
+    top: 511.5px;
+    width: auto;
+    height: 23px;
+  }
+
+  .input {
+    position: absolute;
+    left: 30px;
+    width: 330px;
+    height: 50px;
+    min-height: 50px;
+    margin-top: 0;
+    padding: 0 20px;
+    border-radius: 100px;
+    background: #dddddd;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .fieldEmail .input {
+    top: 374.5px;
+  }
+
+  .fieldUsername .input {
+    top: 454.5px;
+  }
+
+  .fieldPassword .input {
+    top: 534.5px;
+  }
+
+  .input::placeholder {
+    color: #999999;
+  }
+
+  .error {
+    position: absolute;
+    left: 30px;
+    top: 587.5px;
+    width: 330px;
+    min-height: 23px;
+    margin: 0;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .submit {
+    position: absolute;
+    left: 30px;
+    top: 614.56px;
+    width: 330px;
+    height: 50px;
+    min-height: 50px;
+    font-size: 16px;
+    line-height: 23px;
+    border-width: 5px;
+  }
+
+  .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+      linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+    color: #000000;
+  }
+
+  .links {
+    position: absolute;
+    left: 111px;
+    top: 684.5px;
+    width: 169px;
+    height: 45px;
+    max-width: 169px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+    flex-wrap: wrap;
+    gap: 0 0.25ch;
+    color: #000000;
+    text-align: center;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .linkButton {
+    padding: 0;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .linkLogin,
+  .linkGuest {
+    margin-left: 0.25ch;
+  }
+
+  .break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  :global(:root[data-theme="dark"]) .container {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .frame {
+    background: #222222;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageDark {
+    display: block !important;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageLight {
+    display: none !important;
+  }
+
+  :global(:root[data-theme="dark"]) .tagline {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .label {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input::placeholder {
+    color: #999999;
+  }
+
+  :global(:root[data-theme="dark"]) .error {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submit {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
+      linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .links {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkButton {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkLogin {
+    color: #0077ff;
+  }
+
+  :global(:root[data-theme="dark"]) .linkGuest {
+    color: #8000ff;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1439px) {
+  .container {
+    min-height: 100vh;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: #ffffff;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .frame {
+    position: relative;
     width: 768px;
+    min-width: 768px;
+    max-width: 768px;
     height: 1024px;
+    min-height: 1024px;
+    margin: 0;
+    display: block;
+    background: #ffffff;
+    color: #000000;
+    transform: none;
+    transform-origin: initial;
   }
 
   .logo {
     left: 146.5px;
     top: 216.97px;
+    width: 475px;
+    height: 140px;
+  }
+
+  .logoImageDark {
+    display: none !important;
+  }
+
+  .logoImageLight {
+    display: block !important;
   }
 
   .tagline {
     left: 167.5px;
     top: 376.97px;
+    width: 435px;
+    height: 45px;
+    color: #000000;
+  }
+
+  .field {
+    width: 475px;
+    left: 146.5px;
   }
 
   .fieldEmail {
-    left: 146.5px;
     top: 428.97px;
+    height: 73.08px;
   }
 
   .fieldUsername {
-    left: 146.5px;
     top: 509.05px;
+    height: 73.02px;
   }
 
   .fieldPassword {
-    left: 146.5px;
     top: 589.06px;
+    height: 72.97px;
+  }
+
+  .label {
+    left: 19.5px;
+    top: 0;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .input {
+    left: 0;
+    top: 23.08px;
+    width: 100%;
+    height: 50px;
+    min-height: 50px;
+    padding: 0 19.5px;
+    background: #dddddd;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .input::placeholder {
+    color: #999999;
   }
 
   .error {
+    width: 475px;
+    min-height: 23px;
     left: 146.5px;
     top: 669.03px;
+    padding: 0 19.5px;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
   }
 
   .submit {
     left: 146.5px;
     top: 692.03px;
+    width: 475px;
+    height: 50px;
+    min-height: 50px;
+    background: #dddddd;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+    border-width: 5px;
+  }
+
+  .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #00ff00 0%, #ddffdd 50%, #00ff00 100%) padding-box,
+      linear-gradient(90deg, #ddffdd 0%, #00ff00 50%, #ddffdd 100%) border-box;
+    color: #000000;
   }
 
   .links {
     left: 299.5px;
     top: 762.03px;
+    width: 169px;
+    height: 45px;
+    color: #000000;
+    font-size: 16px;
+    line-height: 23px;
+  }
+
+  .linkButton {
+    color: #000000;
+  }
+
+  .linkLogin {
+    color: #0077ff;
+  }
+
+  .linkGuest {
+    color: #8000ff;
+  }
+
+  :global(:root[data-theme="dark"]) .container {
+    background: #222222;
+  }
+
+  :global(:root[data-theme="dark"]) .frame {
+    background: #222222;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageDark {
+    display: block !important;
+  }
+
+  :global(:root[data-theme="dark"]) .logoImageLight {
+    display: none !important;
+  }
+
+  :global(:root[data-theme="dark"]) .tagline,
+  :global(:root[data-theme="dark"]) .label,
+  :global(:root[data-theme="dark"]) .links,
+  :global(:root[data-theme="dark"]) .error {
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .input {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submit {
+    background: #444444;
+    color: #ffffff;
+  }
+
+  :global(:root[data-theme="dark"]) .submitActive {
+    border: 5px solid transparent;
+    background:
+      linear-gradient(90deg, #00ff00 0%, #005000 50%, #00ff00 100%) padding-box,
+      linear-gradient(90deg, #005000 0%, #00ff00 50%, #005000 100%) border-box;
+    color: #ffffff;
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 389px) {
+  .container {
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 0;
+  }
+
   .frame {
-    width: 390px;
-    height: 844px;
-  }
-
-  .logo {
-    left: 10.13px;
-    top: 189.84px;
-    width: 368.74px;
-    height: 108.68px;
-  }
-
-  .logoImage {
-    width: 368.74px;
-    height: 108.68px;
-  }
-
-  .tagline {
-    left: 26.43px;
-    top: 314.04px;
-    width: 337.69px;
-    height: 34.93px;
-    font-size: 24px;
-    line-height: 35px;
-    white-space: nowrap;
-  }
-
-  .field {
-    width: 368.74px;
-  }
-
-  .fieldEmail {
-    left: 10.13px;
-    top: 355.98px;
-    height: 56.72px;
-  }
-
-  .fieldUsername {
-    left: 10.13px;
-    top: 419.71px;
-    height: 56.67px;
-  }
-
-  .fieldPassword {
-    left: 10.13px;
-    top: 483.39px;
-    height: 56.64px;
-  }
-
-  .label {
-    left: 15.14px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .input {
-    top: 17.91px;
-    width: 368.74px;
-    height: 38.81px;
-    padding: 0 15.14px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .error {
-    left: 10.13px;
-    top: 547.03px;
-    width: 368.74px;
-    min-height: 17px;
-    padding-left: 15.14px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .submit {
-    left: 10.13px;
-    top: 564.89px;
-    width: 368.74px;
-    height: 38.81px;
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .links {
-    left: 128.9px;
-    top: 619.23px;
-    width: 131.19px;
-    height: 34.93px;
-    font-size: 12px;
-    line-height: 17px;
+    flex: none;
   }
 }

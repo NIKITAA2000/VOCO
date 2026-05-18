@@ -5,5 +5,7 @@ export default defineConfig({
     globals: true,
     testTimeout: 15000,
     hookTimeout: 15000,
+    fileParallelism: false,
+    exclude: ["dist/**", "node_modules/**"],
   },
 });

@@ -48,8 +48,18 @@ export function RegisterPage({ onRegister }: Props) {
     <div className={styles.container}>
       <section className={styles.frame} aria-label="Регистрация">
         <div className={styles.logo}>
-          <img className={`${styles.logoImage} ${styles.logoImageDark}`} src="/voco-logo-white.svg" alt="VOCO" />
-          <img className={`${styles.logoImage} ${styles.logoImageLight}`} src="/voco-logo.svg" alt="VOCO" />
+          <div className={`${styles.logoImage} ${styles.logoImageDark}`}>
+            <picture>
+              <source media="(max-width: 767px)" srcSet="/voco-auth-logo-white-mobile.svg" />
+              <img className={styles.logoGraphic} src="/voco-auth-logo-white.svg" alt="VOCO" />
+            </picture>
+          </div>
+          <div className={`${styles.logoImage} ${styles.logoImageLight}`}>
+            <picture>
+              <source media="(max-width: 767px)" srcSet="/voco-auth-logo-black-mobile.svg" />
+              <img className={styles.logoGraphic} src="/voco-auth-logo-black.svg" alt="VOCO" />
+            </picture>
+          </div>
         </div>
         <p className={styles.tagline}>Видеоконференции без границ</p>
 
@@ -72,7 +82,7 @@ export function RegisterPage({ onRegister }: Props) {
           <input
             className={styles.input}
             type="text"
-            autoComplete="username"
+            autoComplete="nickname"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="username"
@@ -94,7 +104,9 @@ export function RegisterPage({ onRegister }: Props) {
             />
           </div>
 
-          {error && <div className={styles.error}>{error}</div>}
+          <div className={`${styles.error} ${error ? "" : styles.errorHidden}`} aria-live="polite">
+            {error || "\u00A0"}
+          </div>
 
           <button
             type="submit"

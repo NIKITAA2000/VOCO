@@ -1,0 +1,10 @@
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50100
+  port_range_end: 50160
+  use_external_ip: true
+keys:
+  voco_staging_key: 604df6e99fd66c5edee0ad839194fe6c7937999a33ec7814cff0d98d2a8ab723
+logging:
+  level: info
