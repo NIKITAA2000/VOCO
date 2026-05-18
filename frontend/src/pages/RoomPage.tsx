@@ -330,17 +330,20 @@ function getStageTileFrames(
       // что source aspect должен совпадать с медиа-зоной, а не со всем тайлом.
       const safeAspect = expandedAspectRatio > 0 ? expandedAspectRatio : 16 / 9;
       const horizontalReserved = expandedLeftPx + expandedRightPx;
-      const verticalReserved = ROOM_BAR_HEIGHT * 2;
+      // Высота баров адаптивная (CSS clamp в --room-bar-height). Подставляем
+      // CSS-переменную прямо в calc — браузер пересчитает на каждом resize.
+      const bar = "var(--room-bar-height)";
+      const verticalReserved = `(${bar} * 2)`;
       const footer = TILE_FOOTER_HEIGHT;
-      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved}px - ${footer}px) * ${safeAspect}))`;
-      const heightCss = `min(calc(100vh - ${verticalReserved}px), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
+      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved} - ${footer}px) * ${safeAspect}))`;
+      const heightCss = `min(calc(100vh - ${verticalReserved}), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
       return [
         {
           id: "tile-1",
           accent: true,
           style: {
             position: "fixed" as const,
-            top: `calc(${ROOM_BAR_HEIGHT}px + (100vh - ${verticalReserved}px) / 2)`,
+            top: `calc(${bar} + (100vh - ${verticalReserved}) / 2)`,
             left: `calc((100vw + ${expandedLeftPx}px - ${expandedRightPx}px) / 2)`,
             width: widthCss,
             height: heightCss,
@@ -821,6 +824,22 @@ function UserIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
+function FullscreenExpandIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M3 9V3H9M21 9V3H15M3 15V21H9M21 15V21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FullscreenCompressIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M9 3V9H3M15 3V9H21M9 21V15H3M15 21V15H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChatIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1273,11 +1292,13 @@ function TileMedia({
   displayName,
   avatarUrl,
   isGuest,
+  isScreenShare,
 }: {
   trackRef: any;
   displayName: string;
   avatarUrl: string | null;
   isGuest: boolean;
+  isScreenShare: boolean;
 }) {
   const isMuted = useIsMuted(trackRef);
   // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
@@ -1285,8 +1306,32 @@ function TileMedia({
   const isCamera = source === Track.Source.Camera;
   const showAvatar = isCamera && isMuted;
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => {
+      setIsFullscreen(document.fullscreenElement === wrapperRef.current);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!isScreenShare) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    } else {
+      void wrapperRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, [isScreenShare]);
+
   return (
-    <div className={styles.tileMediaWrapper}>
+    <div
+      ref={wrapperRef}
+      className={styles.tileMediaWrapper}
+      onDoubleClick={isScreenShare ? toggleFullscreen : undefined}
+    >
       <ParticipantTile className={styles.livekitTile} trackRef={trackRef} />
       {showAvatar ? (
         <div className={styles.tileAvatarOverlay}>
@@ -1297,6 +1342,20 @@ function TileMedia({
             className={styles.tileAvatar}
           />
         </div>
+      ) : null}
+      {isScreenShare ? (
+        <button
+          type="button"
+          className={styles.tileFullscreenButton}
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? "Свернуть демонстрацию" : "Развернуть демонстрацию на весь экран"}
+        >
+          {isFullscreen ? (
+            <FullscreenCompressIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <FullscreenExpandIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
       ) : null}
     </div>
   );
@@ -4023,12 +4082,14 @@ export function ConferenceRoomContent({
       (isLocal ? currentUserAvatarUrl ?? null : null);
     const isGuest =
       typeof identity === "string" && identity.startsWith("guest_");
+    const isScreenShare = getTrackSource(trackRef) === Track.Source.ScreenShare;
     return (
       <TileMedia
         trackRef={trackRef}
         displayName={displayName}
         avatarUrl={avatarUrl}
         isGuest={isGuest}
+        isScreenShare={isScreenShare}
       />
     );
   };

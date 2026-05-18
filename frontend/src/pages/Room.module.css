@@ -12,6 +12,13 @@
 }
 
 .stageViewport {
+  /* Пропорциональный скейл бар-UI. 1.0 при высоте окна ≥ 900px (как было
+     исторически), плавно вниз до 0.64 на низких viewport-ах (ноуты ~600px) —
+     бары и кнопки сжимаются вместе, освобождая место тайлу демонстрации.
+     Применяется к бар-элементам через `zoom: var(--room-scale)`. */
+  --room-scale: clamp(0.64, calc(100vh / 900px), 1);
+  /* Высота фона верхней/нижней панели = 100px × scale. */
+  --room-bar-height: calc(100px * var(--room-scale));
   width: 100vw;
   height: 100vh;
   display: grid;
@@ -22,6 +29,11 @@
 }
 
 .tabletViewport {
+  /* Планшет/мобайл — reference-разметка с фиксированными 100px-барами.
+     Переменные нужны, потому что desktop- и tablet-правила шарят селекторы.
+     scale = 1 → zoom на общих правилах планшет не трогает. */
+  --room-scale: 1;
+  --room-bar-height: 100px;
   width: 100vw;
   height: 100vh;
   position: relative;
@@ -32,8 +44,8 @@
 }
 
 .stage {
-  --stage-safe-top: 100px;
-  --stage-safe-bottom: 100px;
+  --stage-safe-top: var(--room-bar-height);
+  --stage-safe-bottom: var(--room-bar-height);
   --stage-content-top-ratio: 0.09765625;
   --stage-content-height-ratio: 0.8046875;
   --stage-content-height: max(1px, calc(100vh - var(--stage-safe-top) - var(--stage-safe-bottom)));
@@ -189,7 +201,7 @@
   left: 0;
   top: 0;
   width: 100vw;
-  height: 100px;
+  height: var(--room-bar-height);
   border-radius: 0 0 25px 25px;
   z-index: 1;
 }
@@ -199,7 +211,7 @@
   left: 0;
   bottom: 0;
   width: 100vw;
-  height: 100px;
+  height: var(--room-bar-height);
   border-radius: 25px 25px 0 0;
   z-index: 1;
 }
@@ -255,10 +267,12 @@
 .desktopToolbarIndicator,
 .tabletToolbarHandle {
   position: fixed;
-  left: 50vw;
+  /* zoom множит left на scale — делим заранее, чтобы центр остался на 50vw. */
+  left: calc(50vw / var(--room-scale));
   top: auto;
   bottom: 80px;
   transform: translateX(-50%);
+  zoom: var(--room-scale);
   z-index: 3;
 }
 
@@ -295,8 +309,8 @@
 .desktopParticipantsPanel,
 .desktopChatPanel {
   position: fixed;
-  top: 100px;
-  bottom: 100px;
+  top: var(--room-bar-height);
+  bottom: var(--room-bar-height);
   height: auto;
   z-index: 2;
 }
@@ -3486,6 +3500,7 @@ button.stageRoomCode:disabled {
   left: 88px;
   top: 20px;
   width: 460px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3499,6 +3514,7 @@ button.stageRoomCode:disabled {
 
 .desktopRoomCode {
   top: 65px;
+  zoom: var(--room-scale);
 }
 
 .tabletRoomCode {
@@ -3511,6 +3527,7 @@ button.stageRoomCode:disabled {
   top: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3521,11 +3538,13 @@ button.stageRoomCode:disabled {
   height: 50px;
   background: transparent;
   box-shadow: none;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
 .desktopRecordingIndicator {
-  left: calc(50% - 25px);
+  /* zoom множит left — компенсируем делением, минус полширины кнопки. */
+  left: calc(50vw / var(--room-scale) - 25px);
 }
 
 .tabletRecordingIndicator {
@@ -3580,6 +3599,7 @@ button.stageRoomCode:disabled {
   top: 25px;
   right: 25px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3597,6 +3617,7 @@ button.stageRoomCode:disabled {
   right: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 10;
 }
 
@@ -3605,6 +3626,7 @@ button.stageRoomCode:disabled {
   top: 80px;
   right: 25px;
   width: 200px;
+  zoom: var(--room-scale);
 }
 
 .deviceIcon svg {
@@ -3833,6 +3855,7 @@ button.stageRoomCode:disabled {
   top: auto;
   bottom: 25px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3874,6 +3897,47 @@ button.stageRoomCode:disabled {
   width: 100%;
   height: 100%;
   container-type: inline-size;
+}
+
+/* В нативном fullscreen обёртка занимает весь экран; чёрный фон под letterbox. */
+.tileMediaWrapper:fullscreen {
+  background: #000;
+}
+
+.tileMediaWrapper:fullscreen .livekitTile {
+  width: 100%;
+  height: 100%;
+}
+
+/* Кнопка «на весь экран» — только на тайле демонстрации экрана. */
+.tileFullscreenButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.tileFullscreenButton:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.tileFullscreenIcon {
+  display: block;
+  width: 22px;
+  height: 22px;
 }
 
 /* Оверлей с аватаркой: показываем поверх плейсхолдера LiveKit, когда камера off. */
@@ -6817,6 +6881,7 @@ button.stageRoomCode .roomCodeCopyHint {
   top: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
