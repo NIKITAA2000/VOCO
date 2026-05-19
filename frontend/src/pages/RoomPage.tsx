@@ -3283,7 +3283,6 @@ export function ConferenceRoomContent({
   );
   const screenTrackCount = screenTracks.length;
   const screenTrackKey = (t: any): string => t?.participant?.identity ?? "";
-  const hasScreenShare = screenTrackCount > 0;
   // Демка, выведенная в театральный режим (если её трек ещё жив).
   const theaterTrack = theaterScreen
     ? screenTracks.find((t) => screenTrackKey(t) === theaterScreen) ?? null
