@@ -88,6 +88,31 @@
   font-family: "Jost", sans-serif;
 }
 
+/* Театральный режим: прячем всю конференц-хрому (бары, кнопки, боковые
+   панели). Тайл демонстрации и его кнопки (внутри .tileMediaWrapper) не
+   трогаем — иначе из режима будет не выйти.
+   Селектор .stage.stageTheater (обе класса на одном элементе) повышает
+   специфичность до (0,3,0) — перебивает поздние правила вроде
+   .stageRoomCode.roomCodeCopy (0,2,0), иначе display: none не сработает. */
+.stage.stageTheater .topBar,
+.stage.stageTheater .bottomBar,
+.stage.stageTheater .desktopToolbarIndicator,
+.stage.stageTheater .desktopParticipantsPanel,
+.stage.stageTheater .desktopChatPanel,
+.stage.stageTheater .desktopHeaderSettingsButton,
+.stage.stageTheater .desktopHeaderInviteButton,
+.stage.stageTheater .desktopConferenceName,
+.stage.stageTheater .desktopRoomCode,
+.stage.stageTheater .desktopRecordingIndicator,
+.stage.stageTheater .desktopHeaderExitButton,
+.stage.stageTheater .desktopHeaderExitMenuTrigger,
+.stage.stageTheater .desktopHeaderExitDropdown,
+.stage.stageTheater .desktopDeviceSlot,
+.stage.stageTheater .desktopScreenShareButton,
+.stage.stageTheater .desktopUtilityGroup {
+  display: none;
+}
+
 .tabletStage {
   position: relative;
   width: min(100vw, calc(100vh * 0.75));
@@ -3909,11 +3934,11 @@ button.stageRoomCode:disabled {
   height: 100%;
 }
 
-/* Кнопка «на весь экран» — только на тайле демонстрации экрана. */
-.tileFullscreenButton {
+/* Кнопки на тайле демонстрации экрана: theater-режим (слева) и fullscreen. */
+.tileFullscreenButton,
+.tileTheaterButton {
   position: absolute;
   top: 12px;
-  right: 12px;
   z-index: 6;
   width: 40px;
   height: 40px;
@@ -3929,7 +3954,16 @@ button.stageRoomCode:disabled {
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.tileFullscreenButton:hover {
+.tileFullscreenButton {
+  right: 12px;
+}
+
+.tileTheaterButton {
+  right: 60px;
+}
+
+.tileFullscreenButton:hover,
+.tileTheaterButton:hover {
   opacity: 1;
   background: rgba(0, 0, 0, 0.72);
 }

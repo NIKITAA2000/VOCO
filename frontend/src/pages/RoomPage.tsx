@@ -319,6 +319,7 @@ function getStageTileFrames(
   expandedLeftPx = 0,
   expandedRightPx = 0,
   expandedAspectRatio = 16 / 9,
+  theater = false,
 ) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
@@ -329,11 +330,17 @@ function getStageTileFrames(
       // Тайл = медиа (зона видео) + футер 50px снизу. При подгонке аспекта учитываем,
       // что source aspect должен совпадать с медиа-зоной, а не со всем тайлом.
       const safeAspect = expandedAspectRatio > 0 ? expandedAspectRatio : 16 / 9;
-      const horizontalReserved = expandedLeftPx + expandedRightPx;
+      // В театральном режиме хрома скрыта — резерв только под небольшой отступ
+      // (12px со всех сторон), панели игнорируем. Иначе — реальные бары/панели.
+      const theaterMargin = 12;
+      const horizontalReserved = theater ? theaterMargin * 2 : expandedLeftPx + expandedRightPx;
+      const leftPx = theater ? 0 : expandedLeftPx;
+      const rightPx = theater ? 0 : expandedRightPx;
       // Высота баров адаптивная (CSS clamp в --room-bar-height). Подставляем
       // CSS-переменную прямо в calc — браузер пересчитает на каждом resize.
       const bar = "var(--room-bar-height)";
-      const verticalReserved = `(${bar} * 2)`;
+      const verticalReserved = theater ? `${theaterMargin * 2}px` : `(${bar} * 2)`;
+      const topAnchor = theater ? `${theaterMargin}px` : bar;
       const footer = TILE_FOOTER_HEIGHT;
       const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved} - ${footer}px) * ${safeAspect}))`;
       const heightCss = `min(calc(100vh - ${verticalReserved}), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
@@ -343,8 +350,8 @@ function getStageTileFrames(
           accent: true,
           style: {
             position: "fixed" as const,
-            top: `calc(${bar} + (100vh - ${verticalReserved}) / 2)`,
-            left: `calc((100vw + ${expandedLeftPx}px - ${expandedRightPx}px) / 2)`,
+            top: `calc(${topAnchor} + (100vh - ${verticalReserved}) / 2)`,
+            left: `calc((100vw + ${leftPx}px - ${rightPx}px) / 2)`,
             width: widthCss,
             height: heightCss,
             transform: "translate(-50%, -50%)",
@@ -840,6 +847,23 @@ function FullscreenCompressIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function TheaterEnterIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function TheaterExitIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ChatIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1293,12 +1317,16 @@ function TileMedia({
   avatarUrl,
   isGuest,
   isScreenShare,
+  theaterActive,
+  onToggleTheater,
 }: {
   trackRef: any;
   displayName: string;
   avatarUrl: string | null;
   isGuest: boolean;
   isScreenShare: boolean;
+  theaterActive?: boolean;
+  onToggleTheater?: () => void;
 }) {
   const isMuted = useIsMuted(trackRef);
   // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
@@ -1322,9 +1350,11 @@ function TileMedia({
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {});
     } else {
+      // theater и fullscreen взаимоисключающие — выходим из theater перед входом.
+      if (theaterActive) onToggleTheater?.();
       void wrapperRef.current?.requestFullscreen().catch(() => {});
     }
-  }, [isScreenShare]);
+  }, [isScreenShare, theaterActive, onToggleTheater]);
 
   return (
     <div
@@ -1342,6 +1372,20 @@ function TileMedia({
             className={styles.tileAvatar}
           />
         </div>
+      ) : null}
+      {isScreenShare && onToggleTheater ? (
+        <button
+          type="button"
+          className={styles.tileTheaterButton}
+          onClick={onToggleTheater}
+          aria-label={theaterActive ? "Выйти из театрального режима" : "Театральный режим"}
+        >
+          {theaterActive ? (
+            <TheaterExitIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <TheaterEnterIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
       ) : null}
       {isScreenShare ? (
         <button
@@ -2200,6 +2244,9 @@ export function ConferenceRoomContent({
   const [avatarAttrMap, setAvatarAttrMap] = useState<Record<string, string>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  // Театральный режим: тайл демонстрации растянут почти на весь viewport,
+  // вся конференц-хрома (бары, кнопки, боковые панели) скрыта. Только десктоп.
+  const [theaterMode, setTheaterMode] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
     participants: false,
     chat: false,
@@ -3121,6 +3168,19 @@ export function ConferenceRoomContent({
   const allTracks = tracks.length > 0 ? tracks : [null];
   const hasScreenShare =
     allTracks[0]?.publication?.source === Track.Source.ScreenShare;
+  // Театральный режим живёт только пока есть демонстрация — авто-выход.
+  useEffect(() => {
+    if (!hasScreenShare) setTheaterMode(false);
+  }, [hasScreenShare]);
+  // Esc выходит из театрального режима (нативный fullscreen Esc обрабатывает сам).
+  useEffect(() => {
+    if (!theaterMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTheaterMode(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [theaterMode]);
   const tilePageCount = hasScreenShare ? 1 : Math.max(1, Math.ceil(allTracks.length / ROOM_TILE_PAGE_SIZE));
   const currentTilePage = hasScreenShare ? 0 : Math.min(tilePage, tilePageCount - 1);
   const visibleTracks = hasScreenShare
@@ -3222,6 +3282,7 @@ export function ConferenceRoomContent({
     expandedTileLeft,
     expandedTileRight,
     expandedAspectRatio,
+    theaterMode,
   );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
@@ -4083,6 +4144,8 @@ export function ConferenceRoomContent({
     const isGuest =
       typeof identity === "string" && identity.startsWith("guest_");
     const isScreenShare = getTrackSource(trackRef) === Track.Source.ScreenShare;
+    // Театральный режим — только десктоп; на планшете/мобиле кнопки нет.
+    const allowTheater = !isTabletLayout && !isCompactLayout;
     return (
       <TileMedia
         trackRef={trackRef}
@@ -4090,6 +4153,19 @@ export function ConferenceRoomContent({
         avatarUrl={avatarUrl}
         isGuest={isGuest}
         isScreenShare={isScreenShare}
+        theaterActive={allowTheater ? theaterMode : undefined}
+        onToggleTheater={
+          allowTheater
+            ? () => {
+                // theater и нативный fullscreen взаимоисключающие — при входе
+                // в theater выходим из fullscreen.
+                if (document.fullscreenElement) {
+                  void document.exitFullscreen().catch(() => {});
+                }
+                setTheaterMode((v) => !v);
+              }
+            : undefined
+        }
       />
     );
   };
@@ -5496,7 +5572,7 @@ export function ConferenceRoomContent({
   return (
     <div className={styles.stageViewport}>
       <div
-        className={styles.stage}
+        className={`${styles.stage} ${theaterMode ? styles.stageTheater : ""}`}
         style={{
           "--stage-reserve-left": `${expandedTileLeft}px`,
           "--stage-reserve-right": `${expandedTileRight}px`,
