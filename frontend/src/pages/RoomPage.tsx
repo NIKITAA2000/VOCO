@@ -658,6 +658,44 @@ function useTabletRoomLayout() {
   return isCompactLayout;
 }
 
+// Держит экран включённым, пока пользователь в конференции. Без этого на
+// планшетах экран гаснет при бездействии → браузер усыпляет вкладку →
+// WebRTC-соединение рвётся и LiveKit не может переподключиться. ПК почти не
+// спят, телефон держат в руке — проблема именно планшетов.
+function useScreenWakeLock() {
+  useEffect(() => {
+    const nav = navigator as any;
+    if (!nav?.wakeLock?.request) return;
+    let sentinel: any = null;
+    let cancelled = false;
+    const request = async () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      if (sentinel) return;
+      try {
+        sentinel = await nav.wakeLock.request("screen");
+        sentinel.addEventListener?.("release", () => {
+          sentinel = null;
+        });
+      } catch {
+        sentinel = null;
+      }
+    };
+    // Wake lock автоматически снимается, когда вкладка прячется — берём заново
+    // при возврате видимости.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void request();
+    };
+    void request();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      sentinel?.release?.().catch(() => {});
+      sentinel = null;
+    };
+  }, []);
+}
+
 function iconClassName(...classNames: Array<string | undefined>) {
   return classNames.filter(Boolean).join(" ");
 }
@@ -936,6 +974,23 @@ function RaisedHandIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
       <path d="M3 15C3 12.6 1 12 0 12" stroke="currentColor" strokeWidth="2" />
       <path d="M2 15C2 19.4183 5.5817 23 10 23V25C4.4772 25 0 20.5228 0 15H2Z" fill="currentColor" />
       <path d="M20 25H10V23H18V13H20V25Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MicStatusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.micStatusSvg, className)}
+      viewBox="0 0 30 30"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="11" y="3" width="8" height="16" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M10 27H20" stroke="currentColor" strokeWidth="2" />
+      <path d="M15 22V26" stroke="currentColor" strokeWidth="2" />
+      <path d="M24 15C24 19.9706 19.9706 24 15 24C10.0294 24 6 19.9706 6 15H8C8 18.866 11.134 22 15 22C18.866 22 22 18.866 22 15H24Z" fill="currentColor" />
     </svg>
   );
 }
@@ -2260,6 +2315,9 @@ export function ConferenceRoomContent({
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
   const participants = useParticipants();
+  // Не даём экрану гаснуть в звонке — иначе на планшетах вкладка усыпляется и
+  // WebRTC-соединение рвётся.
+  useScreenWakeLock();
   const {
     localParticipant,
     isMicrophoneEnabled,
@@ -2282,6 +2340,9 @@ export function ConferenceRoomContent({
   // нет participantMetaByUserId) видели аватарки зарегистрированных, а все
   // клиенты видели свежий аватар после смены в профиле без переподключения.
   const [avatarAttrMap, setAvatarAttrMap] = useState<Record<string, string>>({});
+  // identity → включён ли микрофон. LiveKit-событий mute/unmute useParticipants
+  // не отслеживает реактивно, поэтому ведём свою карту (как handRaisedMap).
+  const [micEnabledMap, setMicEnabledMap] = useState<Record<string, boolean>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   // Театральный режим: identity демки, выведенной на весь viewport (хрома
@@ -3999,11 +4060,13 @@ export function ConferenceRoomContent({
     const snapshot = () => {
       const hand: Record<string, boolean> = {};
       const avatar: Record<string, string> = {};
+      const mic: Record<string, boolean> = {};
       const visit = (p: any) => {
         if (!p?.identity) return;
         hand[p.identity] = readFlag(p);
         const a = readAvatar(p);
         if (a) avatar[p.identity] = a;
+        mic[p.identity] = Boolean(p?.isMicrophoneEnabled);
       };
       visit(room.localParticipant);
       const remotes: Iterable<any> =
@@ -4011,14 +4074,18 @@ export function ConferenceRoomContent({
           ? room.remoteParticipants.values()
           : room.remoteParticipants) ?? [];
       for (const p of remotes) visit(p);
-      return { hand, avatar };
+      return { hand, avatar, mic };
     };
     const applySnapshot = () => {
-      const { hand, avatar } = snapshot();
+      const { hand, avatar, mic } = snapshot();
       setHandRaisedMap(hand);
       setAvatarAttrMap(avatar);
+      setMicEnabledMap(mic);
     };
     applySnapshot();
+    // Состояние микрофона: useParticipants не реактивен к mute — пере-снимаем
+    // карту на любое событие трека.
+    const refreshMic = () => setMicEnabledMap(snapshot().mic);
 
     const handleAttributes = (changed: Record<string, string>, participant: any) => {
       if (!participant?.identity) return;
@@ -4054,6 +4121,7 @@ export function ConferenceRoomContent({
         if (prev[participant.identity] === a) return prev;
         return { ...prev, [participant.identity]: a };
       });
+      refreshMic();
     };
     const handleDisconnected = (participant: any) => {
       if (!participant?.identity) return;
@@ -4069,6 +4137,12 @@ export function ConferenceRoomContent({
         delete next[participant.identity];
         return next;
       });
+      setMicEnabledMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
     };
 
     room.on(RoomEvent.ParticipantAttributesChanged, handleAttributes);
@@ -4078,6 +4152,12 @@ export function ConferenceRoomContent({
     // на момент подключения local — их атрибуты надо перечитать после Connected.
     room.on(RoomEvent.Connected, applySnapshot);
     room.on(RoomEvent.Reconnected, applySnapshot);
+    room.on(RoomEvent.TrackMuted, refreshMic);
+    room.on(RoomEvent.TrackUnmuted, refreshMic);
+    room.on(RoomEvent.TrackPublished, refreshMic);
+    room.on(RoomEvent.TrackUnpublished, refreshMic);
+    room.on(RoomEvent.LocalTrackPublished, refreshMic);
+    room.on(RoomEvent.LocalTrackUnpublished, refreshMic);
 
     return () => {
       room.off(RoomEvent.ParticipantAttributesChanged, handleAttributes);
@@ -4085,6 +4165,12 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
       room.off(RoomEvent.Connected, applySnapshot);
       room.off(RoomEvent.Reconnected, applySnapshot);
+      room.off(RoomEvent.TrackMuted, refreshMic);
+      room.off(RoomEvent.TrackUnmuted, refreshMic);
+      room.off(RoomEvent.TrackPublished, refreshMic);
+      room.off(RoomEvent.TrackUnpublished, refreshMic);
+      room.off(RoomEvent.LocalTrackPublished, refreshMic);
+      room.off(RoomEvent.LocalTrackUnpublished, refreshMic);
     };
   }, [room]);
 
@@ -4512,6 +4598,7 @@ export function ConferenceRoomContent({
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
       const shouldShowRaisedHand = Boolean(handRaisedMap[participant.identity]);
+      const micEnabled = Boolean(micEnabledMap[participant.identity]);
       const isGuest =
         (typeof participant.identity === "string" && participant.identity.startsWith("guest_")) ||
         (typeof meta.user.id === "string" && meta.user.id.startsWith("guest_"));
@@ -4533,6 +4620,14 @@ export function ConferenceRoomContent({
             {displayName}
           </span>
 
+          <span
+            className={`${styles.participantMic} ${
+              micEnabled ? styles.participantMicOn : styles.participantMicOff
+            }`}
+            aria-label={micEnabled ? "Микрофон включён" : "Микрофон выключен"}
+          >
+            <MicStatusIcon />
+          </span>
           {shouldShowRaisedHand ? (
             <span className={`${styles.stageParticipantStatus} ${styles.stageParticipantStatusOn}`} aria-hidden="true">
               <RaisedHandIcon />

@@ -499,6 +499,31 @@
   color: #ff3333;
 }
 
+/* Индикатор микрофона в строке участника. On — зелёное сияние, off — красное. */
+.participantMic {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #000;
+}
+
+.participantMicOn {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.participantMicOff {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+.micStatusSvg {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
 .participantRow {
   position: relative;
   display: flex;
@@ -6115,6 +6140,10 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .stageParticipantStatusOn {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .participantMic {
   color: #ffffff;
 }
 
