@@ -864,6 +864,28 @@ function TheaterExitIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function FeatureExpandIcon(props: SVGProps<SVGSVGElement>) {
+  // Развернуть демку на свою страницу: стрелка из карточки наружу-вверх.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M13 4H20V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 4L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 14V18C18 19.1046 17.1046 20 16 20H6C4.89543 20 4 19.1046 4 18V8C4 6.89543 4.89543 6 6 6H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FeatureCollapseIcon(props: SVGProps<SVGSVGElement>) {
+  // Вернуть демку в сетку: стрелка снаружи внутрь карточки.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M19 11H12V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 11L20 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 14V18C18 19.1046 17.1046 20 16 20H6C4.89543 20 4 19.1046 4 18V8C4 6.89543 4.89543 6 6 6H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChatIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1319,6 +1341,8 @@ function TileMedia({
   isScreenShare,
   theaterActive,
   onToggleTheater,
+  featureActive,
+  onToggleFeature,
 }: {
   trackRef: any;
   displayName: string;
@@ -1327,6 +1351,8 @@ function TileMedia({
   isScreenShare: boolean;
   theaterActive?: boolean;
   onToggleTheater?: () => void;
+  featureActive?: boolean;
+  onToggleFeature?: () => void;
 }) {
   const isMuted = useIsMuted(trackRef);
   // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
@@ -1372,6 +1398,20 @@ function TileMedia({
             className={styles.tileAvatar}
           />
         </div>
+      ) : null}
+      {isScreenShare && onToggleFeature ? (
+        <button
+          type="button"
+          className={styles.tileFeatureButton}
+          onClick={onToggleFeature}
+          aria-label={featureActive ? "Вернуть демонстрацию в сетку" : "Развернуть демонстрацию на отдельную страницу"}
+        >
+          {featureActive ? (
+            <FeatureCollapseIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <FeatureExpandIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
       ) : null}
       {isScreenShare && onToggleTheater ? (
         <button
@@ -2244,9 +2284,14 @@ export function ConferenceRoomContent({
   const [avatarAttrMap, setAvatarAttrMap] = useState<Record<string, string>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
-  // Театральный режим: тайл демонстрации растянут почти на весь viewport,
-  // вся конференц-хрома (бары, кнопки, боковые панели) скрыта. Только десктоп.
-  const [theaterMode, setTheaterMode] = useState(false);
+  // Театральный режим: identity демки, выведенной на весь viewport (хрома
+  // скрыта). null = выкл. Не зависит от пагинации — показывает именно эту
+  // демку большим тайлом. Только десктоп.
+  const [theaterScreen, setTheaterScreen] = useState<string | null>(null);
+  // Выделенные демки (когда демок 2+): каждая — на своей странице большим
+  // тайлом в начале пагинации. Ключ — participant.identity screen-трека.
+  // Локальное состояние зрителя.
+  const [featuredScreens, setFeaturedScreens] = useState<string[]>([]);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
     participants: false,
     chat: false,
@@ -3166,26 +3211,81 @@ export function ConferenceRoomContent({
   const recordingLabel = isRecording ? `Идёт запись ${formatDuration(recordingSeconds)}` : "Запись";
 
   const allTracks = tracks.length > 0 ? tracks : [null];
-  const hasScreenShare =
-    allTracks[0]?.publication?.source === Track.Source.ScreenShare;
-  // Театральный режим живёт только пока есть демонстрация — авто-выход.
+  // Демки (screen share) и камеры — раздельно. Демки идут в пагинацию по
+  // правилам: 1 демка → большой тайл на стр.1; 2+ → мелкие карточки + кнопка
+  // «развернуть» уносит демку на свою страницу большим тайлом.
+  const screenTracks = allTracks.filter(
+    (t) => getTrackSource(t) === Track.Source.ScreenShare,
+  );
+  const cameraTracks = allTracks.filter(
+    (t) => getTrackSource(t) !== Track.Source.ScreenShare,
+  );
+  const screenTrackCount = screenTracks.length;
+  const screenTrackKey = (t: any): string => t?.participant?.identity ?? "";
+  const hasScreenShare = screenTrackCount > 0;
+  // Демка, выведенная в театральный режим (если её трек ещё жив).
+  const theaterTrack = theaterScreen
+    ? screenTracks.find((t) => screenTrackKey(t) === theaterScreen) ?? null
+    : null;
+  const theaterMode = theaterTrack !== null;
+  // Чистим featuredScreens и theaterScreen от демок, которых больше нет.
   useEffect(() => {
-    if (!hasScreenShare) setTheaterMode(false);
-  }, [hasScreenShare]);
+    const liveKeys = screenTracks.map(screenTrackKey);
+    setFeaturedScreens((prev) => {
+      const next = prev.filter((k) => liveKeys.includes(k));
+      return next.length === prev.length ? prev : next;
+    });
+    setTheaterScreen((prev) => (prev && !liveKeys.includes(prev) ? null : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenTracks.map(screenTrackKey).join(",")]);
   // Esc выходит из театрального режима (нативный fullscreen Esc обрабатывает сам).
   useEffect(() => {
     if (!theaterMode) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setTheaterMode(false);
+      if (e.key === "Escape") setTheaterScreen(null);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [theaterMode]);
-  const tilePageCount = hasScreenShare ? 1 : Math.max(1, Math.ceil(allTracks.length / ROOM_TILE_PAGE_SIZE));
-  const currentTilePage = hasScreenShare ? 0 : Math.min(tilePage, tilePageCount - 1);
-  const visibleTracks = hasScreenShare
-    ? [allTracks[0]]
-    : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
+  // Собираем страницы сцены. Каждая — список треков + флаг expand (один
+  // большой тайл на всю сцену vs обычная сетка ≤4).
+  const chunkTracks = (arr: any[], size: number): any[][] => {
+    const out: any[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
+  const stagePages: { tracks: any[]; expand: boolean }[] = [];
+  if (screenTrackCount === 1) {
+    // Одна демка — большим тайлом на первой странице.
+    stagePages.push({ tracks: [screenTracks[0]], expand: true });
+  } else if (screenTrackCount >= 2) {
+    // Выделенные демки — каждая своей страницей большим тайлом, в начале.
+    const featured = screenTracks.filter((t) =>
+      featuredScreens.includes(screenTrackKey(t)),
+    );
+    const rest = screenTracks.filter(
+      (t) => !featuredScreens.includes(screenTrackKey(t)),
+    );
+    featured.forEach((t) => stagePages.push({ tracks: [t], expand: true }));
+    chunkTracks(rest, ROOM_TILE_PAGE_SIZE).forEach((page) =>
+      stagePages.push({ tracks: page, expand: false }),
+    );
+  }
+  // Камеры — обычной сеткой, после демок (жёсткий перенос страниц).
+  chunkTracks(cameraTracks, ROOM_TILE_PAGE_SIZE).forEach((page) =>
+    stagePages.push({
+      tracks: page,
+      expand: page.length === 1 && hasExpandedVideoMedia(page[0]),
+    }),
+  );
+  if (stagePages.length === 0) stagePages.push({ tracks: [null], expand: false });
+  const tilePageCount = stagePages.length;
+  const currentTilePage = Math.min(Math.max(tilePage, 0), tilePageCount - 1);
+  const currentStagePage = stagePages[currentTilePage];
+  // В театральном режиме показываем именно выбранную демку большим тайлом —
+  // независимо от текущей страницы пагинации.
+  const visibleTracks = theaterTrack ? [theaterTrack] : currentStagePage.tracks;
+  const currentPageExpand = theaterTrack ? true : currentStagePage.expand;
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
   const isSettingsPanelOpen = visiblePanels.settings;
@@ -3278,7 +3378,7 @@ export function ConferenceRoomContent({
   const tileFrames = getStageTileFrames(
     visibleTracks.length,
     DESKTOP_TILE_GRID_LEFT,
-    visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+    currentPageExpand,
     expandedTileLeft,
     expandedTileRight,
     expandedAspectRatio,
@@ -4146,6 +4246,10 @@ export function ConferenceRoomContent({
     const isScreenShare = getTrackSource(trackRef) === Track.Source.ScreenShare;
     // Театральный режим — только десктоп; на планшете/мобиле кнопки нет.
     const allowTheater = !isTabletLayout && !isCompactLayout;
+    // Кнопка «развернуть демку» — только когда демок 2+ (при одной демке
+    // она и так большим тайлом на первой странице).
+    const screenKey = isScreenShare ? identity : "";
+    const allowFeature = isScreenShare && screenTrackCount >= 2;
     return (
       <TileMedia
         trackRef={trackRef}
@@ -4153,7 +4257,7 @@ export function ConferenceRoomContent({
         avatarUrl={avatarUrl}
         isGuest={isGuest}
         isScreenShare={isScreenShare}
-        theaterActive={allowTheater ? theaterMode : undefined}
+        theaterActive={allowTheater ? theaterScreen === screenKey : undefined}
         onToggleTheater={
           allowTheater
             ? () => {
@@ -4162,8 +4266,22 @@ export function ConferenceRoomContent({
                 if (document.fullscreenElement) {
                   void document.exitFullscreen().catch(() => {});
                 }
-                setTheaterMode((v) => !v);
+                // Театр показывает именно эту демку — кладём её identity.
+                setTheaterScreen((prev) =>
+                  prev === screenKey ? null : screenKey,
+                );
               }
+            : undefined
+        }
+        featureActive={allowFeature ? featuredScreens.includes(screenKey) : undefined}
+        onToggleFeature={
+          allowFeature
+            ? () =>
+                setFeaturedScreens((prev) =>
+                  prev.includes(screenKey)
+                    ? prev.filter((k) => k !== screenKey)
+                    : [...prev, screenKey],
+                )
             : undefined
         }
       />

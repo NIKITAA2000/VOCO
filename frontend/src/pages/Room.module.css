@@ -3934,9 +3934,10 @@ button.stageRoomCode:disabled {
   height: 100%;
 }
 
-/* Кнопки на тайле демонстрации экрана: theater-режим (слева) и fullscreen. */
+/* Кнопки на тайле демонстрации: feature/theater (слева) и fullscreen (справа). */
 .tileFullscreenButton,
-.tileTheaterButton {
+.tileTheaterButton,
+.tileFeatureButton {
   position: absolute;
   top: 12px;
   z-index: 6;
@@ -3962,8 +3963,13 @@ button.stageRoomCode:disabled {
   right: 60px;
 }
 
+.tileFeatureButton {
+  right: 108px;
+}
+
 .tileFullscreenButton:hover,
-.tileTheaterButton:hover {
+.tileTheaterButton:hover,
+.tileFeatureButton:hover {
   opacity: 1;
   background: rgba(0, 0, 0, 0.72);
 }
