@@ -9240,13 +9240,18 @@ button.stageRoomCode .roomCodeCopyHint {
  * submit-кнопка на top:155 + 50height = 205. По SVG: плеер top y=357,
  * submit bottom y=325 → gap 32px. С panel top y=197 (input), submit:155 →
  * submit bottom в panel = 205. Player top в panel = 205+32 = 237.
- * waitingMeta сдвигается вниз через :has() ниже. */
+ * Раскладка через grid: левый блок (thumb+meta), центр (контролы) и правый
+ * (→ ≡) — три колонки 1fr/auto/1fr, центр гарантированно в центре панели
+ * независимо от ширины meta. waitingMeta сдвигается вниз через :has() ниже. */
 .waitingPlayer {
   position: absolute;
   left: 0;
   right: 0;
   top: 237px;
-  display: flex;
+  display: grid;
+  /* minmax(0,...) — иначе ячейки grid не сжимают meta и длинное название
+   * раздвигает левую колонку, толкая play-кнопку. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -9254,6 +9259,22 @@ button.stageRoomCode .roomCodeCopyHint {
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+.waitingPlayerLeft {
+  display: flex;
+  align-items: center;
+  /* Author/title прижимаются к иконке трека. */
+  gap: 8px;
+  min-width: 0;
+}
+
+.waitingPlayerRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
 }
 
 /* По SVG: room name top y=478, viewport-offset = 478-264 = +214 от центра. */
@@ -9269,7 +9290,7 @@ button.stageRoomCode .roomCodeCopyHint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -14px;
+  bottom: -24px;
   width: 100%;
   height: 16px;
   margin: 0;
@@ -9369,10 +9390,19 @@ button.stageRoomCode .roomCodeCopyHint {
   flex: 0 0 auto;
 }
 
+/* Когда у трека есть картинка — убираем radial-gradient. Иначе из-за
+ * subpixel-rendering по краям img проступал зелёный кант (особенно заметен
+ * в тёмной теме). */
+.waitingPlayerThumb[data-has-image="true"] {
+  background: transparent;
+}
+
 .waitingPlayerThumb img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 10px;
 }
 
 .waitingPlayerThumbDefault {
@@ -9381,12 +9411,11 @@ button.stageRoomCode .roomCodeCopyHint {
   line-height: 1;
 }
 
-/* Фиксированная ширина meta — иначе play-кнопка плавает влево-вправо
- * в зависимости от длины названия трека. 130px = подходит для коротких
- * имён + ellipsis для длинных. */
+/* Meta растягивается до 1fr-границы левой колонки и обрезается ellipsis'ом.
+ * Левая колонка grid'а — minmax(0,1fr), значит длинное название не сдвинет
+ * play-кнопку (центральная auto-колонка зафиксирована). */
 .waitingPlayerMeta {
-  flex: 0 0 130px;
-  width: 130px;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -9416,9 +9445,6 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex: 0 0 auto;
-  /* auto-margins по бокам отцентровывают кластер между [thumb+meta] и [→ ≡]. */
-  margin: 0 auto;
 }
 
 .waitingPlayerControl {
@@ -9538,10 +9564,16 @@ button.stageRoomCode .roomCodeCopyHint {
   overflow: hidden;
 }
 
+.waitingPlayerListItemThumb[data-has-image="true"] {
+  background: transparent;
+}
+
 .waitingPlayerListItemThumb img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 8px;
 }
 
 .waitingPlayerListItemMeta {
@@ -9958,49 +9990,38 @@ button.stageRoomCode .roomCodeCopyHint {
  * `left`, как у `.desktopScreenShareButton` / `.desktopDeviceSlot`. Свободное
  * место между ScreenShare (left:700 + width:200 = 900) и utility group
  * (right:18). Кладём кнопку на left:920. */
-.funSoundButton {
+/* Owner-only «прикольный звук» — отдельный круглый кнопка-pill 50×50,
+ * визуально матчится с utility-кнопками (User/Chat/Hand/Record), но стоит
+ * слева от их группы в своём собственном кружке (right: 18 + 200 + 10 = 228). */
+.desktopFunSoundButton {
   position: fixed;
   bottom: 25px;
-  left: 920px;
+  right: 228px;
+  width: 50px;
   height: 50px;
-  min-width: 100px;
-  padding: 4px 12px;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background: transparent;
-  border: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #ddd;
+  color: #000;
   cursor: pointer;
-  color: inherit;
-  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
   zoom: var(--room-scale);
   z-index: 4;
-  transition: background 0.15s;
 }
 
-.funSoundButton:hover {
-  background: rgba(255, 255, 255, 0.08);
+.desktopFunSoundButton:focus,
+.desktopFunSoundButton:focus-visible {
+  outline: none;
 }
 
-.funSoundButton:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.desktopFunSoundButton > svg {
+  display: block;
 }
 
-.funSoundButtonIcon {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #ffd86b 0%, #ff7a59 100%);
-  border-radius: 50%;
+:global(:root[data-theme="dark"]) .desktopFunSoundButton {
+  background: #444444;
   color: #fff;
-}
-
-.funSoundButtonLabel {
-  font-size: 10px;
-  color: inherit;
 }

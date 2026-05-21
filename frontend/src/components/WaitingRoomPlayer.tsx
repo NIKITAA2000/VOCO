@@ -152,13 +152,18 @@ export function WaitingRoomPlayer({ tracks }: Props) {
         preload="metadata"
       />
 
-      <div className={styles.waitingPlayerThumb}>
-        {current.iconUrl ? <img src={current.iconUrl} alt="" /> : null}
-      </div>
+      <div className={styles.waitingPlayerLeft}>
+        <div
+          className={styles.waitingPlayerThumb}
+          data-has-image={current.iconUrl ? "true" : undefined}
+        >
+          {current.iconUrl ? <img src={current.iconUrl} alt="" /> : null}
+        </div>
 
-      <div className={styles.waitingPlayerMeta}>
-        <div className={styles.waitingPlayerTitle}>{current.title}</div>
-        <div className={styles.waitingPlayerAuthor}>{current.author ?? ""}</div>
+        <div className={styles.waitingPlayerMeta}>
+          <div className={styles.waitingPlayerTitle}>{current.title}</div>
+          <div className={styles.waitingPlayerAuthor}>{current.author ?? ""}</div>
+        </div>
       </div>
 
       <div className={styles.waitingPlayerControls}>
@@ -188,43 +193,45 @@ export function WaitingRoomPlayer({ tracks }: Props) {
         </button>
       </div>
 
-      <button
-        type="button"
-        className={styles.waitingPlayerNext}
-        onClick={cycleMode}
-        aria-label={
-          playMode === "sequential"
-            ? "Режим: по порядку (клик — перемешать)"
-            : playMode === "shuffle"
-              ? "Режим: вперемешку (клик — повтор)"
-              : "Режим: повтор (клик — по порядку)"
-        }
-        title={
-          playMode === "sequential"
-            ? "По порядку"
-            : playMode === "shuffle"
-              ? "Вперемешку"
-              : "Повтор трека"
-        }
-      >
-        {playMode === "sequential" ? (
-          <ArrowRightIcon />
-        ) : playMode === "shuffle" ? (
-          <ShuffleIcon />
-        ) : (
-          <RepeatOneIcon />
-        )}
-      </button>
+      <div className={styles.waitingPlayerRight}>
+        <button
+          type="button"
+          className={styles.waitingPlayerNext}
+          onClick={cycleMode}
+          aria-label={
+            playMode === "sequential"
+              ? "Режим: по порядку (клик — перемешать)"
+              : playMode === "shuffle"
+                ? "Режим: вперемешку (клик — повтор)"
+                : "Режим: повтор (клик — по порядку)"
+          }
+          title={
+            playMode === "sequential"
+              ? "По порядку"
+              : playMode === "shuffle"
+                ? "Вперемешку"
+                : "Повтор трека"
+          }
+        >
+          {playMode === "sequential" ? (
+            <ArrowRightIcon />
+          ) : playMode === "shuffle" ? (
+            <ShuffleIcon />
+          ) : (
+            <RepeatOneIcon />
+          )}
+        </button>
 
-      <button
-        type="button"
-        className={styles.waitingPlayerList}
-        onClick={() => setListOpen((v) => !v)}
-        aria-label="Список треков"
-        aria-expanded={listOpen}
-      >
-        <ListIcon />
-      </button>
+        <button
+          type="button"
+          className={styles.waitingPlayerList}
+          onClick={() => setListOpen((v) => !v)}
+          aria-label="Список треков"
+          aria-expanded={listOpen}
+        >
+          <ListIcon />
+        </button>
+      </div>
 
       {/* Тонкий progress-bar внизу плеера. Использует <input type="range">
        * чтобы получить нативные click+drag из коробки. Стилизация через
@@ -258,7 +265,10 @@ export function WaitingRoomPlayer({ tracks }: Props) {
               }
               onClick={() => pickTrack(i)}
             >
-              <div className={styles.waitingPlayerListItemThumb}>
+              <div
+                className={styles.waitingPlayerListItemThumb}
+                data-has-image={t.iconUrl ? "true" : undefined}
+              >
                 {t.iconUrl ? <img src={t.iconUrl} alt="" /> : null}
               </div>
               <div className={styles.waitingPlayerListItemMeta}>

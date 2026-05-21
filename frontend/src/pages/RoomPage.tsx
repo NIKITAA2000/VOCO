@@ -35,7 +35,8 @@ import { WaitingRoomPlayer } from "../components/WaitingRoomPlayer";
 import { SoundsSettings } from "../components/SoundsSettings";
 import styles from "./Room.module.css";
 
-const DEFAULT_SOUND_FUN = "/sounds/fun.mp3";
+// Дефолтного «прикольного» звука нет — owner/moderator настраивает его
+// в Settings → Звуки. Без кастомного файла кнопка скрыта.
 const DEFAULT_SOUND_HAND = "/sounds/hand.mp3";
 const DEFAULT_SOUND_JOIN = "/sounds/join.mp3";
 
@@ -862,8 +863,8 @@ function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
 
 function FunSoundIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M9 17V5l10-2v12.27A3 3 0 1 0 18 18a3 3 0 0 0 1-3V6.5l-7 1.4V18a3 3 0 1 1-3-3l1.06.13C9.35 15.31 9 16.11 9 17z" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
     </svg>
   );
 }
@@ -2644,16 +2645,15 @@ export function ConferenceRoomContent({
     [localParticipant],
   );
 
-  // URL «прикольного» звука: кастомный овнерский или дефолтный ассет из public/.
-  // Должен быть объявлен ДО `handlePlayFunSound` и listener'а data-channel —
-  // оба используют его в зависимостях.
-  const funUrl = roomSoundUrls.fun ?? DEFAULT_SOUND_FUN;
+  // URL «прикольного» звука: только кастомный, настроенный овнером. Без
+  // настройки funUrl=null, кнопка скрыта, рассылка отключена.
+  const funUrl = roomSoundUrls.fun ?? null;
 
   // Прикольный звук: овнер жмёт кнопку → локально проигрываем и рассылаем
   // через data-channel. На приёме у каждого участника срабатывает listener
   // (см. useEffect ниже с topic="voco-sound-play").
   const handlePlayFunSound = useCallback(() => {
-    if (!localParticipant) return;
+    if (!localParticipant || !funUrl) return;
     soundManager.play(funUrl, { key: "fun", cooldownMs: 1500 });
     const payload = new TextEncoder().encode(JSON.stringify({ type: "fun" }));
     void localParticipant.publishData(payload, {
@@ -2739,9 +2739,10 @@ export function ConferenceRoomContent({
   }, [room, localParticipant, onExitIntent]);
 
   // Прикольный звук: овнер жмёт кнопку → шлёт `voco-sound-play` всем участникам,
-  // каждый локально играет тот же файл. URL — `room.sounds.fun` либо дефолт.
+  // каждый локально играет тот же файл. URL — только `room.sounds.fun`; если
+  // owner не настроил — ничего не воспроизводим.
   useEffect(() => {
-    if (!room) return;
+    if (!room || !funUrl) return;
     const handle = (
       payload: Uint8Array,
       _participant?: unknown,
@@ -4244,11 +4245,12 @@ export function ConferenceRoomContent({
           ...prev,
           [participant.identity]: raised,
         }));
-        // Звук руки — у модераторов/овнера. По запросу: овнер слышит и
-        // собственное поднятие руки тоже (раньше был фильтр !isLocal).
+        // Звук руки слышат: (а) тот, кто её поднял (фидбек об отправке) и
+        // (б) owner/moderator комнаты. Обычные участники чужие руки не слышат.
         const isPrivileged =
           isOwnerRef.current || roomRoleRef.current === "OWNER" || roomRoleRef.current === "MODERATOR";
-        if (raised && isPrivileged) {
+        const isLocalRaiser = participant.identity === localIdentityRef.current;
+        if (raised && (isPrivileged || isLocalRaiser)) {
           soundManager.play(handSoundUrlRef.current, {
             key: `hand:${participant.identity}`,
             cooldownMs: 500,
@@ -6179,17 +6181,14 @@ export function ConferenceRoomContent({
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
-        {(isOwner || roomRole === "OWNER") ? (
+        {(isOwner || roomRole === "OWNER") && funUrl ? (
           <button
             type="button"
-            className={styles.funSoundButton}
+            className={styles.desktopFunSoundButton}
             onClick={handlePlayFunSound}
             aria-label="Прикольный звук"
           >
-            <span className={styles.funSoundButtonIcon} aria-hidden="true">
-              <FunSoundIcon />
-            </span>
-            <span className={styles.funSoundButtonLabel}>Звук</span>
+            <FunSoundIcon />
           </button>
         ) : null}
 

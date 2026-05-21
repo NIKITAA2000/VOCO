@@ -47,8 +47,8 @@ export function SoundsSettings({ slug, playlist, sounds, onChanged }: Props) {
         type="fun"
         label="Прикольный звук (кнопка в конфе)"
         currentUrl={sounds.fun}
-        defaultUrl="/sounds/fun.mp3"
-        defaultLabel="дефолтный 'трам-там'"
+        defaultUrl={null}
+        defaultLabel="не настроен — кнопка скрыта"
         onChanged={onChanged}
       />
       <SingleSoundEditor
@@ -402,7 +402,9 @@ function SingleSoundEditor({
   type: RoomSoundType;
   label: string;
   currentUrl: string | null;
-  defaultUrl: string;
+  // null = у звука нет дефолта (актуально только для fun — без owner-загрузки
+  // кнопка просто скрыта). Для hand/join всегда есть дефолт в public/sounds/.
+  defaultUrl: string | null;
   defaultLabel: string;
   onChanged: () => void | Promise<void>;
 }) {
@@ -446,6 +448,7 @@ function SingleSoundEditor({
   const previewKey = `single:${type}`;
   const previewPlaying = useSoundPlaying(previewKey);
   const togglePreview = () => {
+    if (!playable) return;
     if (previewPlaying) soundManager.stop(previewKey);
     else soundManager.play(playable, { key: previewKey });
   };
@@ -458,12 +461,17 @@ function SingleSoundEditor({
           type="button"
           className={styles.soundsActionButton}
           onClick={togglePreview}
+          disabled={!playable}
           aria-label={previewPlaying ? "Остановить" : "Прослушать"}
         >
           {previewPlaying ? "⏸" : "▶"}
         </button>
         <span className={styles.soundsSingleLabel}>
-          {currentUrl ? "Свой файл" : `Используется ${defaultLabel}`}
+          {currentUrl
+            ? "Свой файл"
+            : defaultUrl
+              ? `Используется ${defaultLabel}`
+              : defaultLabel}
         </span>
         <div className={styles.soundsTrackActions}>
           <label
