@@ -177,6 +177,29 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id);
       CREATE INDEX IF NOT EXISTS idx_poll_votes_voter ON poll_votes(poll_id, voter_identity);
 
+      -- Звуки комнаты: плейлист для комнаты ожидания + одиночные «прикольный»,
+      -- «поднятая рука», «запрос на подключение». Одиночные хранятся как
+      -- nullable-колонки в rooms — null означает, что фронт использует дефолт.
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS sound_fun_url TEXT;
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS sound_hand_url TEXT;
+      ALTER TABLE rooms ADD COLUMN IF NOT EXISTS sound_join_url TEXT;
+
+      CREATE TABLE IF NOT EXISTS room_playlist_tracks (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        title VARCHAR(120) NOT NULL,
+        author VARCHAR(120),
+        audio_url TEXT NOT NULL,
+        audio_mime VARCHAR(80) NOT NULL,
+        audio_size BIGINT NOT NULL,
+        icon_url TEXT,
+        position INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_playlist_tracks_room
+        ON room_playlist_tracks(room_id, position);
+
       CREATE TABLE IF NOT EXISTS invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         room_id UUID NOT NULL REFERENCES rooms(id),

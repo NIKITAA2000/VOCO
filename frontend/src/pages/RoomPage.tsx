@@ -28,9 +28,16 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { ConnectionQuality, DisconnectReason, RoomEvent, Track } from "livekit-client";
-import { api } from "../api";
+import { api, type PlaylistTrack, type RoomSounds } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
+import { soundManager } from "../lib/soundManager";
+import { WaitingRoomPlayer } from "../components/WaitingRoomPlayer";
+import { SoundsSettings } from "../components/SoundsSettings";
 import styles from "./Room.module.css";
+
+const DEFAULT_SOUND_FUN = "/sounds/fun.mp3";
+const DEFAULT_SOUND_HAND = "/sounds/hand.mp3";
+const DEFAULT_SOUND_JOIN = "/sounds/join.mp3";
 
 const STAGE_WIDTH = 1440;
 const STAGE_HEIGHT = 1024;
@@ -113,6 +120,8 @@ interface ConferenceRoomContentProps {
   initialPinnedMessages?: PinnedMessage[];
   initialChatHistory?: ChatHistoryEntry[];
   initialPolls?: Poll[];
+  initialPlaylist?: PlaylistTrack[];
+  initialSounds?: RoomSounds;
   // LiveKit-токен для гостей. У зарегистрированных не нужен — берётся наш Bearer.
   livekitToken?: string;
 }
@@ -851,6 +860,14 @@ function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
+function FunSoundIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M9 17V5l10-2v12.27A3 3 0 1 0 18 18a3 3 0 0 0 1-3V6.5l-7 1.4V18a3 3 0 1 1-3-3l1.06.13C9.35 15.31 9 16.11 9 17z" />
+    </svg>
+  );
+}
+
 function UserIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -1502,7 +1519,7 @@ function TileMedia({
 
 type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
 
-type SettingsTab = "settings" | "link" | "ban";
+type SettingsTab = "settings" | "link" | "ban" | "sounds";
 
 interface RoomMeta {
   name: string;
@@ -1534,9 +1551,13 @@ function SettingsPanel({
   roomMeta,
   blockedUsers,
   canEditSettings,
+  isOwner,
+  playlist,
+  sounds,
   onClose,
   onMetaSaved,
   onUnblockUser,
+  onSoundsChanged,
 }: {
   slug: string;
   layoutClass?: string;
@@ -1544,9 +1565,13 @@ function SettingsPanel({
   roomMeta: RoomMeta | null;
   blockedUsers: BlockedUserEntry[];
   canEditSettings: boolean;
+  isOwner: boolean;
+  playlist: PlaylistTrack[];
+  sounds: RoomSounds;
   onClose: () => void;
   onMetaSaved: () => void | Promise<void>;
   onUnblockUser: (userId: string) => void | Promise<void>;
+  onSoundsChanged: () => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
 
@@ -1826,6 +1851,17 @@ function SettingsPanel({
           >
             Ссылка
           </button>
+          {isOwner ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "sounds"}
+              className={`${styles.settingsTab} ${tab === "sounds" ? styles.settingsTabActive : ""}`}
+              onClick={() => setTab("sounds")}
+            >
+              Звуки
+            </button>
+          ) : null}
           <button
             type="button"
             role="tab"
@@ -2059,6 +2095,15 @@ function SettingsPanel({
               )}
             </div>
           </div>
+        ) : null}
+
+        {tab === "sounds" && isOwner ? (
+          <SoundsSettings
+            slug={slug}
+            playlist={playlist}
+            sounds={sounds}
+            onChanged={onSoundsChanged}
+          />
         ) : null}
 
         {tab === "ban" ? (
@@ -2311,6 +2356,8 @@ export function ConferenceRoomContent({
   initialPinnedMessages,
   initialChatHistory,
   initialPolls,
+  initialPlaylist,
+  initialSounds,
   livekitToken,
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
@@ -2370,6 +2417,35 @@ export function ConferenceRoomContent({
     () => initialChatHistory ?? [],
   );
   const [polls, setPolls] = useState<Poll[]>(() => initialPolls ?? []);
+  const [playlistTracks, setPlaylistTracks] = useState<PlaylistTrack[]>(
+    () => initialPlaylist ?? [],
+  );
+  const [roomSoundUrls, setRoomSoundUrls] = useState<RoomSounds>(
+    () => initialSounds ?? { fun: null, hand: null, join: null },
+  );
+
+  // Refs для использования в ивент-хендлерах LiveKit без stale closure.
+  // `handSoundUrlRef` / `joinSoundUrlRef` дёргаются из handleAttributes /
+  // pending-watcher useEffect'ов.
+  const handSoundUrlRef = useRef<string>(roomSoundUrls.hand ?? DEFAULT_SOUND_HAND);
+  const joinSoundUrlRef = useRef<string>(roomSoundUrls.join ?? DEFAULT_SOUND_JOIN);
+  useEffect(() => {
+    handSoundUrlRef.current = roomSoundUrls.hand ?? DEFAULT_SOUND_HAND;
+    joinSoundUrlRef.current = roomSoundUrls.join ?? DEFAULT_SOUND_JOIN;
+  }, [roomSoundUrls.hand, roomSoundUrls.join]);
+
+  const isOwnerRef = useRef<boolean>(Boolean(isOwner));
+  useEffect(() => {
+    isOwnerRef.current = Boolean(isOwner);
+  }, [isOwner]);
+
+  const localIdentityRef = useRef<string | null>(null);
+  useEffect(() => {
+    localIdentityRef.current = localParticipant?.identity ?? null;
+  }, [localParticipant?.identity]);
+
+  // roomRoleRef обновляется ниже, после объявления setRoomRole (`roomRole`
+  // объявлен дальше по файлу). См. useEffect, привязанный к `roomRole`.
   const [pollModalOpen, setPollModalOpen] = useState(false);
   const [pollResultsId, setPollResultsId] = useState<string | null>(null);
   const [pollBusyId, setPollBusyId] = useState<string | null>(null);
@@ -2432,6 +2508,10 @@ export function ConferenceRoomContent({
     Array<{ id: string; user: { id: string; username: string }; reason?: string | null }>
   >([]);
   const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
+  const roomRoleRef = useRef<RoomRole | null>(null);
+  useEffect(() => {
+    roomRoleRef.current = roomRole;
+  }, [roomRole]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingNow, setRecordingNow] = useState(Date.now());
@@ -2505,6 +2585,16 @@ export function ConferenceRoomContent({
       if (Array.isArray(r?.polls)) {
         setPolls(r.polls as Poll[]);
       }
+      if (Array.isArray(r?.playlist)) {
+        setPlaylistTracks(r.playlist as PlaylistTrack[]);
+      }
+      if (r?.sounds && typeof r.sounds === "object") {
+        setRoomSoundUrls({
+          fun: r.sounds.fun ?? null,
+          hand: r.sounds.hand ?? null,
+          join: r.sounds.join ?? null,
+        });
+      }
       // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
       if (nextRole === "OWNER" || nextRole === "MODERATOR") {
         try {
@@ -2553,6 +2643,24 @@ export function ConferenceRoomContent({
     },
     [localParticipant],
   );
+
+  // URL «прикольного» звука: кастомный овнерский или дефолтный ассет из public/.
+  // Должен быть объявлен ДО `handlePlayFunSound` и listener'а data-channel —
+  // оба используют его в зависимостях.
+  const funUrl = roomSoundUrls.fun ?? DEFAULT_SOUND_FUN;
+
+  // Прикольный звук: овнер жмёт кнопку → локально проигрываем и рассылаем
+  // через data-channel. На приёме у каждого участника срабатывает listener
+  // (см. useEffect ниже с topic="voco-sound-play").
+  const handlePlayFunSound = useCallback(() => {
+    if (!localParticipant) return;
+    soundManager.play(funUrl, { key: "fun", cooldownMs: 1500 });
+    const payload = new TextEncoder().encode(JSON.stringify({ type: "fun" }));
+    void localParticipant.publishData(payload, {
+      reliable: true,
+      topic: "voco-sound-play",
+    });
+  }, [localParticipant, funUrl]);
 
   const handleToggleModerator = useCallback(
     async (meta: RoomParticipantMeta) => {
@@ -2629,6 +2737,32 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.DataReceived, handleData);
     };
   }, [room, localParticipant, onExitIntent]);
+
+  // Прикольный звук: овнер жмёт кнопку → шлёт `voco-sound-play` всем участникам,
+  // каждый локально играет тот же файл. URL — `room.sounds.fun` либо дефолт.
+  useEffect(() => {
+    if (!room) return;
+    const handle = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== "voco-sound-play") return;
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(payload));
+        if (parsed?.type === "fun") {
+          soundManager.play(funUrl, { key: "fun-remote", cooldownMs: 1500 });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    room.on(RoomEvent.DataReceived, handle);
+    return () => {
+      room.off(RoomEvent.DataReceived, handle);
+    };
+  }, [room, funUrl]);
 
   // Live-синхронизация закреплённых сообщений: модератор после pin/unpin
   // публикует data-сообщение с полным списком, остальные просто заменяют состояние.
@@ -3230,6 +3364,22 @@ export function ConferenceRoomContent({
       participant.identity !== localIdentity &&
       parseParticipantStatus(participant).status === "pending",
   );
+
+  // Звук «запрос на подключение» — для модераторов/овнера. Триггерим только
+  // когда длина списка pending выросла (новый запрос), не при подтверждении.
+  const pendingCountRef = useRef(0);
+  const pendingCount = pendingParticipants.length;
+  useEffect(() => {
+    const isPrivileged =
+      isOwner || roomRole === "OWNER" || roomRole === "MODERATOR";
+    if (isPrivileged && pendingCount > pendingCountRef.current) {
+      soundManager.play(roomSoundUrls.join ?? DEFAULT_SOUND_JOIN, {
+        key: "pending",
+        cooldownMs: 1500,
+      });
+    }
+    pendingCountRef.current = pendingCount;
+  }, [pendingCount, isOwner, roomRole, roomSoundUrls.join]);
   const participantMetaByUserId = new Map(
     roomParticipants.map((participant) => [participant.user.id, participant] as const),
   );
@@ -4089,10 +4239,21 @@ export function ConferenceRoomContent({
     const handleAttributes = (changed: Record<string, string>, participant: any) => {
       if (!participant?.identity) return;
       if (changed && "handRaised" in changed) {
+        const raised = changed.handRaised === "true";
         setHandRaisedMap((prev) => ({
           ...prev,
-          [participant.identity]: changed.handRaised === "true",
+          [participant.identity]: raised,
         }));
+        // Звук руки — у модераторов/овнера. По запросу: овнер слышит и
+        // собственное поднятие руки тоже (раньше был фильтр !isLocal).
+        const isPrivileged =
+          isOwnerRef.current || roomRoleRef.current === "OWNER" || roomRoleRef.current === "MODERATOR";
+        if (raised && isPrivileged) {
+          soundManager.play(handSoundUrlRef.current, {
+            key: `hand:${participant.identity}`,
+            cooldownMs: 500,
+          });
+        }
       }
       if (changed && "avatarUrl" in changed) {
         const next = typeof changed.avatarUrl === "string" ? changed.avatarUrl : "";
@@ -5191,9 +5352,13 @@ export function ConferenceRoomContent({
         roomMeta={roomMeta}
         blockedUsers={blockedUsers}
         canEditSettings={Boolean(isOwner || roomRole === "OWNER")}
+        isOwner={Boolean(isOwner || roomRole === "OWNER")}
+        playlist={playlistTracks}
+        sounds={roomSoundUrls}
         onClose={() => toggleRoomPanel("settings")}
         onMetaSaved={refreshRoomState}
         onUnblockUser={handleUnblockUser}
+        onSoundsChanged={refreshRoomState}
       />
     ) : null;
 
@@ -6014,6 +6179,20 @@ export function ConferenceRoomContent({
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
+        {(isOwner || roomRole === "OWNER") ? (
+          <button
+            type="button"
+            className={styles.funSoundButton}
+            onClick={handlePlayFunSound}
+            aria-label="Прикольный звук"
+          >
+            <span className={styles.funSoundButtonIcon} aria-hidden="true">
+              <FunSoundIcon />
+            </span>
+            <span className={styles.funSoundButtonLabel}>Звук</span>
+          </button>
+        ) : null}
+
         <div className={`${styles.utilityGroup} ${styles.desktopUtilityGroup}`}>
           <button
             className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
@@ -6073,6 +6252,12 @@ export function RoomPage({ user }: Props) {
     const [rejectionToast, setRejectionToast] = useState<string | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
+    const [waitingPlaylist, setWaitingPlaylist] = useState<PlaylistTrack[]>([]);
+    const [waitingSounds, setWaitingSounds] = useState<RoomSounds>({
+      fun: null,
+      hand: null,
+      join: null,
+    });
     const [now, setNow] = useState(() => new Date());
 
     useEffect(() => {
@@ -6118,6 +6303,16 @@ export function RoomPage({ user }: Props) {
                     setIsOwner(details.room?.owner?.id === user?.id);
                     setMyRole(details.room?.myRole ?? null);
                     setOwnerName(details.room?.owner?.username ?? "");
+                    if (Array.isArray(details.room?.playlist)) {
+                        setWaitingPlaylist(details.room.playlist as PlaylistTrack[]);
+                    }
+                    if (details.room?.sounds) {
+                        setWaitingSounds({
+                            fun: details.room.sounds.fun ?? null,
+                            hand: details.room.sounds.hand ?? null,
+                            join: details.room.sounds.join ?? null,
+                        });
+                    }
                 } catch {
                     // ignore — не критично для входа
                 }
@@ -6292,6 +6487,8 @@ export function RoomPage({ user }: Props) {
                             onExitIntent={handleConferenceLeaveIntent}
                             onEndRoomIntent={handleEndRoomIntent}
                             currentUserAvatarUrl={user?.avatarUrl ?? null}
+                            initialPlaylist={waitingPlaylist}
+                            initialSounds={waitingSounds}
                         />
                     )}
                 </LiveKitRoom>
@@ -6376,6 +6573,8 @@ export function RoomPage({ user }: Props) {
                                 "Войти"
                             )}
                         </button>
+
+                        <WaitingRoomPlayer tracks={waitingPlaylist} />
                     </section>
 
                     {(roomName || ownerName) && (

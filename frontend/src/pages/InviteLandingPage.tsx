@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { DisconnectReason } from "livekit-client";
-import { api } from "../api";
+import { api, type PlaylistTrack, type RoomSounds } from "../api";
 import { ConferenceRoomContent, PendingWatcher } from "./RoomPage";
+import { WaitingRoomPlayer } from "../components/WaitingRoomPlayer";
 import styles from "./Room.module.css";
 
 interface Props {
@@ -24,6 +25,12 @@ export function InviteLandingPage({ user }: Props) {
   const [initialPins, setInitialPins] = useState<any[]>([]);
   const [initialChat, setInitialChat] = useState<any[]>([]);
   const [initialPolls, setInitialPolls] = useState<any[]>([]);
+  const [initialPlaylist, setInitialPlaylist] = useState<PlaylistTrack[]>([]);
+  const [initialSounds, setInitialSounds] = useState<RoomSounds>({
+    fun: null,
+    hand: null,
+    join: null,
+  });
   const [error, setError] = useState("");
   const [conferenceReady, setConferenceReady] = useState(false);
   const [inQueue, setInQueue] = useState(false);
@@ -66,6 +73,16 @@ export function InviteLandingPage({ user }: Props) {
         setRoomName(info?.room?.name ?? "");
         setRoomSlug(info?.room?.slug ?? "");
         setOwnerName(info?.owner?.username ?? "");
+        if (Array.isArray(info?.playlist)) {
+          setInitialPlaylist(info.playlist as PlaylistTrack[]);
+        }
+        if (info?.sounds && typeof info.sounds === "object") {
+          setInitialSounds({
+            fun: info.sounds.fun ?? null,
+            hand: info.sounds.hand ?? null,
+            join: info.sounds.join ?? null,
+          });
+        }
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.message || "Ссылка недействительна");
@@ -91,6 +108,16 @@ export function InviteLandingPage({ user }: Props) {
       setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
       setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
       setInitialPolls(Array.isArray(data.polls) ? data.polls : []);
+      if (Array.isArray(data.playlist)) {
+        setInitialPlaylist(data.playlist as PlaylistTrack[]);
+      }
+      if (data.sounds) {
+        setInitialSounds({
+          fun: data.sounds.fun ?? null,
+          hand: data.sounds.hand ?? null,
+          join: data.sounds.join ?? null,
+        });
+      }
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -118,6 +145,16 @@ export function InviteLandingPage({ user }: Props) {
       setInitialPins(Array.isArray(data.pinnedMessages) ? data.pinnedMessages : []);
       setInitialChat(Array.isArray(data.chatHistory) ? data.chatHistory : []);
       setInitialPolls(Array.isArray(data.polls) ? data.polls : []);
+      if (Array.isArray(data.playlist)) {
+        setInitialPlaylist(data.playlist as PlaylistTrack[]);
+      }
+      if (data.sounds) {
+        setInitialSounds({
+          fun: data.sounds.fun ?? null,
+          hand: data.sounds.hand ?? null,
+          join: data.sounds.join ?? null,
+        });
+      }
       if (data.pending) {
         setInQueue(true);
       } else {
@@ -223,6 +260,8 @@ export function InviteLandingPage({ user }: Props) {
               initialPinnedMessages={initialPins}
               initialChatHistory={initialChat}
               initialPolls={initialPolls}
+              initialPlaylist={initialPlaylist}
+              initialSounds={initialSounds}
               livekitToken={token}
             />
           )}
@@ -325,6 +364,8 @@ export function InviteLandingPage({ user }: Props) {
                 submitLabel
               )}
             </button>
+
+            <WaitingRoomPlayer tracks={initialPlaylist} />
           </form>
 
           {(roomName || ownerName) && (

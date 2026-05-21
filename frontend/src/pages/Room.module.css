@@ -5180,7 +5180,9 @@ button.stageRoomCode .roomCodeCopyHint {
   width: 475px;
   height: 205px;
   transform: translate(-50%, -50%);
-  z-index: 1;
+  /* z-index выше .waitingMeta (1), иначе dropdown плейлиста перекрывается
+   * текстом «Название комнаты». */
+  z-index: 2;
 }
 
 .waitingClock {
@@ -7059,11 +7061,16 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   width: calc(100% - 50px);
   height: 50px;
+  /* overflow:hidden + одинаковая flex-basis на детях → каждая вкладка занимает
+   * равную долю независимо от длины текста, не вылезает на крестик. */
+  overflow: hidden;
 }
 
 .settingsTab {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   height: 50px;
+  padding: 0 4px;
   border: 0;
   border-radius: 10px 10px 0 0;
   background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
@@ -7071,12 +7078,15 @@ button.stageRoomCode .roomCodeCopyHint {
   font-family: inherit;
   font-style: italic;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 23px;
+  font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
   transition: background 0.15s ease;
 }
 
@@ -7878,13 +7888,10 @@ button.stageRoomCode .roomCodeCopyHint {
   flex: 0 0 50px;
 }
 
-.settingsPanel[data-tab="settings"] .settingsTabs {
-  width: 270px;
-}
-
+/* Ширина .settingsTabs и .settingsTab не переопределяются — используется
+ * базовое правило (flex: 1 1 0), чтобы все 4 вкладки делили доступную
+ * ширину поровну, без обрезки. */
 .settingsPanel[data-tab="settings"] .settingsTab {
-  flex: 0 0 90px;
-  width: 90px;
   color: #000;
   background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
 }
@@ -9220,4 +9227,780 @@ button.stageRoomCode .roomCodeCopyHint {
     linear-gradient(90deg, #ff3333 0%, #800000 50%, #ff3333 100%) padding-box,
     linear-gradient(90deg, #800000 0%, #ff3333 50%, #800000 100%) border-box;
   color: #fff;
+}
+
+/* =====================================================================
+ * Waiting-room player — pre-join экран, под кнопкой «Войти».
+ * Без card-фона: элементы дышат на белом waitingPanel. Цветовая палитра
+ * совпадает с мокапом меню — синий #0077FF на контролах, иконка трека —
+ * radial-градиент фиолетовый→синий→зелёный (см. paint6_radial в svg).
+ * См. [WaitingRoomPlayer.tsx](../components/WaitingRoomPlayer.tsx).
+ * ===================================================================== */
+/* Плеер позиционирован абсолютно внутри .waitingPanel: panel высотой 205px,
+ * submit-кнопка на top:155 + 50height = 205. По SVG: плеер top y=357,
+ * submit bottom y=325 → gap 32px. С panel top y=197 (input), submit:155 →
+ * submit bottom в panel = 205. Player top в panel = 205+32 = 237.
+ * waitingMeta сдвигается вниз через :has() ниже. */
+.waitingPlayer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 237px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* По SVG: room name top y=478, viewport-offset = 478-264 = +214 от центра. */
+.waitingStage:has(.waitingPlayer) .waitingMeta {
+  top: calc(50% + 214px);
+}
+
+/* Seek-bar — тонкая полоса под плеером. Нативный range styled под наш дизайн.
+ * Заливка прогресса через CSS var --seek-progress, которая ставится из JSX
+ * через style={{ '--seek-progress': N% }}. Поддержка cross-browser через
+ * псевдо-элементы ::-webkit-slider и ::-moz-range. */
+.waitingPlayerSeek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+}
+
+.waitingPlayerSeek:focus,
+.waitingPlayerSeek:focus-visible,
+.waitingPlayerSeek:active {
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+
+/* Track (полоска позади бегунка) — webkit */
+.waitingPlayerSeek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #0077ff 0%,
+    #0077ff var(--seek-progress, 0%),
+    rgba(0, 119, 255, 0.18) var(--seek-progress, 0%),
+    rgba(0, 119, 255, 0.18) 100%
+  );
+}
+
+/* Track — firefox */
+.waitingPlayerSeek::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 119, 255, 0.18);
+}
+.waitingPlayerSeek::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: #0077ff;
+}
+
+/* Thumb (бегунок) — маленькая синяя точка */
+.waitingPlayerSeek::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0077ff;
+  border: 2px solid #fff;
+  margin-top: -4px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.waitingPlayerSeek::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0077ff;
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    #0077ff 0%,
+    #0077ff var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.18) var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.18) 100%
+  );
+}
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-moz-range-track {
+  background: rgba(255, 255, 255, 0.18);
+}
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-webkit-slider-thumb,
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-moz-range-thumb {
+  border-color: #1a1f33;
+}
+
+.waitingPlayerThumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  /* Из svg.txt: radialGradient center (25,25) radius 25, stops 0/50/100. */
+  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.waitingPlayerThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.waitingPlayerThumbDefault {
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Фиксированная ширина meta — иначе play-кнопка плавает влево-вправо
+ * в зависимости от длины названия трека. 130px = подходит для коротких
+ * имён + ellipsis для длинных. */
+.waitingPlayerMeta {
+  flex: 0 0 130px;
+  width: 130px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.waitingPlayerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waitingPlayerAuthor {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 13px;
+}
+
+.waitingPlayerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  /* auto-margins по бокам отцентровывают кластер между [thumb+meta] и [→ ≡]. */
+  margin: 0 auto;
+}
+
+.waitingPlayerControl {
+  width: 40px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #0077ff;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.waitingPlayerControl:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* hover-фон убран по запросу — кнопки реагируют только на active. */
+
+.waitingPlayerPlay {
+  width: 50px;
+  height: 50px;
+  border: none;
+  background: #0077ff;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.waitingPlayerPlay:active {
+  transform: scale(0.96);
+}
+
+.waitingPlayerNext,
+.waitingPlayerList {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #0077ff;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex: 0 0 auto;
+  transition: background 0.15s;
+}
+
+
+.waitingPlayerListPopup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(360px, 90vw);
+  /* 3 строки × ~50px + padding 12 = ~162px. Если треков больше — скролл. */
+  max-height: 162px;
+  overflow-y: auto;
+  /* Синий scrollbar в цвет контролов плеера. */
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.waitingPlayerListItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.waitingPlayerListItem:hover {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.waitingPlayerListItemActive {
+  background: rgba(26, 115, 232, 0.15);
+}
+
+.waitingPlayerListItemThumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.waitingPlayerListItemThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.waitingPlayerListItemMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.waitingPlayerListItemTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waitingPlayerListItemAuthor {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Тёмная тема: плеер прозрачный как в светлой, контролы остаются синими
+ * (#0077FF читабелен на обоих фонах). Меняется только цвет текста и фон
+ * dropdown'а со списком треков. */
+:global(:root[data-theme="dark"]) .waitingPlayer {
+  background: transparent;
+  border: none;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerTitle {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerAuthor {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListPopup {
+  background: #1a1f33;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItem:hover {
+  background: rgba(0, 119, 255, 0.18);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemActive {
+  background: rgba(0, 119, 255, 0.28);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemTitle {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemAuthor {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* =====================================================================
+ * Settings → Sounds tab
+ * ===================================================================== */
+/* Фиксированная высота 550px (≈ как у вкладки «Ссылка» с её обычным набором
+ * контента). Длинный плейлист скроллится внутри .soundsBody — для этого
+ * body берёт flex:1 + min-height:0 (иначе flex-ребёнок не сжимается ниже
+ * собственного контента и панель распухает). */
+.settingsPanel[data-tab="sounds"] {
+  height: 550px;
+  max-height: calc(100vh - 32px);
+}
+
+.soundsBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+/* Цветные scrollbar'ы — каждая вкладка в свой цвет, плюс синий для списка
+ * треков плеера. Скроллится не .soundsBody, а внешний .settingsBody (см.
+ * правило выше с overflow:auto), поэтому таргетим именно его per-tab. */
+
+/* Список треков плеера ожидания — синий в тон контролов */
+.waitingPlayerListPopup {
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+}
+.waitingPlayerListPopup::-webkit-scrollbar { width: 6px; }
+.waitingPlayerListPopup::-webkit-scrollbar-track { background: transparent; }
+.waitingPlayerListPopup::-webkit-scrollbar-thumb {
+  background: #0077ff;
+  border-radius: 3px;
+}
+.waitingPlayerListPopup::-webkit-scrollbar-thumb:hover { background: #0066d9; }
+
+/* Settings tab — зелёный */
+.settingsPanel[data-tab="settings"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #00ff00 transparent;
+}
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #00cc00; }
+
+/* Link tab — синий */
+.settingsPanel[data-tab="link"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+}
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #0077ff;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #0066d9; }
+
+/* Ban tab — красный */
+.settingsPanel[data-tab="ban"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #ff3333 transparent;
+}
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #ff3333;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #cc2222; }
+
+/* Sounds tab — зелёный в тон активной вкладки */
+.settingsPanel[data-tab="sounds"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #00ff00 transparent;
+}
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #00cc00; }
+
+.soundsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.soundsSectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--settings-text, #1a1a1a);
+  margin: 0;
+}
+
+.soundsSectionHint {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  margin: 0;
+}
+
+.soundsTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.soundsTrackThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 20px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.soundsTrackThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.soundsTrackMeta {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.soundsTrackTitle {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.soundsTrackAuthor {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.soundsTrackActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.soundsActionButton {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #1a73e8;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.soundsActionButton:hover {
+  background: rgba(26, 115, 232, 0.1);
+}
+
+.soundsActionButton[data-danger="true"] {
+  color: #d33;
+}
+.soundsActionButton[data-danger="true"]:hover {
+  background: rgba(221, 51, 51, 0.1);
+}
+
+.soundsReorderButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.soundsReorderButton {
+  width: 22px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.soundsReorderButton:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.soundsReorderButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.soundsAddBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.soundsAddFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.soundsAddFields input[type="text"] {
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.soundsAddFileRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.soundsAddFileRow input[type="file"] {
+  font-size: 11px;
+}
+
+.soundsAddSubmit {
+  align-self: flex-end;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #1a73e8;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.soundsAddSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.soundsAddSubmit:hover:not(:disabled) {
+  background: #155abd;
+}
+
+.soundsAddError {
+  font-size: 11px;
+  color: #d33;
+}
+
+.soundsSingleCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.soundsSingleLabel {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.soundsSingleStatus {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.soundsTitleEdit {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+:global(:root[data-theme="dark"]) .soundsTrackRow,
+:global(:root[data-theme="dark"]) .soundsSingleCard {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:global(:root[data-theme="dark"]) .soundsSectionTitle {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .soundsSectionHint,
+:global(:root[data-theme="dark"]) .soundsSingleLabel,
+:global(:root[data-theme="dark"]) .soundsSingleStatus,
+:global(:root[data-theme="dark"]) .soundsTrackAuthor {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:global(:root[data-theme="dark"]) .soundsAddFields input[type="text"],
+:global(:root[data-theme="dark"]) .soundsTitleEdit {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .soundsAddBlock {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* =====================================================================
+ * Fun-sound button (bottomBar).
+ * ===================================================================== */
+/* Кнопка в desktop-layout-баре. Слой использует `position: fixed` с явным
+ * `left`, как у `.desktopScreenShareButton` / `.desktopDeviceSlot`. Свободное
+ * место между ScreenShare (left:700 + width:200 = 900) и utility group
+ * (right:18). Кладём кнопку на left:920. */
+.funSoundButton {
+  position: fixed;
+  bottom: 25px;
+  left: 920px;
+  height: 50px;
+  min-width: 100px;
+  padding: 4px 12px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 10px;
+  zoom: var(--room-scale);
+  z-index: 4;
+  transition: background 0.15s;
+}
+
+.funSoundButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.funSoundButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.funSoundButtonIcon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ffd86b 0%, #ff7a59 100%);
+  border-radius: 50%;
+  color: #fff;
+}
+
+.funSoundButtonLabel {
+  font-size: 10px;
+  color: inherit;
 }

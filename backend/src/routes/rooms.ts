@@ -19,6 +19,8 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 import { loadRoomPolls } from "../lib/polls.js";
+import { loadRoomSounds, collectRoomSoundFiles } from "../lib/sounds.js";
+import { unlinkByUrl as unlinkAudioByUrl } from "./sounds.js";
 
 interface AttachmentDto {
   url: string;
@@ -262,6 +264,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
 
     // Опросы — viewer's identity = userId зарегистрированного смотрящего.
     const polls = await loadRoomPolls(row.id, req.user!.userId);
+    const { playlist, sounds } = await loadRoomSounds(row.id);
 
     res.json({
       room: {
@@ -305,6 +308,8 @@ router.get("/:slug", async (req: Request, res: Response) => {
           attachments: resolveAttachments(m),
         })),
         polls,
+        playlist,
+        sounds,
       },
     });
   } catch (error) {
@@ -1629,18 +1634,26 @@ router.delete("/:slug", async (req: Request, res: Response) => {
       return;
     }
 
+    // Собираем урлы аудио ДО транзакции — после DELETE их уже не достанешь.
+    const audioFiles = await collectRoomSoundFiles(room.id);
+
     await client.query("BEGIN");
     try {
       // FK без ON DELETE CASCADE — чистим вручную
       await client.query("DELETE FROM participants WHERE room_id = $1", [room.id]);
       await client.query("DELETE FROM blocked_users WHERE room_id = $1", [room.id]);
       await client.query("DELETE FROM invite_links WHERE room_id = $1", [room.id]);
-      // chat_messages, pinned_messages, hidden_rooms — на CASCADE; удалятся сами
+      // chat_messages, pinned_messages, hidden_rooms, room_playlist_tracks — на CASCADE
       await client.query("DELETE FROM rooms WHERE id = $1", [room.id]);
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
+    }
+
+    // Физически сносим аудио-файлы с диска (FK CASCADE удаляет только записи).
+    for (const url of audioFiles) {
+      await unlinkAudioByUrl(url);
     }
 
     res.json({ message: "Комната удалена" });

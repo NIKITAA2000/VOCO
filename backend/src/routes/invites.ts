@@ -10,6 +10,7 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 import { loadRoomPolls } from "../lib/polls.js";
+import { loadRoomSounds } from "../lib/sounds.js";
 
 interface AttachmentDto {
   url: string;
@@ -184,10 +185,10 @@ router.get("/:code/info", async (req: Request, res: Response) => {
     }
     const { invite } = validation;
 
-    const ownerResult = await db.query(
-      "SELECT username FROM users WHERE id = $1",
-      [invite.roomOwnerId]
-    );
+    const [ownerResult, soundData] = await Promise.all([
+      db.query("SELECT username FROM users WHERE id = $1", [invite.roomOwnerId]),
+      loadRoomSounds(invite.roomId),
+    ]);
     const ownerUsername = ownerResult.rows[0]?.username ?? "";
 
     res.json({
@@ -199,6 +200,10 @@ router.get("/:code/info", async (req: Request, res: Response) => {
         requireApproval: invite.roomRequireApproval,
       },
       owner: { username: ownerUsername },
+      // Плейлист и звуки нужны InviteLandingPage'у ещё до клика «Войти»,
+      // чтобы отрендерить плеер ожидания на форме ввода имени.
+      playlist: soundData.playlist,
+      sounds: soundData.sounds,
     });
   } catch (error) {
     console.error("Invite info error:", error);
@@ -310,10 +315,11 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
-    const [pinnedMessages, chatHistory, polls] = await Promise.all([
+    const [pinnedMessages, chatHistory, polls, soundData] = await Promise.all([
       loadPinnedMessages(invite.roomId),
       loadChatHistory(invite.roomId),
       loadRoomPolls(invite.roomId, req.user!.userId),
+      loadRoomSounds(invite.roomId),
     ]);
 
     res.json({
@@ -325,6 +331,8 @@ router.post("/:code/join", authenticate, async (req: Request, res: Response) => 
       pinnedMessages,
       chatHistory,
       polls,
+      playlist: soundData.playlist,
+      sounds: soundData.sounds,
     });
   } catch (error) {
     console.error("Invite join error:", error);
@@ -403,10 +411,11 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
     const livekitToken = await at.toJwt();
     const livekitUrl = config.livekit.publicUrl || config.livekit.url;
 
-    const [pinnedMessages, chatHistory, polls] = await Promise.all([
+    const [pinnedMessages, chatHistory, polls, soundData] = await Promise.all([
       loadPinnedMessages(invite.roomId),
       loadChatHistory(invite.roomId),
       loadRoomPolls(invite.roomId, guestIdentity),
+      loadRoomSounds(invite.roomId),
     ]);
 
     res.json({
@@ -421,6 +430,8 @@ router.post("/:code/join-guest", async (req: Request, res: Response) => {
       pinnedMessages,
       chatHistory,
       polls,
+      playlist: soundData.playlist,
+      sounds: soundData.sounds,
     });
   } catch (error) {
     console.error("Invite guest join error:", error);

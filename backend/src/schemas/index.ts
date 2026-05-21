@@ -222,6 +222,42 @@ export const updateProfileSchema = z
     { message: "Нужно указать хотя бы одно поле" }
   );
 
+// Загрузка трека — поля text-полей multipart-формы (audio/icon идут отдельно).
+export const createTrackBodySchema = z.object({
+  title: z
+    .string()
+    .min(1, "Название обязательно")
+    .max(120, "Название — максимум 120 символов"),
+  author: z
+    .string()
+    .max(120, "Автор — максимум 120 символов")
+    .optional(),
+});
+
+export const updateTrackSchema = z
+  .object({
+    title: z
+      .string()
+      .min(1)
+      .max(120, "Название — максимум 120 символов")
+      .optional(),
+    author: z
+      .string()
+      .max(120, "Автор — максимум 120 символов")
+      .nullable()
+      .optional(),
+  })
+  .refine((v) => v.title !== undefined || v.author !== undefined, {
+    message: "Нужно указать хотя бы одно поле",
+  });
+
+export const reorderPlaylistSchema = z.object({
+  orderedIds: z
+    .array(z.string().uuid())
+    .min(1, "Список треков пуст")
+    .max(10, "В плейлисте максимум 10 треков"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomSchema>;

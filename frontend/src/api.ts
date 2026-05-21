@@ -1,5 +1,24 @@
 const API_URL = "/api";
 
+export interface PlaylistTrack {
+  id: string;
+  title: string;
+  author: string | null;
+  audioUrl: string;
+  audioMime: string;
+  audioSize: number;
+  iconUrl: string | null;
+  position: number;
+}
+
+export interface RoomSounds {
+  fun: string | null;
+  hand: string | null;
+  join: string | null;
+}
+
+export type RoomSoundType = "fun" | "hand" | "join";
+
 class ApiClient {
   private token: string | null = null;
 
@@ -348,6 +367,77 @@ class ApiClient {
 
   async unhideRoom(slug: string) {
     return this.request(`/rooms/${slug}/hide`, { method: "DELETE" });
+  }
+
+  // Sounds & playlist (owner-only)
+  async uploadPlaylistTrack(
+    slug: string,
+    payload: { audio: File; icon?: File | null; title: string; author?: string },
+  ): Promise<{ track: PlaylistTrack }> {
+    const form = new FormData();
+    form.append("audio", payload.audio);
+    if (payload.icon) form.append("icon", payload.icon);
+    form.append("title", payload.title);
+    if (payload.author !== undefined) form.append("author", payload.author);
+
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const res = await fetch(`${API_URL}/rooms/${slug}/playlist`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Не удалось загрузить трек");
+    return data;
+  }
+
+  async updatePlaylistTrack(
+    slug: string,
+    trackId: string,
+    payload: { title?: string; author?: string | null },
+  ): Promise<{ track: PlaylistTrack }> {
+    return this.request(`/rooms/${slug}/playlist/${trackId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deletePlaylistTrack(slug: string, trackId: string) {
+    return this.request(`/rooms/${slug}/playlist/${trackId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async reorderPlaylist(slug: string, orderedIds: string[]) {
+    return this.request(`/rooms/${slug}/playlist/reorder`, {
+      method: "PUT",
+      body: JSON.stringify({ orderedIds }),
+    });
+  }
+
+  // Загрузить файл прикольного/руки/подключения. Для сброса на дефолт см. resetRoomSound.
+  async uploadRoomSound(
+    slug: string,
+    type: RoomSoundType,
+    file: File,
+  ): Promise<{ url: string }> {
+    const form = new FormData();
+    form.append("audio", file);
+    const headers: Record<string, string> = {};
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const res = await fetch(`${API_URL}/rooms/${slug}/sounds/${type}`, {
+      method: "PUT",
+      headers,
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Не удалось загрузить звук");
+    return data;
+  }
+
+  async resetRoomSound(slug: string, type: RoomSoundType) {
+    return this.request(`/rooms/${slug}/sounds/${type}`, { method: "DELETE" });
   }
 
   // Invites (owner)
