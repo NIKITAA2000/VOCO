@@ -7,6 +7,7 @@ import {
   useRef,
   type CSSProperties,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type SVGProps,
 } from "react";
@@ -1355,6 +1356,24 @@ function getIndicatorPages(pageCount: number, currentPage: number) {
   return Array.from({ length: maxVisiblePages }, (_, index) => start + index);
 }
 
+function ViewIndicatorChevron({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg
+      width="6"
+      height="10"
+      viewBox="0 0 6 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+    >
+      {direction === "prev" ? <path d="M4.5 1 L1.5 5 L4.5 9" /> : <path d="M1.5 1 L4.5 5 L1.5 9" />}
+    </svg>
+  );
+}
+
 function ViewIndicator({
   pageCount,
   currentPage,
@@ -1368,10 +1387,32 @@ function ViewIndicator({
 }) {
   const safePageCount = Math.max(1, pageCount);
   const safeCurrentPage = Math.min(Math.max(currentPage, 0), safePageCount - 1);
-  const pages = getIndicatorPages(safePageCount, safeCurrentPage);
+  const visibleDotCount = 5;
+  const windowStart =
+    safePageCount <= visibleDotCount
+      ? 0
+      : Math.min(
+          Math.max(safeCurrentPage - Math.floor(visibleDotCount / 2), 0),
+          safePageCount - visibleDotCount,
+        );
+  const pages = Array.from(
+    { length: Math.min(visibleDotCount, safePageCount) },
+    (_, index) => windowStart + index,
+  );
+  const canPrev = safeCurrentPage > 0;
+  const canNext = safeCurrentPage < safePageCount - 1;
 
   return (
     <div className={`${styles.viewIndicator} ${className ?? ""}`} aria-label="Текущий экран">
+      <button
+        type="button"
+        className={`${styles.viewIndicatorArrow} ${styles.viewIndicatorArrowPrev}`}
+        aria-label="Предыдущий экран"
+        onClick={() => onPageChange(safeCurrentPage - 1)}
+        disabled={!canPrev}
+      >
+        <ViewIndicatorChevron direction="prev" />
+      </button>
       {pages.map((page) => {
         const distance = Math.min(Math.abs(page - safeCurrentPage), 3);
         const isCurrent = page === safeCurrentPage;
@@ -1389,6 +1430,15 @@ function ViewIndicator({
           />
         );
       })}
+      <button
+        type="button"
+        className={`${styles.viewIndicatorArrow} ${styles.viewIndicatorArrowNext}`}
+        aria-label="Следующий экран"
+        onClick={() => onPageChange(safeCurrentPage + 1)}
+        disabled={!canNext}
+      >
+        <ViewIndicatorChevron direction="next" />
+      </button>
     </div>
   );
 }
@@ -1416,6 +1466,7 @@ function TileMedia({
   onToggleTheater,
   featureActive,
   onToggleFeature,
+  pipOverlay,
 }: {
   trackRef: any;
   displayName: string;
@@ -1426,6 +1477,7 @@ function TileMedia({
   onToggleTheater?: () => void;
   featureActive?: boolean;
   onToggleFeature?: () => void;
+  pipOverlay?: ReactNode;
 }) {
   const isMuted = useIsMuted(trackRef);
   // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
@@ -1514,6 +1566,7 @@ function TileMedia({
           )}
         </button>
       ) : null}
+      {pipOverlay}
     </div>
   );
 }
@@ -1521,6 +1574,235 @@ function TileMedia({
 type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
 
 type SettingsTab = "settings" | "link" | "ban" | "sounds";
+
+// Угол PiP-бублика с вебкой автора демки внутри развёрнутой плитки.
+type PipCorner = "tl" | "tr" | "bl" | "br";
+
+const PIP_CORNERS: readonly PipCorner[] = ["tl", "tr", "bl", "br"];
+
+function isPipCorner(value: unknown): value is PipCorner {
+  return value === "tl" || value === "tr" || value === "bl" || value === "br";
+}
+
+// Множитель размера PiP-бублика. 1.0 = базовый размер (~18% от ширины плитки,
+// см. .screenPipOverlay в Room.module.css). Меняется колесом мыши автором демки.
+const PIP_SCALE_MIN = 0.5;
+const PIP_SCALE_MAX = 1.8;
+const PIP_SCALE_STEP = 0.1;
+const PIP_SCALE_DEFAULT = 1.0;
+
+function clampPipScale(value: number): number {
+  if (!Number.isFinite(value)) return PIP_SCALE_DEFAULT;
+  // Округляем до 0.1, чтобы атрибут не превращался в "0.7999999999".
+  const rounded = Math.round(value * 10) / 10;
+  return Math.min(PIP_SCALE_MAX, Math.max(PIP_SCALE_MIN, rounded));
+}
+
+// PiP-бублик с вебкой автора демки. Видит зритель — но управляет (drag/hide)
+// только сам автор демки. Состояние (угол + hidden) синхронизируется на всех
+// через LiveKit participant attributes (screenPipCorner / screenPipHidden).
+// При hidden у автора остаётся «призрак»-точка в углу для возврата; у зрителей
+// при hidden бублик просто не рендерится.
+function ScreenSharePipOverlay({
+  cameraTrackRef,
+  displayName,
+  avatarUrl,
+  isGuest,
+  corner,
+  hidden,
+  scale,
+  isController,
+  onChange,
+}: {
+  cameraTrackRef: any | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  corner: PipCorner;
+  hidden: boolean;
+  scale: number;
+  isController: boolean;
+  onChange: (next: { corner: PipCorner; hidden: boolean; scale: number }) => void;
+}) {
+  const isMuted = useIsMuted(cameraTrackRef);
+  const showVideo = Boolean(cameraTrackRef) && !isMuted;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{
+    startX: number;
+    startY: number;
+    moved: boolean;
+    pointerId: number;
+  } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+
+  // Прикрепляем LiveKit-видео-трек к нашему <video> — без аудио (звук уже
+  // идёт основным треком, дублировать = эхо).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !showVideo) return;
+    const track =
+      cameraTrackRef?.publication?.track ?? cameraTrackRef?.track ?? null;
+    if (!track || typeof track.attach !== "function") return;
+    try {
+      track.attach(el);
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        track.detach(el);
+      } catch {
+        // ignore
+      }
+    };
+  }, [cameraTrackRef, showVideo]);
+
+  // Wheel-resize только для автора. React-onWheel в React 17+ навешивается
+  // как passive — preventDefault внутри ничего не даст и страница скроллится.
+  // Поэтому подписываем нативный non-passive обработчик.
+  useEffect(() => {
+    if (!isController) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const dir = event.deltaY > 0 ? -1 : 1;
+      const next = clampPipScale(scale + dir * PIP_SCALE_STEP);
+      if (next !== scale) onChange({ corner, hidden, scale: next });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isController, scale, corner, hidden, onChange]);
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isController) return;
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    event.preventDefault();
+    dragStateRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+      pointerId: event.pointerId,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+    if (!state.moved && Math.hypot(dx, dy) >= 5) {
+      state.moved = true;
+    }
+    if (state.moved) {
+      setDragOffset({ x: dx, y: dy });
+    }
+  };
+
+  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    dragStateRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    if (!state.moved) {
+      onChange({ corner, hidden: !hidden, scale });
+      setDragOffset(null);
+      return;
+    }
+    // Определяем ближайший угол по центру бублика относительно контейнера-родителя.
+    const wrapperEl = wrapperRef.current;
+    const parentEl = wrapperEl?.parentElement ?? null;
+    if (!wrapperEl || !parentEl) {
+      setDragOffset(null);
+      return;
+    }
+    const bubbleRect = wrapperEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const centerX = bubbleRect.left + bubbleRect.width / 2 - parentRect.left;
+    const centerY = bubbleRect.top + bubbleRect.height / 2 - parentRect.top;
+    const top = centerY < parentRect.height / 2;
+    const left = centerX < parentRect.width / 2;
+    const nextCorner: PipCorner = top ? (left ? "tl" : "tr") : left ? "bl" : "br";
+    setDragOffset(null);
+    if (nextCorner !== corner) onChange({ corner: nextCorner, hidden, scale });
+  };
+
+  const cornerClass = styles[`screenPipCorner_${corner}`];
+  const scaleStyle = { "--pip-scale": String(scale) } as CSSProperties;
+
+  if (hidden) {
+    if (!isController) return null;
+    return (
+      <button
+        type="button"
+        className={`${styles.screenPipGhost} ${cornerClass}`}
+        onClick={() => onChange({ corner, hidden: false, scale })}
+        aria-label="Показать бублик с вебкой"
+        title="Показать бублик с вебкой"
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <path
+            d="M12 5c-5 0-9 5-9 7s4 7 9 7 9-5 9-7-4-7-9-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+    );
+  }
+
+  const transformStyle: CSSProperties = dragOffset
+    ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }
+    : {};
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={`${styles.screenPipOverlay} ${cornerClass} ${
+        isController ? styles.screenPipOverlayInteractive : ""
+      } ${dragOffset ? styles.screenPipOverlayDragging : ""}`}
+      style={{ ...scaleStyle, ...transformStyle }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishDrag}
+      onPointerCancel={finishDrag}
+      role={isController ? "button" : undefined}
+      aria-label={
+        isController
+          ? "Перетащить, скрыть или изменить размер бублика с вебкой (колесо мыши)"
+          : undefined
+      }
+    >
+      {showVideo ? (
+        <video
+          ref={videoRef}
+          className={styles.screenPipVideo}
+          autoPlay
+          playsInline
+          muted
+        />
+      ) : (
+        <div className={styles.screenPipAvatarFallback}>
+          <ParticipantAvatar
+            name={displayName}
+            avatarUrl={avatarUrl}
+            isGuest={isGuest}
+            className={styles.screenPipAvatar}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RoomMeta {
   name: string;
@@ -2391,6 +2673,15 @@ export function ConferenceRoomContent({
   // identity → включён ли микрофон. LiveKit-событий mute/unmute useParticipants
   // не отслеживает реактивно, поэтому ведём свою карту (как handRaisedMap).
   const [micEnabledMap, setMicEnabledMap] = useState<Record<string, boolean>>({});
+  // identity → угол PiP-бублика с вебкой автора демки. Синхронизируется через
+  // LiveKit-аттрибут screenPipCorner. Видим только на развёрнутых демках.
+  const [pipCornerMap, setPipCornerMap] = useState<Record<string, PipCorner>>({});
+  // identity → скрыт ли PiP-бублик (автор спрятал кликом). Синхронизируется
+  // через LiveKit-аттрибут screenPipHidden.
+  const [pipHiddenMap, setPipHiddenMap] = useState<Record<string, boolean>>({});
+  // identity → масштаб PiP-бублика (множитель базовой 18cqi-ширины). Автор
+  // меняет колесом мыши. Кламп [PIP_SCALE_MIN, PIP_SCALE_MAX].
+  const [pipScaleMap, setPipScaleMap] = useState<Record<string, number>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
   // Театральный режим: identity демки, выведенной на весь viewport (хрома
@@ -4206,17 +4497,39 @@ export function ConferenceRoomContent({
       const raw = p?.attributes?.avatarUrl;
       return typeof raw === "string" ? raw : "";
     };
+    const readPipCorner = (p: any): PipCorner | null => {
+      const raw = p?.attributes?.screenPipCorner;
+      return isPipCorner(raw) ? raw : null;
+    };
+    const readPipHidden = (p: any): boolean => {
+      const raw = p?.attributes?.screenPipHidden;
+      return raw === "true" || raw === true;
+    };
+    const readPipScale = (p: any): number | null => {
+      const raw = p?.attributes?.screenPipScale;
+      if (typeof raw !== "string") return null;
+      const num = Number.parseFloat(raw);
+      return Number.isFinite(num) ? clampPipScale(num) : null;
+    };
 
     const snapshot = () => {
       const hand: Record<string, boolean> = {};
       const avatar: Record<string, string> = {};
       const mic: Record<string, boolean> = {};
+      const pipCorner: Record<string, PipCorner> = {};
+      const pipHidden: Record<string, boolean> = {};
+      const pipScale: Record<string, number> = {};
       const visit = (p: any) => {
         if (!p?.identity) return;
         hand[p.identity] = readFlag(p);
         const a = readAvatar(p);
         if (a) avatar[p.identity] = a;
         mic[p.identity] = Boolean(p?.isMicrophoneEnabled);
+        const corner = readPipCorner(p);
+        if (corner) pipCorner[p.identity] = corner;
+        if (readPipHidden(p)) pipHidden[p.identity] = true;
+        const scale = readPipScale(p);
+        if (scale != null) pipScale[p.identity] = scale;
       };
       visit(room.localParticipant);
       const remotes: Iterable<any> =
@@ -4224,13 +4537,16 @@ export function ConferenceRoomContent({
           ? room.remoteParticipants.values()
           : room.remoteParticipants) ?? [];
       for (const p of remotes) visit(p);
-      return { hand, avatar, mic };
+      return { hand, avatar, mic, pipCorner, pipHidden, pipScale };
     };
     const applySnapshot = () => {
-      const { hand, avatar, mic } = snapshot();
+      const { hand, avatar, mic, pipCorner, pipHidden, pipScale } = snapshot();
       setHandRaisedMap(hand);
       setAvatarAttrMap(avatar);
       setMicEnabledMap(mic);
+      setPipCornerMap(pipCorner);
+      setPipHiddenMap(pipHidden);
+      setPipScaleMap(pipScale);
     };
     applySnapshot();
     // Состояние микрофона: useParticipants не реактивен к mute — пере-снимаем
@@ -4270,6 +4586,47 @@ export function ConferenceRoomContent({
           return { ...prev, [participant.identity]: next };
         });
       }
+      if (changed && "screenPipCorner" in changed) {
+        const raw = changed.screenPipCorner;
+        setPipCornerMap((prev) => {
+          if (!isPipCorner(raw)) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          if (prev[participant.identity] === raw) return prev;
+          return { ...prev, [participant.identity]: raw };
+        });
+      }
+      if (changed && "screenPipHidden" in changed) {
+        const hidden = changed.screenPipHidden === "true";
+        setPipHiddenMap((prev) => {
+          if (!hidden) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          if (prev[participant.identity]) return prev;
+          return { ...prev, [participant.identity]: true };
+        });
+      }
+      if (changed && "screenPipScale" in changed) {
+        const raw = changed.screenPipScale;
+        const num = typeof raw === "string" ? Number.parseFloat(raw) : NaN;
+        setPipScaleMap((prev) => {
+          if (!Number.isFinite(num)) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          const clamped = clampPipScale(num);
+          if (prev[participant.identity] === clamped) return prev;
+          return { ...prev, [participant.identity]: clamped };
+        });
+      }
     };
     const handleConnected = (participant: any) => {
       if (!participant?.identity) return;
@@ -4282,6 +4639,24 @@ export function ConferenceRoomContent({
         if (!a) return prev;
         if (prev[participant.identity] === a) return prev;
         return { ...prev, [participant.identity]: a };
+      });
+      const corner = readPipCorner(participant);
+      setPipCornerMap((prev) => {
+        if (!corner) return prev;
+        if (prev[participant.identity] === corner) return prev;
+        return { ...prev, [participant.identity]: corner };
+      });
+      const hidden = readPipHidden(participant);
+      setPipHiddenMap((prev) => {
+        if (!hidden) return prev;
+        if (prev[participant.identity]) return prev;
+        return { ...prev, [participant.identity]: true };
+      });
+      const scale = readPipScale(participant);
+      setPipScaleMap((prev) => {
+        if (scale == null) return prev;
+        if (prev[participant.identity] === scale) return prev;
+        return { ...prev, [participant.identity]: scale };
       });
       refreshMic();
     };
@@ -4300,6 +4675,24 @@ export function ConferenceRoomContent({
         return next;
       });
       setMicEnabledMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipCornerMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipHiddenMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipScaleMap((prev) => {
         if (!(participant.identity in prev)) return prev;
         const next = { ...prev };
         delete next[participant.identity];
@@ -4379,6 +4772,45 @@ export function ConferenceRoomContent({
       },
     );
   }, [localParticipant, handRaisedMap]);
+
+  // Локальный автор демки меняет позицию, размер или видимость своего
+  // PiP-бублика. Optimistic-апдейт + публикация атрибутов LiveKit (всем
+  // зрителям прилетит через ParticipantAttributesChanged).
+  const publishPipState = useCallback(
+    (next: { corner: PipCorner; hidden: boolean; scale: number }) => {
+      if (!localParticipant) return;
+      const identity = localParticipant.identity;
+      const safeScale = clampPipScale(next.scale);
+      if (identity) {
+        setPipCornerMap((prev) =>
+          prev[identity] === next.corner ? prev : { ...prev, [identity]: next.corner },
+        );
+        setPipHiddenMap((prev) => {
+          if (next.hidden) {
+            if (prev[identity]) return prev;
+            return { ...prev, [identity]: true };
+          }
+          if (!(identity in prev)) return prev;
+          const copy = { ...prev };
+          delete copy[identity];
+          return copy;
+        });
+        setPipScaleMap((prev) =>
+          prev[identity] === safeScale ? prev : { ...prev, [identity]: safeScale },
+        );
+      }
+      void Promise.resolve(
+        localParticipant.setAttributes({
+          screenPipCorner: next.corner,
+          screenPipHidden: next.hidden ? "true" : "false",
+          screenPipScale: safeScale.toFixed(1),
+        }),
+      ).catch((err) => {
+        console.error("setAttributes(screenPip*) failed", err);
+      });
+    },
+    [localParticipant],
+  );
   const toggleRecording = () => {
     setIsRecording((current) => {
       const next = !current;
@@ -4461,7 +4893,7 @@ export function ConferenceRoomContent({
     return true;
   };
 
-  const renderTrackMedia = (trackRef: any) => {
+  const renderTrackMedia = (trackRef: any, options?: { pipExpanded?: boolean }) => {
     if (!trackRef) {
       return (
         <div className={styles.placeholderTile}>
@@ -4498,6 +4930,30 @@ export function ConferenceRoomContent({
     // она и так большим тайлом на первой странице).
     const screenKey = isScreenShare ? identity : "";
     const allowFeature = isScreenShare && screenTrackCount >= 2;
+    // PiP-бублик показываем только на развёрнутой демке (отдельная страница
+    // пагинации или театр). В сетке 4-up — нет.
+    const pipExpanded = Boolean(options?.pipExpanded);
+    let pipOverlay: ReactNode = null;
+    if (isScreenShare && pipExpanded) {
+      const cameraTrackRef =
+        cameraTracks.find((t) => t?.participant?.identity === identity) ?? null;
+      const corner: PipCorner = pipCornerMap[identity] ?? "br";
+      const hidden = Boolean(pipHiddenMap[identity]);
+      const scale = pipScaleMap[identity] ?? PIP_SCALE_DEFAULT;
+      pipOverlay = (
+        <ScreenSharePipOverlay
+          cameraTrackRef={cameraTrackRef}
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          isGuest={isGuest}
+          corner={corner}
+          hidden={hidden}
+          scale={scale}
+          isController={isLocal}
+          onChange={isLocal ? publishPipState : () => {}}
+        />
+      );
+    }
     return (
       <TileMedia
         trackRef={trackRef}
@@ -4532,6 +4988,7 @@ export function ConferenceRoomContent({
                 )
             : undefined
         }
+        pipOverlay={pipOverlay}
       />
     );
   };
@@ -5452,6 +5909,8 @@ export function ConferenceRoomContent({
             const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
+            const isExpandedSingleTile =
+              tabletTileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
             return (
               <article
@@ -5461,7 +5920,9 @@ export function ConferenceRoomContent({
                 style={frame.style}
                 key={frame.id}
               >
-                <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+                <div className={styles.tileMedia}>
+                  {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
+                </div>
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -5731,6 +6192,8 @@ export function ConferenceRoomContent({
             const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
+            const isExpandedSingleTile =
+              mobileTileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
             return (
               <article
@@ -5740,7 +6203,9 @@ export function ConferenceRoomContent({
                 style={frame.style}
                 key={frame.id}
               >
-                <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+                <div className={styles.tileMedia}>
+                  {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
+                </div>
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -6016,7 +6481,7 @@ export function ConferenceRoomContent({
                 className={styles.tileMedia}
                 ref={isExpandedSingleTile ? expandedMediaRef : undefined}
               >
-                {renderTrackMedia(trackRef)}
+                {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
               </div>
 
               <div className={styles.tileFooter}>

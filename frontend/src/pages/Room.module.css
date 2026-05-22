@@ -289,6 +289,31 @@
   background: #999999;
 }
 
+.viewIndicatorArrow {
+  appearance: none;
+  width: 10px;
+  height: 11px;
+  flex: 0 0 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #000000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewIndicatorArrow:focus,
+.viewIndicatorArrow:focus-visible {
+  outline: none;
+}
+
+.viewIndicatorArrow:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
 .desktopToolbarIndicator,
 .tabletToolbarHandle {
   position: fixed;
@@ -1803,6 +1828,10 @@
 .tabletParticipantsPanel,
 .tabletChatPanel {
   box-shadow: none;
+  /* Перекрываем .tileCard::after (z-index 5, зелёная обводка говорящего в тёмной
+     теме). .tileCard не создаёт stacking-context, поэтому его ::after просвечивает
+     над панелью чата/участников с z-index 2. */
+  z-index: 10;
 }
 
 .tabletParticipantsPanel::after,
@@ -4062,6 +4091,130 @@ button.stageRoomCode:disabled {
   display: none;
 }
 
+/* PiP-бублик с вебкой автора демки в углу развёрнутой плитки. Базовый размер
+   ~14% от ширины плитки (cqi доступен через container-type: inline-size).
+   Множитель --pip-scale выставляется компонентом из LiveKit-атрибута и
+   масштабирует бубль через колесо мыши автора. */
+.screenPipOverlay {
+  position: absolute;
+  z-index: 7;
+  width: clamp(60px, calc(var(--pip-scale, 1) * 18cqi), 280px);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.18s ease, width 0.15s ease;
+}
+
+.screenPipOverlayInteractive {
+  cursor: grab;
+}
+
+.screenPipOverlayInteractive:active {
+  cursor: grabbing;
+}
+
+.screenPipOverlayDragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.screenPipVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.screenPipAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eedcff;
+  pointer-events: none;
+}
+
+.screenPipAvatarFallback .screenPipAvatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  color: #8000ff;
+  font-size: clamp(28px, 9cqi, 70px);
+}
+
+:global(:root[data-theme="dark"]) .screenPipAvatarFallback {
+  background: #280050;
+}
+
+:global(:root[data-theme="dark"]) .screenPipAvatarFallback .screenPipAvatar {
+  color: #b58cff;
+}
+
+/* «Призрак»-кнопка восстановления: остаётся в выбранном углу когда автор
+   скрыл бублик. Виден только автору. */
+.screenPipGhost {
+  position: absolute;
+  z-index: 7;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  opacity: 0.55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.screenPipGhost:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.screenPipCorner_tl {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  bottom: auto;
+}
+
+/* В TR-углу сидят кнопки fullscreen/theater/feature (top:12px, height:40px,
+   gap:8px между группами и бубликом). Опускаем бубль под них на 64px,
+   чтобы не перекрывал управление демкой. */
+.screenPipCorner_tr {
+  top: 64px;
+  right: 6px;
+  left: auto;
+  bottom: auto;
+}
+
+.screenPipCorner_bl {
+  bottom: 6px;
+  left: 6px;
+  top: auto;
+  right: auto;
+}
+
+.screenPipCorner_br {
+  bottom: 6px;
+  right: 6px;
+  top: auto;
+  left: auto;
+}
+
 .tileAvatarOverlay .tileAvatar .participantGuestAvatarFace {
   fill: #8000ff;
 }
@@ -4301,7 +4454,8 @@ button.stageRoomCode:disabled {
 .mobileParticipantsPanel {
   border-radius: 25px;
   box-shadow: none;
-  z-index: 2;
+  /* См. комментарий у .tabletChatPanel — перекрываем .tileCard::after (z-index 5). */
+  z-index: 10;
 }
 
 .mobileParticipantsPanel::after {
@@ -4316,7 +4470,8 @@ button.stageRoomCode:disabled {
 .mobileChatPanel {
   border-radius: 25px;
   box-shadow: none;
-  z-index: 2;
+  /* См. комментарий у .tabletChatPanel — перекрываем .tileCard::after (z-index 5). */
+  z-index: 10;
 }
 
 .mobileChatPanel::before {
@@ -5746,6 +5901,10 @@ button.stageRoomCode .roomCodeCopyHint {
 
 :global(:root[data-theme="dark"]) .viewIndicatorDot[data-distance="3"] {
   background: #999999;
+}
+
+:global(:root[data-theme="dark"]) .viewIndicatorArrow {
+  color: #ffffff;
 }
 
 :global(:root[data-theme="dark"]) .mobileToolbarHandleThumbBlack {
