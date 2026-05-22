@@ -1576,7 +1576,12 @@
 
 .join-room-name {
   display: block;
-  max-width: 44%;
+  /* .join-room-code позиционируется absolute по центру (left: 50%, translateX(-50%)).
+     Чтобы длинное название не заезжало под код, обрезаем его эллипсисом до того,
+     как оно дойдёт до левой кромки кода. 100px ≈ половина 10-символьного слага +
+     ощутимый воздух. Подходит и для широкой версии 435px, и для мобильной 290px. */
+  max-width: calc(50% - 100px);
+  padding-right: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
