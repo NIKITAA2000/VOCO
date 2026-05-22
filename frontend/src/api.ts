@@ -183,8 +183,13 @@ class ApiClient {
     return this.request(`/rooms/${slug}/restore`, { method: "POST" });
   }
 
-  async getRoomReport(slug: string) {
-    return this.request(`/rooms/${slug}/report`);
+  async getRoomReport(slug: string, sessionId?: string) {
+    const qs = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return this.request(`/rooms/${slug}/report${qs}`);
+  }
+
+  async listRoomSessions(slug: string) {
+    return this.request(`/rooms/${slug}/sessions`);
   }
 
   async approveParticipant(slug: string, identity: string) {

@@ -37,11 +37,36 @@ export async function initDatabase() {
       ALTER TABLE rooms ADD COLUMN IF NOT EXISTS require_approval BOOLEAN DEFAULT false;
 
       -- Начало текущей сессии. Сессия = открытая комната от создания/восстановления
-      -- до следующего закрытия. Отчёт строится по последней (только что закрытой)
-      -- сессии. Для старых строк бэкфилл = created_at.
+      -- до следующего закрытия. Для старых строк бэкфилл = created_at.
+      -- Полная история сессий — в room_sessions; здесь дублируется только начало
+      -- активной сессии для совместимости (отчёт «по последней» без sessionId).
       ALTER TABLE rooms ADD COLUMN IF NOT EXISTS current_session_started_at TIMESTAMP;
       UPDATE rooms SET current_session_started_at = created_at
         WHERE current_session_started_at IS NULL;
+
+      -- История сессий комнаты. Каждый «открытый» интервал — отдельная строка.
+      -- Создаётся при создании комнаты, закрывается при DELETE (с is_active=true),
+      -- новая строка добавляется при /restore. Нужна, чтобы можно было выгрузить
+      -- отчёт по любой прошлой сессии (а не только по последней).
+      CREATE TABLE IF NOT EXISTS room_sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        started_at TIMESTAMP NOT NULL,
+        ended_at TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_room_sessions_room
+        ON room_sessions(room_id, started_at DESC);
+
+      -- Backfill: для комнат, у которых ещё нет ни одной строки в room_sessions,
+      -- создаём ровно одну запись из current_session_started_at + closed_at.
+      -- Для активных комнат ended_at=NULL, для закрытых = closed_at.
+      INSERT INTO room_sessions (room_id, started_at, ended_at)
+      SELECT r.id, r.current_session_started_at, r.closed_at
+      FROM rooms r
+      WHERE NOT EXISTS (
+        SELECT 1 FROM room_sessions s WHERE s.room_id = r.id
+      );
 
       CREATE TABLE IF NOT EXISTS participants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

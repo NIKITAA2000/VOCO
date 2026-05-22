@@ -107,6 +107,12 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
   const [joinLoading, setJoinLoading] = useState(false);
   const [closedRoomActionLoading, setClosedRoomActionLoading] = useState("");
   const [closedRoomMenuOpen, setClosedRoomMenuOpen] = useState("");
+  // Slug комнаты, для которой открыта выпадашка выбора сессии (кнопка «отчёт»).
+  const [reportMenuOpen, setReportMenuOpen] = useState("");
+  // Кэш списка завершённых сессий по slug. Заполняется при первом клике на кнопку отчёта.
+  const [reportSessions, setReportSessions] = useState<
+    Record<string, { id: string; startedAt: string; endedAt: string }[]>
+  >({});
   // Закрытая комната, для которой открыт диалог подтверждения удаления.
   const [deleteRoomConfirm, setDeleteRoomConfirm] = useState<any | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -240,9 +246,33 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     return () => document.removeEventListener("click", handler);
   }, [closedRoomMenuOpen]);
 
+  // Тот же паттерн для выпадашки выбора сессии отчёта, но на mousedown —
+  // он эмитится раньше click'а, и если меню закрывается ДО клика по элементу
+  // снаружи, второй фрейм рендерится без зависшего меню. Сами кнопки внутри
+  // меню при этом останавливают всплытие в onClick, так что клики по строкам
+  // не закрывают меню преждевременно.
+  useEffect(() => {
+    if (!reportMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      // Клик по самой выпадашке (например, по скроллбару или фону) не закрываем
+      const target = e.target as Element | null;
+      if (target && target.closest(".join-room-report-menu")) return;
+      // Клик по кнопке отчёта той же комнаты — даём её собственному onClick
+      // отработать toggle (иначе мы закроем, а её handler сразу откроет обратно).
+      if (target && target.closest(".join-room-action--report")) return;
+      setReportMenuOpen("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [reportMenuOpen]);
+
   useEffect(() => {
     if (!joinOpen) {
       setClosedRoomMenuOpen("");
+      setReportMenuOpen("");
+      // Сбрасываем кэш сессий — модалку могут открыть после восстановления/закрытия
+      // комнаты, и список сессий за это время мог измениться.
+      setReportSessions({});
       setShowHiddenRooms(false);
       return;
     }
@@ -341,18 +371,85 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
     setJoinError(`Видеозапись комнаты «${room?.name ?? "Комната"}» недоступна`);
   };
 
-  const handleClosedRoomReport = async (room: any) => {
-    if (!room?.slug || closedRoomActionLoading) return;
+  // Качаем отчёт за конкретную сессию. sessionId undefined = «последняя сессия»
+  // (бэкенд использует current_session_started_at + closed_at — поведение по умолчанию).
+  const downloadReportForSession = async (room: any, sessionId?: string) => {
+    if (!room?.slug) return;
     setJoinError("");
     setClosedRoomActionLoading(`report:${room.slug}`);
     try {
-      const data: any = await api.getRoomReport(room.slug);
+      const data: any = await api.getRoomReport(room.slug, sessionId);
       await downloadRoomReportPdf(data.report as RoomReport);
     } catch (err: any) {
       setJoinError(err?.message || "Не удалось скачать отчёт");
     } finally {
       setClosedRoomActionLoading("");
     }
+  };
+
+  // Клик по кнопке отчёта закрытой комнаты. Если у комнаты ровно одна завершённая
+  // сессия — сразу качаем PDF (равно поведению до фичи). Если их несколько —
+  // открываем выпадашку для выбора. Список сессий кэшируется в reportSessions.
+  const handleClosedRoomReport = async (room: any) => {
+    if (!room?.slug || closedRoomActionLoading) return;
+    setJoinError("");
+    // Если уже открыта для этой комнаты — закрываем без запросов
+    if (reportMenuOpen === room.slug) {
+      setReportMenuOpen("");
+      return;
+    }
+    setClosedRoomMenuOpen("");
+
+    const cached = reportSessions[room.slug];
+    if (cached) {
+      if (cached.length <= 1) {
+        await downloadReportForSession(room, cached[0]?.id);
+      } else {
+        setReportMenuOpen(room.slug);
+      }
+      return;
+    }
+
+    setClosedRoomActionLoading(`report:${room.slug}`);
+    try {
+      const data: any = await api.listRoomSessions(room.slug);
+      const list = (data.sessions ?? []) as {
+        id: string;
+        startedAt: string;
+        endedAt: string;
+      }[];
+      setReportSessions((prev) => ({ ...prev, [room.slug]: list }));
+      setClosedRoomActionLoading("");
+      if (list.length <= 1) {
+        await downloadReportForSession(room, list[0]?.id);
+      } else {
+        setReportMenuOpen(room.slug);
+      }
+    } catch (err: any) {
+      setClosedRoomActionLoading("");
+      setJoinError(err?.message || "Не удалось загрузить список сессий");
+    }
+  };
+
+  // Формат строки сессии: «DD.MM.YYYY HH:MM · 5 мин» / «2 ч 30 мин» / «<1 мин».
+  // Раньше показывали «HH:MM → HH:MM», но для коротких сессий обе границы
+  // совпадали поминутно («20:26 → 20:26») и это выглядело странно.
+  const formatSessionRange = (startedAt: string, endedAt: string): string => {
+    const s = new Date(startedAt);
+    const e = new Date(endedAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const date = `${pad(s.getDate())}.${pad(s.getMonth() + 1)}.${s.getFullYear()}`;
+    const time = `${pad(s.getHours())}:${pad(s.getMinutes())}`;
+    const totalMin = Math.floor(Math.max(0, e.getTime() - s.getTime()) / 60000);
+    let duration: string;
+    if (totalMin < 1) duration = "<1 мин";
+    else if (totalMin < 60) duration = `${totalMin} мин`;
+    else {
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      duration = m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
+    }
+    return `${date} ${time} · ${duration}`;
   };
 
   const handleClosedRoomDelete = async (room: any) => {
@@ -1007,16 +1104,39 @@ export function DashboardPage({ user, onLogout, onUserUpdate }: Props) {
                                 handleClosedRoomVideo(room);
                               }}
                             />
-                            <button
-                              type="button"
-                              className="join-room-action join-room-action--report"
-                              aria-label="Скачать отчёт"
-                              disabled={closedRoomActionLoading === `report:${room.slug}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleClosedRoomReport(room);
-                              }}
-                            />
+                            <span className="join-room-report-wrap">
+                              <button
+                                type="button"
+                                className="join-room-action join-room-action--report"
+                                aria-label="Скачать отчёт"
+                                aria-expanded={reportMenuOpen === room.slug}
+                                disabled={closedRoomActionLoading === `report:${room.slug}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleClosedRoomReport(room);
+                                }}
+                              />
+                              {reportMenuOpen === room.slug && (reportSessions[room.slug]?.length ?? 0) > 1 && (
+                                <span className="join-room-report-menu" role="menu">
+                                  {reportSessions[room.slug]!.map((session) => (
+                                    <button
+                                      key={session.id}
+                                      type="button"
+                                      role="menuitem"
+                                      className="join-room-report-menu-item"
+                                      disabled={closedRoomActionLoading === `report:${room.slug}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setReportMenuOpen("");
+                                        void downloadReportForSession(room, session.id);
+                                      }}
+                                    >
+                                      {formatSessionRange(session.startedAt, session.endedAt)}
+                                    </button>
+                                  ))}
+                                </span>
+                              )}
+                            </span>
                             {isHidden ? (
                               <button
                                 type="button"

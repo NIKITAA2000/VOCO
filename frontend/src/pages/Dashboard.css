@@ -4641,3 +4641,113 @@
 :root[data-theme="dark"] .voco-modal-close svg path {
   stroke: #ffffff;
 }
+
+/* Кнопка «отчёт» закрытой комнаты + выпадашка выбора сессии.
+   Враппер нужен ради позиционирования выпадашки относительно кнопки;
+   в .join-room-actions кнопка раньше лежала плоско. */
+.join-room-report-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 50px;
+  height: 50px;
+}
+
+.join-room-report-menu {
+  position: absolute;
+  top: 56px;
+  right: 0;
+  width: 240px;
+  /* Ровно 3 строки: 3 × ~38px + 4px паддинг = ~118px. */
+  max-height: 118px;
+  overflow-y: auto;
+  /* Без этого появлялся горизонтальный скроллбар на 1-2px из-за nowrap-строк. */
+  overflow-x: hidden;
+  border-radius: 8px;
+  padding: 4px 0;
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+  color: #000000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 37, 80, 0.35) transparent;
+}
+
+.join-room-report-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.join-room-report-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.join-room-report-menu::-webkit-scrollbar-thumb {
+  background: rgba(0, 37, 80, 0.35);
+  border-radius: 3px;
+}
+
+.join-room-report-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 37, 80, 0.55);
+}
+
+.theme-dark .join-room-report-menu,
+:root[data-theme="dark"] .join-room-report-menu {
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+.theme-dark .join-room-report-menu::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] .join-room-report-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.theme-dark .join-room-report-menu::-webkit-scrollbar-thumb:hover,
+:root[data-theme="dark"] .join-room-report-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.join-room-item:last-child .join-room-report-menu {
+  top: auto;
+  bottom: 56px;
+  background: linear-gradient(0deg, #deeeff 0%, #ffffff 100%);
+}
+
+.join-room-report-menu-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.join-room-report-menu-item:hover:not(:disabled) {
+  background: rgba(0, 37, 80, 0.08);
+}
+
+.join-room-report-menu-item:disabled {
+  cursor: progress;
+  opacity: 0.45;
+}
+
+.theme-dark .join-room-report-menu,
+:root[data-theme="dark"] .join-room-report-menu {
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+  color: #ffffff;
+}
+
+.theme-dark .join-room-item:last-child .join-room-report-menu,
+:root[data-theme="dark"] .join-room-item:last-child .join-room-report-menu {
+  background: linear-gradient(0deg, #002550 0%, #222222 100%);
+}
+
+.theme-dark .join-room-report-menu-item:hover:not(:disabled),
+:root[data-theme="dark"] .join-room-report-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
