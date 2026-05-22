@@ -4109,6 +4109,10 @@ button.stageRoomCode:disabled {
   touch-action: none;
   user-select: none;
   transition: transform 0.18s ease, width 0.15s ease;
+  /* Сам бублик — container для своих потомков (cqi внутри = % от ширины
+     бублика). Без этого font-size текстовых смайликов брал cqi от tile
+     wrapper и не уменьшался вместе с бубликом. */
+  container-type: inline-size;
 }
 
 .screenPipOverlayInteractive {
@@ -4148,7 +4152,10 @@ button.stageRoomCode:disabled {
   border-radius: 0;
   background: transparent;
   color: #8000ff;
-  font-size: clamp(28px, 9cqi, 70px);
+  /* cqi теперь от самого бублика (см. container-type на .screenPipOverlay) —
+     шрифт смайлика масштабируется вместе с размером бублика. 25% от ширины
+     даёт ~3 символам ("O_O") влезть с запасом. */
+  font-size: clamp(14px, 25cqi, 60px);
 }
 
 :global(:root[data-theme="dark"]) .screenPipAvatarFallback {
