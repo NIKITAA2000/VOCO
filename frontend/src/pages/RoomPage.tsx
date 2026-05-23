@@ -862,10 +862,29 @@ function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
-function FunSoundIcon() {
+// Иконка для header-кнопки fun-звука: центральная точка + две пары дуг,
+// расходящихся в стороны (звук «излучается» в обе стороны). По figma 1110_???
+// — 50×50 viewBox, фон кружка задаёт сама кнопка через CSS.
+function FunSoundBroadcastIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" aria-hidden="true">
+      <path
+        d="M32.0711 17.9289C35.4881 21.346 35.9153 26.6207 33.3527 30.5022C33.1696 30.7795 32.9711 31.0496 32.7575 31.3115C32.5439 31.5733 32.3152 31.827 32.0711 32.0711L30.6569 30.6569C31.6332 29.6805 32.3044 28.5144 32.6705 27.2774C32.7436 27.0302 32.8047 26.7801 32.8534 26.5282C33.1708 24.8893 32.9727 23.1703 32.2589 21.6316C32.149 21.3947 32.0266 21.1622 31.8922 20.9348C31.6238 20.4805 31.3066 20.0472 30.9407 19.6421L30.6569 19.3431L32.0711 17.9289Z"
+        fill="currentColor"
+      />
+      <circle cx="25.0001" cy="25" r="2" transform="rotate(-45 25.0001 25)" fill="currentColor" />
+      <path
+        d="M29.4553 20.9811C31.5835 23.3364 31.5126 26.9727 29.2426 29.2426L27.8284 27.8284C29.3417 26.3152 29.3892 23.8909 27.9707 22.3207C27.9249 22.27 27.8773 22.2204 27.8284 22.1716L29.2426 20.7574C29.3158 20.8305 29.3867 20.9052 29.4553 20.9811Z"
+        fill="currentColor"
+      />
+      <path
+        d="M20.5447 29.0189C18.4165 26.6636 18.4874 23.0273 20.7574 20.7574L22.1716 22.1716C20.6583 23.6848 20.6108 26.1091 22.0293 27.6793C22.0751 27.73 22.1227 27.7796 22.1716 27.8284L20.7574 29.2426C20.6842 29.1695 20.6133 29.0948 20.5447 29.0189Z"
+        fill="currentColor"
+      />
+      <path
+        d="M17.9289 32.0711C14.5119 28.654 14.0847 23.3793 16.6473 19.4978C16.8304 19.2205 17.0289 18.9504 17.2425 18.6885C17.4561 18.4267 17.6848 18.173 17.9289 17.9289L19.3431 19.3431C18.3668 20.3195 17.6956 21.4856 17.3295 22.7226C17.2564 22.9698 17.1953 23.2199 17.1466 23.4718C16.8292 25.1107 17.0273 26.8297 17.7411 28.3684C17.851 28.6053 17.9734 28.8378 18.1078 29.0652C18.3762 29.5195 18.6934 29.9528 19.0593 30.3579L19.3431 30.6569L17.9289 32.0711Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -5831,6 +5850,22 @@ export function ConferenceRoomContent({
       </button>
     ) : null;
 
+  // Кнопка fun-звука в шапке (рядом с шестерёнкой). Видна только owner'у
+  // И только если room.sounds.fun != null — без owner-настройки кнопка скрыта.
+  // Клик — тот же handlePlayFunSound: локально проигрывает и публикует topic
+  // voco-sound-play всем участникам.
+  const renderHeaderFunSoundButton = (className?: string) =>
+    (isOwner || roomRole === "OWNER") && funUrl ? (
+      <button
+        type="button"
+        className={`${styles.headerFunSoundButton} ${className ?? ""}`}
+        onClick={handlePlayFunSound}
+        aria-label="Прикольный звук"
+      >
+        <FunSoundBroadcastIcon />
+      </button>
+    ) : null;
+
   const renderSettingsPanel = (layoutClass: string) =>
     isSettingsPanelOpen && slug ? (
       <SettingsPanel
@@ -6001,6 +6036,7 @@ export function ConferenceRoomContent({
           ) : null}
 
           {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
+          {renderHeaderFunSoundButton(styles.tabletHeaderFunSoundButton)}
           {renderSettingsPanel(styles.tabletSettingsPanel)}
           {renderClearChatConfirm()}
           {renderPollModal()}
@@ -6295,6 +6331,7 @@ export function ConferenceRoomContent({
           )}
 
           {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
+          {renderHeaderFunSoundButton(styles.mobileHeaderFunSoundButton)}
           {renderSettingsPanel(styles.mobileSettingsPanel)}
           {renderClearChatConfirm()}
           {renderPollModal()}
@@ -6522,6 +6559,7 @@ export function ConferenceRoomContent({
         })}
 
         {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
+        {renderHeaderFunSoundButton(styles.desktopHeaderFunSoundButton)}
         {renderSettingsPanel(styles.desktopSettingsPanel)}
         {renderClearChatConfirm()}
         {renderPollModal()}
@@ -6675,16 +6713,7 @@ export function ConferenceRoomContent({
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
-        {(isOwner || roomRole === "OWNER") && funUrl ? (
-          <button
-            type="button"
-            className={styles.desktopFunSoundButton}
-            onClick={handlePlayFunSound}
-            aria-label="Прикольный звук"
-          >
-            <FunSoundIcon />
-          </button>
-        ) : null}
+        {/* Кнопка fun-звука переехала в шапку (см. renderHeaderFunSoundButton). */}
 
         <div className={`${styles.utilityGroup} ${styles.desktopUtilityGroup}`}>
           <button

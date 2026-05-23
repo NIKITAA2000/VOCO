@@ -3576,7 +3576,8 @@ button.stageRoomCode:disabled {
 
 .desktopConferenceName,
 .tabletConferenceName {
-  left: 88px;
+  /* После settings (28..78) + fun-кнопки (78..128) — название начинается с 138. */
+  left: 138px;
   top: 20px;
   width: 460px;
   zoom: var(--room-scale);
@@ -3585,7 +3586,7 @@ button.stageRoomCode:disabled {
 
 .desktopRoomCode,
 .tabletRoomCode {
-  left: 88px;
+  left: 138px;
   width: 326px;
   height: 15px;
   z-index: 4;
@@ -4359,7 +4360,9 @@ button.stageRoomCode:disabled {
 
 .mobileConferenceName {
   position: fixed;
-  left: calc(50% - 125px);
+  /* Сдвинули вправо на 60px — освободили место под fun-кнопку
+     (settings: 50%-185..50%-135, fun: 50%-135..50%-85). */
+  left: calc(50% - 65px);
   top: 30px;
   width: 227px;
   height: 31px;
@@ -4370,7 +4373,7 @@ button.stageRoomCode:disabled {
 
 .mobileRoomCode {
   position: fixed;
-  left: calc(50% - 125px);
+  left: calc(50% - 65px);
   top: 59px;
   width: 111px;
   height: 15px;
@@ -10218,42 +10221,51 @@ button.stageRoomCode .roomCodeCopyHint {
 /* =====================================================================
  * Fun-sound button (bottomBar).
  * ===================================================================== */
-/* Кнопка в desktop-layout-баре. Слой использует `position: fixed` с явным
- * `left`, как у `.desktopScreenShareButton` / `.desktopDeviceSlot`. Свободное
- * место между ScreenShare (left:700 + width:200 = 900) и utility group
- * (right:18). Кладём кнопку на left:920. */
-/* Owner-only «прикольный звук» — отдельный круглый кнопка-pill 50×50,
- * визуально матчится с utility-кнопками (User/Chat/Hand/Record), но стоит
- * слева от их группы в своём собственном кружке (right: 18 + 200 + 10 = 228). */
-.desktopFunSoundButton {
+/* Owner-only «прикольный звук» — кнопка в шапке рядом с шестерёнкой.
+ * По figma 1110_???: 50×50 круг #DDDDDD, иконка «звук излучается в обе
+ * стороны» 30×30 в центре. Visible только owner'у и только при funUrl != null. */
+.headerFunSoundButton {
   position: fixed;
-  bottom: 25px;
-  right: 228px;
   width: 50px;
   height: 50px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #ddd;
-  color: #000;
+  background: #dddddd;
+  color: #000000;
   cursor: pointer;
   display: grid;
   place-items: center;
   overflow: hidden;
-  zoom: var(--room-scale);
   z-index: 4;
 }
 
-.desktopFunSoundButton:focus,
-.desktopFunSoundButton:focus-visible {
+.headerFunSoundButton:hover,
+.headerFunSoundButton:focus,
+.headerFunSoundButton:focus-visible {
   outline: none;
+  filter: brightness(0.96);
 }
 
-.desktopFunSoundButton > svg {
+.headerFunSoundButton > svg {
   display: block;
 }
 
-:global(:root[data-theme="dark"]) .desktopFunSoundButton {
+.desktopHeaderFunSoundButton,
+.tabletHeaderFunSoundButton {
+  /* Settings — left:28 + width:50 = 78. Кнопка вплотную справа. */
+  left: 78px;
+  top: 25px;
+  zoom: var(--room-scale);
+}
+
+.mobileHeaderFunSoundButton {
+  /* Settings — left:calc(50% - 185px). Здесь сразу за ней + 50px. */
+  left: calc(50% - 135px);
+  top: 27px;
+}
+
+:global(:root[data-theme="dark"]) .headerFunSoundButton {
   background: #444444;
-  color: #fff;
+  color: #ffffff;
 }
