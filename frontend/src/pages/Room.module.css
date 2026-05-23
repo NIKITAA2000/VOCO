@@ -3576,20 +3576,32 @@ button.stageRoomCode:disabled {
 
 .desktopConferenceName,
 .tabletConferenceName {
-  /* После settings (28..78) + fun-кнопки (78..128) — название начинается с 138. */
-  left: 138px;
+  left: 88px;
   top: 20px;
   width: 460px;
   zoom: var(--room-scale);
   z-index: 4;
 }
 
+/* Когда у owner'а в шапке есть кнопка fun-звука (.headerFunSoundButton на
+   left:78), название и код сдвигаются вправо, чтобы не лезть под неё. Без
+   fun-кнопки — стоят вплотную к шестерёнке (left:88). */
+.desktopConferenceName.withHeaderFunButton,
+.tabletConferenceName.withHeaderFunButton {
+  left: 138px;
+}
+
 .desktopRoomCode,
 .tabletRoomCode {
-  left: 138px;
+  left: 88px;
   width: 326px;
   height: 15px;
   z-index: 4;
+}
+
+.desktopRoomCode.withHeaderFunButton,
+.tabletRoomCode.withHeaderFunButton {
+  left: 138px;
 }
 
 .desktopRoomCode {
@@ -4360,9 +4372,7 @@ button.stageRoomCode:disabled {
 
 .mobileConferenceName {
   position: fixed;
-  /* Сдвинули вправо на 60px — освободили место под fun-кнопку
-     (settings: 50%-185..50%-135, fun: 50%-135..50%-85). */
-  left: calc(50% - 65px);
+  left: calc(50% - 125px);
   top: 30px;
   width: 227px;
   height: 31px;
@@ -4371,15 +4381,24 @@ button.stageRoomCode:disabled {
   z-index: 3;
 }
 
+/* С fun-кнопкой в шапке сдвигаем название и код на +60px (под кнопку). */
+.mobileConferenceName.withHeaderFunButton {
+  left: calc(50% - 65px);
+}
+
 .mobileRoomCode {
   position: fixed;
-  left: calc(50% - 65px);
+  left: calc(50% - 125px);
   top: 59px;
   width: 111px;
   height: 15px;
   font-size: 11px;
   line-height: 16px;
   z-index: 3;
+}
+
+.mobileRoomCode.withHeaderFunButton {
+  left: calc(50% - 65px);
 }
 
 .mobileHeaderInviteButton {

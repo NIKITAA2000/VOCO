@@ -5854,8 +5854,13 @@ export function ConferenceRoomContent({
   // И только если room.sounds.fun != null — без owner-настройки кнопка скрыта.
   // Клик — тот же handlePlayFunSound: локально проигрывает и публикует topic
   // voco-sound-play всем участникам.
+  const hasHeaderFunSound = Boolean((isOwner || roomRole === "OWNER") && funUrl);
+  // Когда fun-кнопка видна, название и код комнаты сдвигаются вправо — иначе
+  // они стоят как раньше, вплотную к шестерёнке. Передаём этот модификатор
+  // в className рядом с layout-вариантом (desktopConferenceName и т.д.).
+  const headerFunOffsetClass = hasHeaderFunSound ? styles.withHeaderFunButton : "";
   const renderHeaderFunSoundButton = (className?: string) =>
-    (isOwner || roomRole === "OWNER") && funUrl ? (
+    hasHeaderFunSound ? (
       <button
         type="button"
         className={`${styles.headerFunSoundButton} ${className ?? ""}`}
@@ -6042,13 +6047,13 @@ export function ConferenceRoomContent({
           {renderPollModal()}
           {renderPollResults()}
 
-          <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
+          <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName} ${headerFunOffsetClass}`}>
             {roomTitle}
           </h1>
           {slug ? (
-            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode}`)
+            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode} ${headerFunOffsetClass}`)
           ) : (
-            <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode}`}>
+            <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode} ${headerFunOffsetClass}`}>
               {roomCodeLabel}
             </div>
           )}
@@ -6319,13 +6324,13 @@ export function ConferenceRoomContent({
             </aside>
           ) : null}
 
-          <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName}`}>
+          <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName} ${headerFunOffsetClass}`}>
             {roomTitle}
           </h1>
           {slug ? (
-            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode}`)
+            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode} ${headerFunOffsetClass}`)
           ) : (
-            <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode}`}>
+            <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode} ${headerFunOffsetClass}`}>
               {roomCodeLabel}
             </div>
           )}
@@ -6565,13 +6570,13 @@ export function ConferenceRoomContent({
         {renderPollModal()}
         {renderPollResults()}
 
-        <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
+        <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName} ${headerFunOffsetClass}`}>
           {roomTitle}
         </h1>
         {slug ? (
-          renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode}`)
+          renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode} ${headerFunOffsetClass}`)
         ) : (
-          <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode}`}>
+          <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode} ${headerFunOffsetClass}`}>
             {roomCodeLabel}
           </div>
         )}
