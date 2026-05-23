@@ -4773,9 +4773,29 @@ export function ConferenceRoomContent({
     );
   }, [localParticipant, handRaisedMap]);
 
+  // Сетевой push атрибутов PiP дебаунсится: при быстром wheel-resize или
+  // частых drag'ах локальная карта обновляется мгновенно, но в эфир уходит
+  // только последнее состояние через 200мс тишины. Иначе SDK копит запросы,
+  // signal-channel не успевает ackнуть и прилетает SignalRequestError timeout.
+  const pipPendingRef = useRef<{
+    corner: PipCorner;
+    hidden: boolean;
+    scale: number;
+  } | null>(null);
+  const pipFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pipFlushTimerRef.current) {
+        clearTimeout(pipFlushTimerRef.current);
+        pipFlushTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // Локальный автор демки меняет позицию, размер или видимость своего
-  // PiP-бублика. Optimistic-апдейт + публикация атрибутов LiveKit (всем
-  // зрителям прилетит через ParticipantAttributesChanged).
+  // PiP-бублика. Optimistic-апдейт + дебаунсированная публикация атрибутов
+  // LiveKit (всем зрителям прилетит через ParticipantAttributesChanged).
   const publishPipState = useCallback(
     (next: { corner: PipCorner; hidden: boolean; scale: number }) => {
       if (!localParticipant) return;
@@ -4799,15 +4819,24 @@ export function ConferenceRoomContent({
           prev[identity] === safeScale ? prev : { ...prev, [identity]: safeScale },
         );
       }
-      void Promise.resolve(
-        localParticipant.setAttributes({
-          screenPipCorner: next.corner,
-          screenPipHidden: next.hidden ? "true" : "false",
-          screenPipScale: safeScale.toFixed(1),
-        }),
-      ).catch((err) => {
-        console.error("setAttributes(screenPip*) failed", err);
-      });
+
+      pipPendingRef.current = { corner: next.corner, hidden: next.hidden, scale: safeScale };
+      if (pipFlushTimerRef.current) clearTimeout(pipFlushTimerRef.current);
+      pipFlushTimerRef.current = setTimeout(() => {
+        pipFlushTimerRef.current = null;
+        const payload = pipPendingRef.current;
+        pipPendingRef.current = null;
+        if (!payload) return;
+        void Promise.resolve(
+          localParticipant.setAttributes({
+            screenPipCorner: payload.corner,
+            screenPipHidden: payload.hidden ? "true" : "false",
+            screenPipScale: payload.scale.toFixed(1),
+          }),
+        ).catch((err) => {
+          console.error("setAttributes(screenPip*) failed", err);
+        });
+      }, 200);
     },
     [localParticipant],
   );
