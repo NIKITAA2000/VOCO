@@ -7291,6 +7291,21 @@ button.stageRoomCode .roomCodeCopyHint {
   background: linear-gradient(180deg, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
 }
 
+/* Sounds tab — те же синие градиенты, что и у link, чтобы вкладка
+   визуально жила на голубой подложке #DEEEFF. */
+.settingsPanel[data-tab="sounds"] .settingsTab {
+  background: linear-gradient(180deg, #dddddd 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="sounds"] .settingsTab:hover {
+  background: linear-gradient(180deg, #cccccc 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="sounds"] .settingsTabActive,
+.settingsPanel[data-tab="sounds"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(222, 238, 255, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .settingsTab {
   color: #eee;
   background: linear-gradient(180deg, #2a2a2a 0%, rgba(26, 58, 26, 0) 100%);
@@ -7303,6 +7318,11 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .settingsTabActive,
 :global(:root[data-theme="dark"]) .settingsTabActive:hover {
   background: linear-gradient(180deg, #00aa00 0%, rgba(26, 58, 26, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(0, 37, 80, 0) 100%);
 }
 
 .settingsClose {
@@ -7399,6 +7419,13 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsPanel[data-tab="ban"] .settingsField select:focus-visible,
 .settingsPanel[data-tab="ban"] .settingsFakeSelect:focus-visible {
   box-shadow: inset 0 0 0 2px #ff3333;
+}
+
+/* По дизайну вкладки «Звуки» — никакой focus-рамки на pill-инпутах. */
+.settingsPanel[data-tab="sounds"] .settingsField input:focus-visible,
+.settingsPanel[data-tab="sounds"] .settingsField select:focus-visible,
+.settingsPanel[data-tab="sounds"] .settingsFakeSelect:focus-visible {
+  box-shadow: none;
 }
 
 .settingsField input:disabled {
@@ -9812,16 +9839,56 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsPanel[data-tab="sounds"] {
   height: 550px;
   max-height: calc(100vh - 32px);
+  /* По дизайну вкладка идёт на «ссылочном» голубом #DEEEFF → белый,
+     а не на дефолтном «settings»-зелёном. */
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] {
+  /* По figma — #002550 → #222222 (180deg). */
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
 }
 
 .soundsBody {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 20px 14px;
+  /* top 0 — заголовок «Плейлист…» прижат к шапке вкладок без воздуха.
+     Слева 0 — pill'ы вытянуты максимально к левому краю панели. Справа 6px —
+     зазор под кастомный скроллбар (шириной 6px), иначе pill'ы прячутся за ним.
+     Снизу 0 — последний хинт «mp3/ogg/wav до 1 МБ» прижат к низу панели. */
+  padding: 0 6px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  /* Компактный gap между группами (input-блоки / pill-блоки). Внутри одной
+     группы (.soundsField) — свой меньший gap (2px). */
+  gap: 8px;
   overflow-y: auto;
+}
+
+/* Список треков. Между треками 10px (тесно), как в дизайне. Снизу
+   margin-bottom — добавляет воздух перед формой добавления (плюс к gap'у 8). */
+.soundsTrackList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* Группа «лейбл + инпут» или «pill + хинт». Внутри группы 2px, между группами
+   .soundsBody gap (8px). */
+.soundsField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Блок «Аудио + Обложка» внутри add-track формы. Отделён от текстовых полей
+   выше дополнительным отступом сверху — визуально это отдельная секция. */
+.soundsAddFiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 /* Цветные scrollbar'ы — каждая вкладка в свой цвет, плюс синий для списка
@@ -9880,58 +9947,68 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 .settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #cc2222; }
 
-/* Sounds tab — зелёный в тон активной вкладки */
+/* Sounds tab — синий в тон голубой подложки */
 .settingsPanel[data-tab="sounds"] .settingsBody {
   scrollbar-width: thin;
-  scrollbar-color: #00ff00 transparent;
+  scrollbar-color: #0077ff transparent;
 }
 .settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar { width: 6px; }
 .settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
 .settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb {
-  background: #00ff00;
+  background: #0077ff;
   border-radius: 3px;
 }
-.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #00cc00; }
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #0066d9; }
 
-.soundsSection {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+/* Вкладка «Звуки»: новая раскладка по дизайну (figma 1107_93).
+ * Структура: заголовок плейлиста + счётчик + ряды треков (icon|name|▶|✕|☰),
+ * затем add-form (label/input × 2, два pill'а файлов с «+», submit-кнопка),
+ * затем 3 одиночных звука в pill'ах (label|▶|+) с подсказкой-форматом.
+ * Ширина колонки = 300px (parent .soundsBody с padding 20 10). */
 
-.soundsSectionTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--settings-text, #1a1a1a);
+.soundsPlaylistTitle {
+  font-family: 'Jost', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
   margin: 0;
+  text-align: left;
+  padding-left: 6px;
 }
 
-.soundsSectionHint {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.55);
-  margin: 0;
+.soundsTrackCount {
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000000;
+  /* Поджимаем к заголовку: -4 съедает часть .soundsBody-gap (8px),
+     оставляя ~4px между «Плейлист…» и счётчиком. */
+  margin: -4px 0 0;
 }
 
+/* Ряд трека — тонкая синяя рамка по периметру (как в дизайне 1110_315),
+   3 равных 50×50 action-слота справа. Без подложки — фон проступает с панели. */
 .soundsTrackRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.04);
+  gap: 0;
+  min-height: 50px;
+  padding: 0;
+  background: transparent;
+}
+
+.soundsTrackRow[draggable="true"] {
+  cursor: default;
 }
 
 .soundsTrackThumb {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 20px;
-  flex: 0 0 auto;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, #0077ff 50%, #00ff00 100%);
   overflow: hidden;
 }
 
@@ -9941,139 +10018,143 @@ button.stageRoomCode .roomCodeCopyHint {
   object-fit: cover;
 }
 
-.soundsTrackMeta {
+.soundsTrackName {
   flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
-}
-
-.soundsTrackTitle {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
+  padding: 0 10px;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  color: #000000;
+  /* До 2 строк, дальше эллипсис — длинные «Гимн ЛЧ УЕФА» переносятся аккуратно. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
-.soundsTrackAuthor {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.soundsTrackActions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
+/* 50×50 слот под action-иконку (▶ / ✕ / ☰). Сама иконка 22×22 в центре. */
 .soundsActionButton {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: #1a73e8;
-  cursor: pointer;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.soundsActionButton:hover {
-  background: rgba(26, 115, 232, 0.1);
-}
-
-.soundsActionButton[data-danger="true"] {
-  color: #d33;
-}
-.soundsActionButton[data-danger="true"]:hover {
-  background: rgba(221, 51, 51, 0.1);
-}
-
-.soundsReorderButtons {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.soundsReorderButton {
-  width: 22px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
   padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
 }
 
-.soundsReorderButton:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.8);
+.soundsActionButton:hover:not(:disabled) {
+  opacity: 0.65;
 }
 
-.soundsReorderButton:disabled {
+.soundsActionButton:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.soundsAddBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border: 1px dashed rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-}
+/* Текстовые инпуты «Название трека» / «Автор трека» теперь используют общий
+   паттерн .settingsField (см. выше) — тот же что в вкладках «Настройки/Ссылка/
+   Бан». Focus-рамка для sounds-таба погашена через .settingsPanel[data-tab="sounds"]
+   override (см. выше рядом с link/ban overrides). */
 
-.soundsAddFields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.soundsAddFields input[type="text"] {
-  font-size: 12px;
-  padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  background: #fff;
-  color: #1a1a1a;
-}
-
-.soundsAddFileRow {
+/* Pill с label слева и одной-двумя круглыми кнопками справа.
+ * Используется и в add-track form (Аудио/Обложка), и в 3 одиночных звуках. */
+.soundsPill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.7);
+  width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  background: #dddddd;
+  padding: 0 10px 0 20px;
+  gap: 2px;
+  box-sizing: border-box;
 }
 
-.soundsAddFileRow input[type="file"] {
-  font-size: 11px;
+.soundsPillLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.soundsAddSubmit {
-  align-self: flex-end;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: #1a73e8;
-  color: #fff;
+.soundsPillIconButton {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000000;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.soundsPillIconButton:hover:not(:disabled) {
+  opacity: 0.65;
+}
+
+.soundsPillIconButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Подсказка-формат под pill'ами («mp3/ogg/wav до 10 МБ»). По CSS-дампу из
+   figma — Jost 16/23 чёрным, с левым отступом 20px (как у placeholder'ов).
+   Зазор от pill'а сверху задаёт родитель .soundsField (gap:6). */
+.soundsPillHint {
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
+  padding-left: 20px;
+  margin: 0;
+}
+
+/* «Добавить трек» — синяя градиентная pill-кнопка в стиле primary CTA. */
+/* «Добавить трек» по figma 1107_103: 300×50, fill 90°-градиент
+   #0077FF → #DEEEFF (50%) → #0077FF; 5px stroke с инвертированным градиентом
+   #DEEEFF → #0077FF (49.5%) → #DEEEFF; rx 22.5. Реализуем через двойной
+   background (padding-box + border-box) + прозрачный border. */
+.soundsAddSubmit {
+  width: 100%;
+  height: 50px;
+  border-radius: 25px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #deeeff 0%, #0077ff 49.52%, #deeeff 100%) border-box;
+  color: #000000;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  padding: 0;
+  /* margin-bottom отделяет блок «Добавить трек» от секции одиночных звуков
+     (плюс к gap'у 8px в .soundsBody). */
+  margin-top: 0;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.soundsAddSubmit:hover:not(:disabled) {
+  filter: brightness(1.05);
 }
 
 .soundsAddSubmit:disabled {
@@ -10081,72 +10162,57 @@ button.stageRoomCode .roomCodeCopyHint {
   cursor: not-allowed;
 }
 
-.soundsAddSubmit:hover:not(:disabled) {
-  background: #155abd;
-}
-
 .soundsAddError {
-  font-size: 11px;
-  color: #d33;
-}
-
-.soundsSingleCard {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.soundsSingleLabel {
-  flex: 1 1 auto;
+  font-family: 'Jost', sans-serif;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.7);
+  line-height: 16px;
+  color: #d33;
+  padding-left: 20px;
+  margin: -2px 0 0;
 }
 
-.soundsSingleStatus {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.55);
+/* Тёмная тема: pill'ы и инпуты на #444, текст белый. */
+:global(:root[data-theme="dark"]) .soundsPlaylistTitle,
+:global(:root[data-theme="dark"]) .soundsTrackName,
+:global(:root[data-theme="dark"]) .soundsPillLabel,
+:global(:root[data-theme="dark"]) .soundsActionButton,
+:global(:root[data-theme="dark"]) .soundsPillIconButton {
+  color: #ffffff;
 }
 
-.soundsTitleEdit {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 2px 4px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-  background: #fff;
-  color: #1a1a1a;
-  width: 100%;
-  box-sizing: border-box;
+:global(:root[data-theme="dark"]) .soundsTrackCount {
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .soundsTrackRow,
-:global(:root[data-theme="dark"]) .soundsSingleCard {
-  background: rgba(255, 255, 255, 0.06);
+:global(:root[data-theme="dark"]) .soundsPillHint {
+  /* В figma все вспомогательные подписи белые в тёмной теме. */
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .soundsSectionTitle {
-  color: #fff;
+:global(:root[data-theme="dark"]) .soundsPill {
+  background: #444444;
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .soundsSectionHint,
-:global(:root[data-theme="dark"]) .soundsSingleLabel,
-:global(:root[data-theme="dark"]) .soundsSingleStatus,
-:global(:root[data-theme="dark"]) .soundsTrackAuthor {
-  color: rgba(255, 255, 255, 0.6);
+/* Текстовые инпуты «Название трека» / «Автор трека» используют общий
+   .settingsField, у которого дефолтный dark-фон #2a2a2a. На вкладке «Звуки»
+   по дизайну фон #444444 (как у pill'ов), placeholder #999999. */
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsField input {
+  background: #444444;
+  color: #ffffff;
 }
 
-:global(:root[data-theme="dark"]) .soundsAddFields input[type="text"],
-:global(:root[data-theme="dark"]) .soundsTitleEdit {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #fff;
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsField input::placeholder {
+  color: #999999;
 }
 
-:global(:root[data-theme="dark"]) .soundsAddBlock {
-  border-color: rgba(255, 255, 255, 0.2);
+/* Submit-кнопка «Добавить трек» в dark — по figma 1107_103 (dark variant):
+   fill #0077FF → #002550 (50%) → #0077FF; stroke #002550 → #0077FF → #002550. */
+:global(:root[data-theme="dark"]) .soundsAddSubmit {
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #002550 0%, #0077ff 49.52%, #002550 100%) border-box;
 }
 
 /* =====================================================================

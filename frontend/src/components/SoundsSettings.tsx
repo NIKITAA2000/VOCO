@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   api,
   type PlaylistTrack,
@@ -19,6 +19,48 @@ function useSoundPlaying(key: string): boolean {
   return playing;
 }
 
+// Минимальный набор инлайн-иконок под 22×22 «слот».
+function PlayIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M5 3v16l14-8z" fill="currentColor" />
+    </svg>
+  );
+}
+function PauseIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <rect x="5" y="3" width="4" height="16" fill="currentColor" />
+      <rect x="13" y="3" width="4" height="16" fill="currentColor" />
+    </svg>
+  );
+}
+function CrossIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <line x1="4" y1="4" x2="18" y2="18" stroke="currentColor" strokeWidth="2" />
+      <line x1="18" y1="4" x2="4" y2="18" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+function PlusIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <line x1="11" y1="2" x2="11" y2="20" stroke="currentColor" strokeWidth="2" />
+      <line x1="2" y1="11" x2="20" y2="11" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+function DragHandleIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <line x1="2" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="2" />
+      <line x1="2" y1="11" x2="20" y2="11" stroke="currentColor" strokeWidth="2" />
+      <line x1="2" y1="16" x2="20" y2="16" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 interface Props {
   slug: string;
   playlist: PlaylistTrack[];
@@ -27,9 +69,9 @@ interface Props {
 }
 
 // Owner-only вкладка «Звуки»: плейлист комнаты ожидания + 3 одиночных звука
-// (прикольный / поднятая рука / запрос на подключение). Все правки идут через
-// api.*, после успешного запроса дёргаем onChanged() — родитель перечитает
-// данные комнаты и пропы обновятся.
+// (прикольный / поднятая рука / запрос). Layout по дизайну: ряды треков ▶/✕/☰,
+// форма добавления с лейблами и отдельными pill-кнопками для аудио и обложки,
+// внизу три однотипных pill'а одиночных звуков.
 export function SoundsSettings({ slug, playlist, sounds, onChanged }: Props) {
   // При закрытии вкладки/панели — глушим все превью, иначе остаются играть
   // в фоне без UI, через который их можно остановить.
@@ -41,39 +83,37 @@ export function SoundsSettings({ slug, playlist, sounds, onChanged }: Props) {
 
   return (
     <div className={styles.soundsBody}>
-      <PlaylistEditor slug={slug} playlist={playlist} onChanged={onChanged} />
-      <SingleSoundEditor
+      <PlaylistSection slug={slug} playlist={playlist} onChanged={onChanged} />
+
+      <SingleSoundRow
         slug={slug}
         type="fun"
-        label="Прикольный звук (кнопка в конфе)"
+        label="Звук кнопки"
         currentUrl={sounds.fun}
         defaultUrl={null}
-        defaultLabel="не настроен — кнопка скрыта"
         onChanged={onChanged}
       />
-      <SingleSoundEditor
+      <SingleSoundRow
         slug={slug}
         type="hand"
-        label="Звук поднятой руки (для модераторов)"
+        label="Звук поднятой руки"
         currentUrl={sounds.hand}
         defaultUrl="/sounds/hand.mp3"
-        defaultLabel="дефолтный 'дзынь'"
         onChanged={onChanged}
       />
-      <SingleSoundEditor
+      <SingleSoundRow
         slug={slug}
         type="join"
-        label="Звук запроса на подключение (для модераторов)"
+        label="Звук запроса"
         currentUrl={sounds.join}
         defaultUrl="/sounds/join.mp3"
-        defaultLabel="дефолтное приветствие"
         onChanged={onChanged}
       />
     </div>
   );
 }
 
-function PlaylistEditor({
+function PlaylistSection({
   slug,
   playlist,
   onChanged,
@@ -82,77 +122,78 @@ function PlaylistEditor({
   playlist: PlaylistTrack[];
   onChanged: () => void | Promise<void>;
 }) {
+  // Источник для drag-reorder. Храним индекс перетаскиваемого ряда в ref —
+  // нельзя через DataTransfer (Firefox в onDragOver не отдаёт payload).
+  const dragFromRef = useRef<number | null>(null);
+
+  const handleReorder = useCallback(
+    async (from: number, to: number) => {
+      if (from === to) return;
+      const ids = playlist.map((t) => t.id);
+      const [moved] = ids.splice(from, 1);
+      ids.splice(to, 0, moved);
+      try {
+        await api.reorderPlaylist(slug, ids);
+        await onChanged();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [playlist, slug, onChanged],
+  );
+
   return (
-    <div className={styles.soundsSection}>
-      <h4 className={styles.soundsSectionTitle}>Плейлист комнаты ожидания</h4>
-      <p className={styles.soundsSectionHint}>
-        До 10 треков. mp3/ogg/wav до 10 МБ. Иконка опциональна (jpg/png/webp до 2 МБ).
-      </p>
+    <>
+      <h4 className={styles.soundsPlaylistTitle}>Плейлист комнаты ожидания</h4>
+      <div className={styles.soundsTrackCount}>{playlist.length}/10 треков</div>
 
-      {playlist.length === 0 ? (
-        <div className={styles.soundsSectionHint}>Треков пока нет.</div>
-      ) : (
-        playlist.map((track, idx) => (
-          <PlaylistRow
-            key={track.id}
-            slug={slug}
-            track={track}
-            isFirst={idx === 0}
-            isLast={idx === playlist.length - 1}
-            playlist={playlist}
-            onChanged={onChanged}
-          />
-        ))
-      )}
-
-      {playlist.length < 10 ? (
-        <AddTrackForm slug={slug} onChanged={onChanged} />
+      {playlist.length > 0 ? (
+        <div className={styles.soundsTrackList}>
+          {playlist.map((track, idx) => (
+            <PlaylistRow
+              key={track.id}
+              slug={slug}
+              track={track}
+              index={idx}
+              dragFromRef={dragFromRef}
+              onReorder={handleReorder}
+              onChanged={onChanged}
+            />
+          ))}
+        </div>
       ) : null}
-    </div>
+
+      <AddTrackForm
+        slug={slug}
+        disabled={playlist.length >= 10}
+        onChanged={onChanged}
+      />
+    </>
   );
 }
 
 function PlaylistRow({
   slug,
   track,
-  isFirst,
-  isLast,
-  playlist,
+  index,
+  dragFromRef,
+  onReorder,
   onChanged,
 }: {
   slug: string;
   track: PlaylistTrack;
-  isFirst: boolean;
-  isLast: boolean;
-  playlist: PlaylistTrack[];
+  index: number;
+  dragFromRef: React.RefObject<number | null>;
+  onReorder: (from: number, to: number) => Promise<void>;
   onChanged: () => void | Promise<void>;
 }) {
-  const [editTitle, setEditTitle] = useState(track.title);
-  const [editAuthor, setEditAuthor] = useState(track.author ?? "");
-  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const previewKey = `preview:${track.id}`;
   const previewPlaying = useSoundPlaying(previewKey);
+
   const togglePreview = () => {
     if (previewPlaying) soundManager.stop(previewKey);
     else soundManager.play(track.audioUrl, { key: previewKey });
-  };
-
-  const handleSave = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await api.updatePlaylistTrack(slug, track.id, {
-        title: editTitle.trim(),
-        author: editAuthor.trim() || null,
-      });
-      await onChanged();
-      setEditing(false);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBusy(false);
-    }
   };
 
   const handleDelete = async () => {
@@ -168,162 +209,101 @@ function PlaylistRow({
     }
   };
 
-  const handleMove = async (direction: -1 | 1) => {
-    if (busy) return;
-    const ids = playlist.map((t) => t.id);
-    const idx = ids.indexOf(track.id);
-    const swap = idx + direction;
-    if (swap < 0 || swap >= ids.length) return;
-    [ids[idx], ids[swap]] = [ids[swap], ids[idx]];
-    setBusy(true);
-    try {
-      await api.reorderPlaylist(slug, ids);
-      await onChanged();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className={styles.soundsTrackRow}>
-      <div className={styles.soundsReorderButtons}>
-        <button
-          type="button"
-          className={styles.soundsReorderButton}
-          onClick={() => handleMove(-1)}
-          disabled={isFirst || busy}
-          aria-label="Вверх"
-        >
-          ▲
-        </button>
-        <button
-          type="button"
-          className={styles.soundsReorderButton}
-          onClick={() => handleMove(1)}
-          disabled={isLast || busy}
-          aria-label="Вниз"
-        >
-          ▼
-        </button>
-      </div>
-
+    <div
+      className={styles.soundsTrackRow}
+      draggable
+      onDragStart={(e) => {
+        dragFromRef.current = index;
+        e.dataTransfer.effectAllowed = "move";
+        // Без setData Safari в некоторых версиях не запускает drag.
+        try {
+          e.dataTransfer.setData("text/plain", String(index));
+        } catch {
+          // ignore
+        }
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const from = dragFromRef.current;
+        dragFromRef.current = null;
+        if (from === null || from === index) return;
+        void onReorder(from, index);
+      }}
+      onDragEnd={() => {
+        dragFromRef.current = null;
+      }}
+    >
       <div className={styles.soundsTrackThumb}>
         {track.iconUrl ? <img src={track.iconUrl} alt="" /> : null}
       </div>
-
-      <div className={styles.soundsTrackMeta}>
-        {editing ? (
-          <>
-            <input
-              type="text"
-              className={styles.soundsTitleEdit}
-              value={editTitle}
-              maxLength={120}
-              placeholder="Название"
-              onChange={(e) => setEditTitle(e.target.value)}
-            />
-            <input
-              type="text"
-              className={styles.soundsTitleEdit}
-              value={editAuthor}
-              maxLength={120}
-              placeholder="Автор (опционально)"
-              onChange={(e) => setEditAuthor(e.target.value)}
-            />
-          </>
-        ) : (
-          <>
-            <div className={styles.soundsTrackTitle}>{track.title}</div>
-            <div className={styles.soundsTrackAuthor}>{track.author ?? ""}</div>
-          </>
-        )}
-      </div>
-
-      <div className={styles.soundsTrackActions}>
-        <button
-          type="button"
-          className={styles.soundsActionButton}
-          onClick={togglePreview}
-          aria-label={previewPlaying ? "Остановить" : "Прослушать"}
-        >
-          {previewPlaying ? "⏸" : "▶"}
-        </button>
-        {editing ? (
-          <>
-            <button
-              type="button"
-              className={styles.soundsActionButton}
-              onClick={() => void handleSave()}
-              disabled={busy || editTitle.trim().length === 0}
-              aria-label="Сохранить"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
-              className={styles.soundsActionButton}
-              onClick={() => {
-                setEditing(false);
-                setEditTitle(track.title);
-                setEditAuthor(track.author ?? "");
-              }}
-              aria-label="Отменить"
-            >
-              ✕
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={styles.soundsActionButton}
-            onClick={() => setEditing(true)}
-            aria-label="Переименовать"
-          >
-            ✎
-          </button>
-        )}
-        <button
-          type="button"
-          className={styles.soundsActionButton}
-          data-danger="true"
-          onClick={() => void handleDelete()}
-          disabled={busy}
-          aria-label="Удалить"
-        >
-          ✕
-        </button>
-      </div>
+      <div className={styles.soundsTrackName}>{track.title}</div>
+      <button
+        type="button"
+        className={styles.soundsActionButton}
+        onClick={togglePreview}
+        aria-label={previewPlaying ? "Остановить" : "Прослушать"}
+      >
+        {previewPlaying ? <PauseIcon /> : <PlayIcon />}
+      </button>
+      <button
+        type="button"
+        className={styles.soundsActionButton}
+        onClick={() => void handleDelete()}
+        disabled={busy}
+        aria-label="Удалить трек"
+      >
+        <CrossIcon />
+      </button>
+      <button
+        type="button"
+        className={styles.soundsActionButton}
+        aria-label="Перетащить для изменения порядка"
+        title="Перетащить"
+        style={{ cursor: "grab" }}
+        // На самой кнопке onDragStart срабатывает, но row тоже draggable —
+        // не блокируем, чтобы порядок инициирования был стабилен.
+      >
+        <DragHandleIcon />
+      </button>
     </div>
   );
 }
 
 function AddTrackForm({
   slug,
+  disabled,
   onChanged,
 }: {
   slug: string;
+  disabled: boolean;
   onChanged: () => void | Promise<void>;
 }) {
   const audioRef = useRef<HTMLInputElement>(null);
   const iconRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setTitle("");
     setAuthor("");
+    setAudioFile(null);
+    setIconFile(null);
     setError(null);
     if (audioRef.current) audioRef.current.value = "";
     if (iconRef.current) iconRef.current.value = "";
   };
 
   const handleSubmit = async () => {
-    const audio = audioRef.current?.files?.[0];
-    if (!audio) {
+    if (!audioFile) {
       setError("Выберите аудио-файл");
       return;
     }
@@ -336,8 +316,8 @@ function AddTrackForm({
     setError(null);
     try {
       await api.uploadPlaylistTrack(slug, {
-        audio,
-        icon: iconRef.current?.files?.[0] ?? null,
+        audio: audioFile,
+        icon: iconFile,
         title: trimmed,
         author: author.trim() || undefined,
       });
@@ -351,8 +331,9 @@ function AddTrackForm({
   };
 
   return (
-    <div className={styles.soundsAddBlock}>
-      <div className={styles.soundsAddFields}>
+    <>
+      <label className={styles.settingsField}>
+        <span>Название трека</span>
         <input
           type="text"
           placeholder="Название"
@@ -360,42 +341,96 @@ function AddTrackForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+      </label>
+
+      <label className={styles.settingsField}>
+        <span>Автор трека (опционально)</span>
         <input
           type="text"
-          placeholder="Автор (опционально)"
+          placeholder="Автор"
           maxLength={120}
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
         />
+      </label>
+
+      <div className={styles.soundsAddFiles}>
+        <div className={styles.soundsField}>
+          <div className={styles.soundsPill}>
+            <span className={styles.soundsPillLabel}>
+              {audioFile ? audioFile.name : "Аудио"}
+            </span>
+            <label
+              className={styles.soundsPillIconButton}
+              aria-label="Выбрать аудио-файл"
+              title="Выбрать аудио-файл"
+            >
+              <PlusIcon />
+              <input
+                ref={audioRef}
+                type="file"
+                accept="audio/mpeg,audio/ogg,audio/wav"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  setError(null);
+                  setAudioFile(e.target.files?.[0] ?? null);
+                }}
+                disabled={busy}
+              />
+            </label>
+          </div>
+          <div className={styles.soundsPillHint}>mp3/ogg/wav до 10 МБ</div>
+        </div>
+
+        <div className={styles.soundsField}>
+          <div className={styles.soundsPill}>
+            <span className={styles.soundsPillLabel}>
+              {iconFile ? iconFile.name : "Обложка (опционально)"}
+            </span>
+            <label
+              className={styles.soundsPillIconButton}
+              aria-label="Выбрать обложку"
+              title="Выбрать обложку"
+            >
+              <PlusIcon />
+              <input
+                ref={iconRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => setIconFile(e.target.files?.[0] ?? null)}
+                disabled={busy}
+              />
+            </label>
+          </div>
+          <div className={styles.soundsPillHint}>jpg/png/webp до 2 МБ</div>
+        </div>
       </div>
-      <div className={styles.soundsAddFileRow}>
-        <span>Аудио:</span>
-        <input ref={audioRef} type="file" accept="audio/mpeg,audio/ogg,audio/wav" />
-      </div>
-      <div className={styles.soundsAddFileRow}>
-        <span>Иконка:</span>
-        <input ref={iconRef} type="file" accept="image/jpeg,image/png,image/webp" />
-      </div>
+
       {error ? <div className={styles.soundsAddError}>{error}</div> : null}
+
       <button
         type="button"
         className={styles.soundsAddSubmit}
         onClick={() => void handleSubmit()}
-        disabled={busy}
+        disabled={busy || disabled}
       >
-        {busy ? "Загрузка..." : "Добавить трек"}
+        {disabled
+          ? "Лимит 10 треков"
+          : busy
+            ? "Загрузка..."
+            : "Добавить трек"}
       </button>
-    </div>
+    </>
   );
 }
 
-function SingleSoundEditor({
+function SingleSoundRow({
   slug,
   type,
   label,
   currentUrl,
   defaultUrl,
-  defaultLabel,
   onChanged,
 }: {
   slug: string;
@@ -405,19 +440,25 @@ function SingleSoundEditor({
   // null = у звука нет дефолта (актуально только для fun — без owner-загрузки
   // кнопка просто скрыта). Для hand/join всегда есть дефолт в public/sounds/.
   defaultUrl: string | null;
-  defaultLabel: string;
   onChanged: () => void | Promise<void>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const playable = currentUrl ?? defaultUrl;
+  const previewKey = `single:${type}`;
+  const previewPlaying = useSoundPlaying(previewKey);
+
+  const togglePreview = () => {
+    if (!playable) return;
+    if (previewPlaying) soundManager.stop(previewKey);
+    else soundManager.play(playable, { key: previewKey });
+  };
+
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setError("Выберите файл");
-      return;
-    }
+    if (!file) return;
     setBusy(true);
     setError(null);
     try {
@@ -431,80 +472,36 @@ function SingleSoundEditor({
     }
   };
 
-  const handleReset = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.resetRoomSound(slug, type);
-      await onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сбросить");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const playable = currentUrl ?? defaultUrl;
-  const previewKey = `single:${type}`;
-  const previewPlaying = useSoundPlaying(previewKey);
-  const togglePreview = () => {
-    if (!playable) return;
-    if (previewPlaying) soundManager.stop(previewKey);
-    else soundManager.play(playable, { key: previewKey });
-  };
-
   return (
-    <div className={styles.soundsSection}>
-      <h4 className={styles.soundsSectionTitle}>{label}</h4>
-      <div className={styles.soundsSingleCard}>
+    <div className={styles.soundsField}>
+      <div className={styles.soundsPill}>
+        <span className={styles.soundsPillLabel}>{label}</span>
         <button
           type="button"
-          className={styles.soundsActionButton}
+          className={styles.soundsPillIconButton}
           onClick={togglePreview}
           disabled={!playable}
           aria-label={previewPlaying ? "Остановить" : "Прослушать"}
         >
-          {previewPlaying ? "⏸" : "▶"}
+          {previewPlaying ? <PauseIcon /> : <PlayIcon />}
         </button>
-        <span className={styles.soundsSingleLabel}>
-          {currentUrl
-            ? "Свой файл"
-            : defaultUrl
-              ? `Используется ${defaultLabel}`
-              : defaultLabel}
-        </span>
-        <div className={styles.soundsTrackActions}>
-          <label
-            className={styles.soundsActionButton}
-            aria-label="Заменить файл"
-            title="Заменить файл"
-          >
-            ⤴
-            <input
-              ref={fileRef}
-              type="file"
-              accept="audio/mpeg,audio/ogg,audio/wav"
-              style={{ display: "none" }}
-              onChange={() => void handleUpload()}
-              disabled={busy}
-            />
-          </label>
-          {currentUrl ? (
-            <button
-              type="button"
-              className={styles.soundsActionButton}
-              data-danger="true"
-              onClick={() => void handleReset()}
-              disabled={busy}
-              aria-label="Вернуть дефолт"
-              title="Вернуть дефолт"
-            >
-              ↺
-            </button>
-          ) : null}
-        </div>
+        <label
+          className={styles.soundsPillIconButton}
+          aria-label={currentUrl ? "Заменить файл" : "Загрузить файл"}
+          title={currentUrl ? "Заменить файл" : "Загрузить файл"}
+        >
+          <PlusIcon />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/mpeg,audio/ogg,audio/wav"
+            style={{ display: "none" }}
+            onChange={() => void handleUpload()}
+            disabled={busy}
+          />
+        </label>
       </div>
-      <p className={styles.soundsSectionHint}>До 1 МБ. mp3, ogg или wav.</p>
+      <div className={styles.soundsPillHint}>mp3/ogg/wav до 1 МБ</div>
       {error ? <div className={styles.soundsAddError}>{error}</div> : null}
     </div>
   );
