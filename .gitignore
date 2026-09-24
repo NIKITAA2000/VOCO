@@ -46,3 +46,7 @@ livekit.prod.yaml
 nginx.conf
 nginx-ssl.conf
 nginx-temp.conf
+
+# Секреты прода (только на сервере)
+.env
+certbot/

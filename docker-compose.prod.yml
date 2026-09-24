@@ -1,5 +1,4 @@
-version: "3.8"
-
+# Секреты берутся из .env рядом с этим файлом (в git не хранится).
 services:
   postgres:
     image: postgres:15
@@ -7,23 +6,29 @@ services:
     restart: always
     environment:
       POSTGRES_USER: voco
-      POSTGRES_PASSWORD: I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       POSTGRES_DB: voco_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voco -d voco_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   livekit:
     image: livekit/livekit-server:latest
     container_name: voco-livekit
     restart: always
     command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?}: ${LIVEKIT_API_SECRET:?}"
     ports:
-      - "7880:7880"
+      # 7880 (сигнализация) наружу не публикуется — ходит через nginx /livekit/
       - "7881:7881"
-      - "7882:7882"
       - "50000-50060:50000-50060/udp"
     volumes:
-      - ./livekit.prod.yaml:/etc/livekit.yaml
+      - ./livekit.prod.yaml:/etc/livekit.yaml:ro
 
   backend:
     build:
@@ -34,18 +39,20 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
-      JWT_SECRET: OOGL/ieZ8oDfOqi9Al2PfrrQUqA+k2/RSDdjnt2WM6Q=
-      LIVEKIT_API_KEY: voco_prod_key
-      LIVEKIT_API_SECRET: JqN5rJ8p+gEZCniGmFMp7iZo68d2bZGlueGwv6I2e0Q=
+      JWT_SECRET: ${JWT_SECRET:?}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?}
       LIVEKIT_URL: ws://livekit:7880
-      LIVEKIT_PUBLIC_URL: wss://voco-meet.ru:7880
-      CORS_ORIGIN: https://voco-meet.ru,https://voco.su
-      DATABASE_URL: postgresql://voco:I3ahtR+R86TU3cLJC5dDCx5IYY10ko3iYuNM+7YfawE=@postgres:5432/voco_db
+      LIVEKIT_PUBLIC_URL: wss://voco-meet.ru/livekit/
+      CORS_ORIGIN: https://voco-meet.ru
+      DATABASE_URL: postgresql://voco:${POSTGRES_PASSWORD:?}@postgres:5432/voco_db
     volumes:
       - uploads_data:/app/uploads
     depends_on:
-      - postgres
-      - livekit
+      postgres:
+        condition: service_healthy
+      livekit:
+        condition: service_started
 
   nginx:
     image: nginx:alpine
@@ -55,9 +62,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html
-      - ./frontend/dist-staging:/usr/share/nginx/html-staging
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     depends_on:
@@ -66,6 +72,7 @@ services:
   certbot:
     image: certbot/certbot
     container_name: voco-certbot
+    profiles: ["tools"]
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
