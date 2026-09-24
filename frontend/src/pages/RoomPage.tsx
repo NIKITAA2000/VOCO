@@ -1363,18 +1363,6 @@ function TileSignal({ quality }: { quality: ConnectionQuality }) {
   );
 }
 
-function getIndicatorPages(pageCount: number, currentPage: number) {
-  const maxVisiblePages = 7;
-  const safePageCount = Math.max(1, pageCount);
-
-  if (safePageCount <= maxVisiblePages) {
-    return Array.from({ length: safePageCount }, (_, index) => index);
-  }
-
-  const start = Math.min(Math.max(currentPage - 3, 0), safePageCount - maxVisiblePages);
-  return Array.from({ length: maxVisiblePages }, (_, index) => start + index);
-}
-
 function ViewIndicatorChevron({ direction }: { direction: "prev" | "next" }) {
   return (
     <svg
@@ -1596,8 +1584,6 @@ type SettingsTab = "settings" | "link" | "ban" | "sounds";
 
 // Угол PiP-бублика с вебкой автора демки внутри развёрнутой плитки.
 type PipCorner = "tl" | "tr" | "bl" | "br";
-
-const PIP_CORNERS: readonly PipCorner[] = ["tl", "tr", "bl", "br"];
 
 function isPipCorner(value: unknown): value is PipCorner {
   return value === "tl" || value === "tr" || value === "bl" || value === "br";
