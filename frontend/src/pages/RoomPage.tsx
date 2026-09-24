@@ -7,6 +7,7 @@ import {
   useRef,
   type CSSProperties,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type SVGProps,
 } from "react";
@@ -28,9 +29,17 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { ConnectionQuality, DisconnectReason, RoomEvent, Track } from "livekit-client";
-import { api } from "../api";
+import { api, type PlaylistTrack, type RoomSounds } from "../api";
 import { downloadRoomReportPdf, type RoomReport } from "../lib/roomReport";
+import { soundManager } from "../lib/soundManager";
+import { WaitingRoomPlayer } from "../components/WaitingRoomPlayer";
+import { SoundsSettings } from "../components/SoundsSettings";
 import styles from "./Room.module.css";
+
+// Дефолтного «прикольного» звука нет — owner/moderator настраивает его
+// в Settings → Звуки. Без кастомного файла кнопка скрыта.
+const DEFAULT_SOUND_HAND = "/sounds/hand.mp3";
+const DEFAULT_SOUND_JOIN = "/sounds/join.mp3";
 
 const STAGE_WIDTH = 1440;
 const STAGE_HEIGHT = 1024;
@@ -113,6 +122,8 @@ interface ConferenceRoomContentProps {
   initialPinnedMessages?: PinnedMessage[];
   initialChatHistory?: ChatHistoryEntry[];
   initialPolls?: Poll[];
+  initialPlaylist?: PlaylistTrack[];
+  initialSounds?: RoomSounds;
   // LiveKit-токен для гостей. У зарегистрированных не нужен — берётся наш Bearer.
   livekitToken?: string;
 }
@@ -319,6 +330,7 @@ function getStageTileFrames(
   expandedLeftPx = 0,
   expandedRightPx = 0,
   expandedAspectRatio = 16 / 9,
+  theater = false,
 ) {
   const normalizedCount = Math.max(1, Math.min(count, 4));
 
@@ -329,19 +341,28 @@ function getStageTileFrames(
       // Тайл = медиа (зона видео) + футер 50px снизу. При подгонке аспекта учитываем,
       // что source aspect должен совпадать с медиа-зоной, а не со всем тайлом.
       const safeAspect = expandedAspectRatio > 0 ? expandedAspectRatio : 16 / 9;
-      const horizontalReserved = expandedLeftPx + expandedRightPx;
-      const verticalReserved = ROOM_BAR_HEIGHT * 2;
+      // В театральном режиме хрома скрыта — резерв только под небольшой отступ
+      // (12px со всех сторон), панели игнорируем. Иначе — реальные бары/панели.
+      const theaterMargin = 12;
+      const horizontalReserved = theater ? theaterMargin * 2 : expandedLeftPx + expandedRightPx;
+      const leftPx = theater ? 0 : expandedLeftPx;
+      const rightPx = theater ? 0 : expandedRightPx;
+      // Высота баров адаптивная (CSS clamp в --room-bar-height). Подставляем
+      // CSS-переменную прямо в calc — браузер пересчитает на каждом resize.
+      const bar = "var(--room-bar-height)";
+      const verticalReserved = theater ? `${theaterMargin * 2}px` : `(${bar} * 2)`;
+      const topAnchor = theater ? `${theaterMargin}px` : bar;
       const footer = TILE_FOOTER_HEIGHT;
-      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved}px - ${footer}px) * ${safeAspect}))`;
-      const heightCss = `min(calc(100vh - ${verticalReserved}px), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
+      const widthCss = `min(calc(100vw - ${horizontalReserved}px), calc((100vh - ${verticalReserved} - ${footer}px) * ${safeAspect}))`;
+      const heightCss = `min(calc(100vh - ${verticalReserved}), calc((100vw - ${horizontalReserved}px) / ${safeAspect} + ${footer}px))`;
       return [
         {
           id: "tile-1",
           accent: true,
           style: {
             position: "fixed" as const,
-            top: `calc(${ROOM_BAR_HEIGHT}px + (100vh - ${verticalReserved}px) / 2)`,
-            left: `calc((100vw + ${expandedLeftPx}px - ${expandedRightPx}px) / 2)`,
+            top: `calc(${topAnchor} + (100vh - ${verticalReserved}) / 2)`,
+            left: `calc((100vw + ${leftPx}px - ${rightPx}px) / 2)`,
             width: widthCss,
             height: heightCss,
             transform: "translate(-50%, -50%)",
@@ -648,6 +669,44 @@ function useTabletRoomLayout() {
   return isCompactLayout;
 }
 
+// Держит экран включённым, пока пользователь в конференции. Без этого на
+// планшетах экран гаснет при бездействии → браузер усыпляет вкладку →
+// WebRTC-соединение рвётся и LiveKit не может переподключиться. ПК почти не
+// спят, телефон держат в руке — проблема именно планшетов.
+function useScreenWakeLock() {
+  useEffect(() => {
+    const nav = navigator as any;
+    if (!nav?.wakeLock?.request) return;
+    let sentinel: any = null;
+    let cancelled = false;
+    const request = async () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      if (sentinel) return;
+      try {
+        sentinel = await nav.wakeLock.request("screen");
+        sentinel.addEventListener?.("release", () => {
+          sentinel = null;
+        });
+      } catch {
+        sentinel = null;
+      }
+    };
+    // Wake lock автоматически снимается, когда вкладка прячется — берём заново
+    // при возврате видимости.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void request();
+    };
+    void request();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      sentinel?.release?.().catch(() => {});
+      sentinel = null;
+    };
+  }, []);
+}
+
 function iconClassName(...classNames: Array<string | undefined>) {
   return classNames.filter(Boolean).join(" ");
 }
@@ -803,6 +862,33 @@ function ScreenIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
+// Иконка для header-кнопки fun-звука: центральная точка + две пары дуг,
+// расходящихся в стороны (звук «излучается» в обе стороны). По figma 1110_???
+// — 50×50 viewBox, фон кружка задаёт сама кнопка через CSS.
+function FunSoundBroadcastIcon() {
+  return (
+    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" aria-hidden="true">
+      <path
+        d="M32.0711 17.9289C35.4881 21.346 35.9153 26.6207 33.3527 30.5022C33.1696 30.7795 32.9711 31.0496 32.7575 31.3115C32.5439 31.5733 32.3152 31.827 32.0711 32.0711L30.6569 30.6569C31.6332 29.6805 32.3044 28.5144 32.6705 27.2774C32.7436 27.0302 32.8047 26.7801 32.8534 26.5282C33.1708 24.8893 32.9727 23.1703 32.2589 21.6316C32.149 21.3947 32.0266 21.1622 31.8922 20.9348C31.6238 20.4805 31.3066 20.0472 30.9407 19.6421L30.6569 19.3431L32.0711 17.9289Z"
+        fill="currentColor"
+      />
+      <circle cx="25.0001" cy="25" r="2" transform="rotate(-45 25.0001 25)" fill="currentColor" />
+      <path
+        d="M29.4553 20.9811C31.5835 23.3364 31.5126 26.9727 29.2426 29.2426L27.8284 27.8284C29.3417 26.3152 29.3892 23.8909 27.9707 22.3207C27.9249 22.27 27.8773 22.2204 27.8284 22.1716L29.2426 20.7574C29.3158 20.8305 29.3867 20.9052 29.4553 20.9811Z"
+        fill="currentColor"
+      />
+      <path
+        d="M20.5447 29.0189C18.4165 26.6636 18.4874 23.0273 20.7574 20.7574L22.1716 22.1716C20.6583 23.6848 20.6108 26.1091 22.0293 27.6793C22.0751 27.73 22.1227 27.7796 22.1716 27.8284L20.7574 29.2426C20.6842 29.1695 20.6133 29.0948 20.5447 29.0189Z"
+        fill="currentColor"
+      />
+      <path
+        d="M17.9289 32.0711C14.5119 28.654 14.0847 23.3793 16.6473 19.4978C16.8304 19.2205 17.0289 18.9504 17.2425 18.6885C17.4561 18.4267 17.6848 18.173 17.9289 17.9289L19.3431 19.3431C18.3668 20.3195 17.6956 21.4856 17.3295 22.7226C17.2564 22.9698 17.1953 23.2199 17.1466 23.4718C16.8292 25.1107 17.0273 26.8297 17.7411 28.3684C17.851 28.6053 17.9734 28.8378 18.1078 29.0652C18.3762 29.5195 18.6934 29.9528 19.0593 30.3579L19.3431 30.6569L17.9289 32.0711Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function UserIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -817,6 +903,61 @@ function UserIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
         fill="currentColor"
       />
       <circle cx="10" cy="6" r="5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function FullscreenExpandIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M3 9V3H9M21 9V3H15M3 15V21H9M21 15V21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FullscreenCompressIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M9 3V9H3M15 3V9H21M9 21V15H3M15 21V15H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TheaterEnterIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function TheaterExitIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FeatureExpandIcon(props: SVGProps<SVGSVGElement>) {
+  // Развернуть демку на свою страницу: стрелка из карточки наружу-вверх.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M13 4H20V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 4L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 14V18C18 19.1046 17.1046 20 16 20H6C4.89543 20 4 19.1046 4 18V8C4 6.89543 4.89543 6 6 6H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FeatureCollapseIcon(props: SVGProps<SVGSVGElement>) {
+  // Вернуть демку в сетку: стрелка снаружи внутрь карточки.
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M19 11H12V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 11L20 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18 14V18C18 19.1046 17.1046 20 16 20H6C4.89543 20 4 19.1046 4 18V8C4 6.89543 4.89543 6 6 6H10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -871,6 +1012,23 @@ function RaisedHandIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
       <path d="M3 15C3 12.6 1 12 0 12" stroke="currentColor" strokeWidth="2" />
       <path d="M2 15C2 19.4183 5.5817 23 10 23V25C4.4772 25 0 20.5228 0 15H2Z" fill="currentColor" />
       <path d="M20 25H10V23H18V13H20V25Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MicStatusIcon({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      className={iconClassName(styles.roomIcon, styles.micStatusSvg, className)}
+      viewBox="0 0 30 30"
+      fill="none"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="11" y="3" width="8" height="16" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M10 27H20" stroke="currentColor" strokeWidth="2" />
+      <path d="M15 22V26" stroke="currentColor" strokeWidth="2" />
+      <path d="M24 15C24 19.9706 19.9706 24 15 24C10.0294 24 6 19.9706 6 15H8C8 18.866 11.134 22 15 22C18.866 22 22 18.866 22 15H24Z" fill="currentColor" />
     </svg>
   );
 }
@@ -1217,6 +1375,24 @@ function getIndicatorPages(pageCount: number, currentPage: number) {
   return Array.from({ length: maxVisiblePages }, (_, index) => start + index);
 }
 
+function ViewIndicatorChevron({ direction }: { direction: "prev" | "next" }) {
+  return (
+    <svg
+      width="6"
+      height="10"
+      viewBox="0 0 6 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+    >
+      {direction === "prev" ? <path d="M4.5 1 L1.5 5 L4.5 9" /> : <path d="M1.5 1 L4.5 5 L1.5 9" />}
+    </svg>
+  );
+}
+
 function ViewIndicator({
   pageCount,
   currentPage,
@@ -1230,10 +1406,32 @@ function ViewIndicator({
 }) {
   const safePageCount = Math.max(1, pageCount);
   const safeCurrentPage = Math.min(Math.max(currentPage, 0), safePageCount - 1);
-  const pages = getIndicatorPages(safePageCount, safeCurrentPage);
+  const visibleDotCount = 5;
+  const windowStart =
+    safePageCount <= visibleDotCount
+      ? 0
+      : Math.min(
+          Math.max(safeCurrentPage - Math.floor(visibleDotCount / 2), 0),
+          safePageCount - visibleDotCount,
+        );
+  const pages = Array.from(
+    { length: Math.min(visibleDotCount, safePageCount) },
+    (_, index) => windowStart + index,
+  );
+  const canPrev = safeCurrentPage > 0;
+  const canNext = safeCurrentPage < safePageCount - 1;
 
   return (
     <div className={`${styles.viewIndicator} ${className ?? ""}`} aria-label="Текущий экран">
+      <button
+        type="button"
+        className={`${styles.viewIndicatorArrow} ${styles.viewIndicatorArrowPrev}`}
+        aria-label="Предыдущий экран"
+        onClick={() => onPageChange(safeCurrentPage - 1)}
+        disabled={!canPrev}
+      >
+        <ViewIndicatorChevron direction="prev" />
+      </button>
       {pages.map((page) => {
         const distance = Math.min(Math.abs(page - safeCurrentPage), 3);
         const isCurrent = page === safeCurrentPage;
@@ -1251,6 +1449,15 @@ function ViewIndicator({
           />
         );
       })}
+      <button
+        type="button"
+        className={`${styles.viewIndicatorArrow} ${styles.viewIndicatorArrowNext}`}
+        aria-label="Следующий экран"
+        onClick={() => onPageChange(safeCurrentPage + 1)}
+        disabled={!canNext}
+      >
+        <ViewIndicatorChevron direction="next" />
+      </button>
     </div>
   );
 }
@@ -1273,11 +1480,23 @@ function TileMedia({
   displayName,
   avatarUrl,
   isGuest,
+  isScreenShare,
+  theaterActive,
+  onToggleTheater,
+  featureActive,
+  onToggleFeature,
+  pipOverlay,
 }: {
   trackRef: any;
   displayName: string;
   avatarUrl: string | null;
   isGuest: boolean;
+  isScreenShare: boolean;
+  theaterActive?: boolean;
+  onToggleTheater?: () => void;
+  featureActive?: boolean;
+  onToggleFeature?: () => void;
+  pipOverlay?: ReactNode;
 }) {
   const isMuted = useIsMuted(trackRef);
   // Скрин-шеру оверлей не нужен — там «пауза» крайне редкая, и плейсхолдер LK ок.
@@ -1285,8 +1504,34 @@ function TileMedia({
   const isCamera = source === Track.Source.Camera;
   const showAvatar = isCamera && isMuted;
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => {
+      setIsFullscreen(document.fullscreenElement === wrapperRef.current);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!isScreenShare) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    } else {
+      // theater и fullscreen взаимоисключающие — выходим из theater перед входом.
+      if (theaterActive) onToggleTheater?.();
+      void wrapperRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, [isScreenShare, theaterActive, onToggleTheater]);
+
   return (
-    <div className={styles.tileMediaWrapper}>
+    <div
+      ref={wrapperRef}
+      className={styles.tileMediaWrapper}
+      onDoubleClick={isScreenShare ? toggleFullscreen : undefined}
+    >
       <ParticipantTile className={styles.livekitTile} trackRef={trackRef} />
       {showAvatar ? (
         <div className={styles.tileAvatarOverlay}>
@@ -1298,13 +1543,285 @@ function TileMedia({
           />
         </div>
       ) : null}
+      {isScreenShare && onToggleFeature ? (
+        <button
+          type="button"
+          className={styles.tileFeatureButton}
+          onClick={onToggleFeature}
+          aria-label={featureActive ? "Вернуть демонстрацию в сетку" : "Развернуть демонстрацию на отдельную страницу"}
+        >
+          {featureActive ? (
+            <FeatureCollapseIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <FeatureExpandIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
+      ) : null}
+      {isScreenShare && onToggleTheater ? (
+        <button
+          type="button"
+          className={styles.tileTheaterButton}
+          onClick={onToggleTheater}
+          aria-label={theaterActive ? "Выйти из театрального режима" : "Театральный режим"}
+        >
+          {theaterActive ? (
+            <TheaterExitIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <TheaterEnterIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
+      ) : null}
+      {isScreenShare ? (
+        <button
+          type="button"
+          className={styles.tileFullscreenButton}
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? "Свернуть демонстрацию" : "Развернуть демонстрацию на весь экран"}
+        >
+          {isFullscreen ? (
+            <FullscreenCompressIcon className={styles.tileFullscreenIcon} />
+          ) : (
+            <FullscreenExpandIcon className={styles.tileFullscreenIcon} />
+          )}
+        </button>
+      ) : null}
+      {pipOverlay}
     </div>
   );
 }
 
 type ExpiryPreset = "none" | "1d" | "1w" | "1m" | "1y" | "custom";
 
-type SettingsTab = "settings" | "link" | "ban";
+type SettingsTab = "settings" | "link" | "ban" | "sounds";
+
+// Угол PiP-бублика с вебкой автора демки внутри развёрнутой плитки.
+type PipCorner = "tl" | "tr" | "bl" | "br";
+
+const PIP_CORNERS: readonly PipCorner[] = ["tl", "tr", "bl", "br"];
+
+function isPipCorner(value: unknown): value is PipCorner {
+  return value === "tl" || value === "tr" || value === "bl" || value === "br";
+}
+
+// Множитель размера PiP-бублика. 1.0 = базовый размер (~18% от ширины плитки,
+// см. .screenPipOverlay в Room.module.css). Меняется колесом мыши автором демки.
+const PIP_SCALE_MIN = 0.5;
+const PIP_SCALE_MAX = 1.8;
+const PIP_SCALE_STEP = 0.1;
+const PIP_SCALE_DEFAULT = 1.0;
+
+function clampPipScale(value: number): number {
+  if (!Number.isFinite(value)) return PIP_SCALE_DEFAULT;
+  // Округляем до 0.1, чтобы атрибут не превращался в "0.7999999999".
+  const rounded = Math.round(value * 10) / 10;
+  return Math.min(PIP_SCALE_MAX, Math.max(PIP_SCALE_MIN, rounded));
+}
+
+// PiP-бублик с вебкой автора демки. Видит зритель — но управляет (drag/hide)
+// только сам автор демки. Состояние (угол + hidden) синхронизируется на всех
+// через LiveKit participant attributes (screenPipCorner / screenPipHidden).
+// При hidden у автора остаётся «призрак»-точка в углу для возврата; у зрителей
+// при hidden бублик просто не рендерится.
+function ScreenSharePipOverlay({
+  cameraTrackRef,
+  displayName,
+  avatarUrl,
+  isGuest,
+  corner,
+  hidden,
+  scale,
+  isController,
+  onChange,
+}: {
+  cameraTrackRef: any | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  corner: PipCorner;
+  hidden: boolean;
+  scale: number;
+  isController: boolean;
+  onChange: (next: { corner: PipCorner; hidden: boolean; scale: number }) => void;
+}) {
+  const isMuted = useIsMuted(cameraTrackRef);
+  const showVideo = Boolean(cameraTrackRef) && !isMuted;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{
+    startX: number;
+    startY: number;
+    moved: boolean;
+    pointerId: number;
+  } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+
+  // Прикрепляем LiveKit-видео-трек к нашему <video> — без аудио (звук уже
+  // идёт основным треком, дублировать = эхо).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !showVideo) return;
+    const track =
+      cameraTrackRef?.publication?.track ?? cameraTrackRef?.track ?? null;
+    if (!track || typeof track.attach !== "function") return;
+    try {
+      track.attach(el);
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        track.detach(el);
+      } catch {
+        // ignore
+      }
+    };
+  }, [cameraTrackRef, showVideo]);
+
+  // Wheel-resize только для автора. React-onWheel в React 17+ навешивается
+  // как passive — preventDefault внутри ничего не даст и страница скроллится.
+  // Поэтому подписываем нативный non-passive обработчик.
+  useEffect(() => {
+    if (!isController) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const dir = event.deltaY > 0 ? -1 : 1;
+      const next = clampPipScale(scale + dir * PIP_SCALE_STEP);
+      if (next !== scale) onChange({ corner, hidden, scale: next });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isController, scale, corner, hidden, onChange]);
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isController) return;
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    event.preventDefault();
+    dragStateRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+      pointerId: event.pointerId,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+    if (!state.moved && Math.hypot(dx, dy) >= 5) {
+      state.moved = true;
+    }
+    if (state.moved) {
+      setDragOffset({ x: dx, y: dy });
+    }
+  };
+
+  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    dragStateRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    if (!state.moved) {
+      onChange({ corner, hidden: !hidden, scale });
+      setDragOffset(null);
+      return;
+    }
+    // Определяем ближайший угол по центру бублика относительно контейнера-родителя.
+    const wrapperEl = wrapperRef.current;
+    const parentEl = wrapperEl?.parentElement ?? null;
+    if (!wrapperEl || !parentEl) {
+      setDragOffset(null);
+      return;
+    }
+    const bubbleRect = wrapperEl.getBoundingClientRect();
+    const parentRect = parentEl.getBoundingClientRect();
+    const centerX = bubbleRect.left + bubbleRect.width / 2 - parentRect.left;
+    const centerY = bubbleRect.top + bubbleRect.height / 2 - parentRect.top;
+    const top = centerY < parentRect.height / 2;
+    const left = centerX < parentRect.width / 2;
+    const nextCorner: PipCorner = top ? (left ? "tl" : "tr") : left ? "bl" : "br";
+    setDragOffset(null);
+    if (nextCorner !== corner) onChange({ corner: nextCorner, hidden, scale });
+  };
+
+  const cornerClass = styles[`screenPipCorner_${corner}`];
+  const scaleStyle = { "--pip-scale": String(scale) } as CSSProperties;
+
+  if (hidden) {
+    if (!isController) return null;
+    return (
+      <button
+        type="button"
+        className={`${styles.screenPipGhost} ${cornerClass}`}
+        onClick={() => onChange({ corner, hidden: false, scale })}
+        aria-label="Показать бублик с вебкой"
+        title="Показать бублик с вебкой"
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <path
+            d="M12 5c-5 0-9 5-9 7s4 7 9 7 9-5 9-7-4-7-9-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+    );
+  }
+
+  const transformStyle: CSSProperties = dragOffset
+    ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }
+    : {};
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={`${styles.screenPipOverlay} ${cornerClass} ${
+        isController ? styles.screenPipOverlayInteractive : ""
+      } ${dragOffset ? styles.screenPipOverlayDragging : ""}`}
+      style={{ ...scaleStyle, ...transformStyle }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishDrag}
+      onPointerCancel={finishDrag}
+      role={isController ? "button" : undefined}
+      aria-label={
+        isController
+          ? "Перетащить, скрыть или изменить размер бублика с вебкой (колесо мыши)"
+          : undefined
+      }
+    >
+      {showVideo ? (
+        <video
+          ref={videoRef}
+          className={styles.screenPipVideo}
+          autoPlay
+          playsInline
+          muted
+        />
+      ) : (
+        <div className={styles.screenPipAvatarFallback}>
+          <ParticipantAvatar
+            name={displayName}
+            avatarUrl={avatarUrl}
+            isGuest={isGuest}
+            className={styles.screenPipAvatar}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RoomMeta {
   name: string;
@@ -1336,9 +1853,13 @@ function SettingsPanel({
   roomMeta,
   blockedUsers,
   canEditSettings,
+  isOwner,
+  playlist,
+  sounds,
   onClose,
   onMetaSaved,
   onUnblockUser,
+  onSoundsChanged,
 }: {
   slug: string;
   layoutClass?: string;
@@ -1346,9 +1867,13 @@ function SettingsPanel({
   roomMeta: RoomMeta | null;
   blockedUsers: BlockedUserEntry[];
   canEditSettings: boolean;
+  isOwner: boolean;
+  playlist: PlaylistTrack[];
+  sounds: RoomSounds;
   onClose: () => void;
   onMetaSaved: () => void | Promise<void>;
   onUnblockUser: (userId: string) => void | Promise<void>;
+  onSoundsChanged: () => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
 
@@ -1628,6 +2153,17 @@ function SettingsPanel({
           >
             Ссылка
           </button>
+          {isOwner ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "sounds"}
+              className={`${styles.settingsTab} ${tab === "sounds" ? styles.settingsTabActive : ""}`}
+              onClick={() => setTab("sounds")}
+            >
+              Звуки
+            </button>
+          ) : null}
           <button
             type="button"
             role="tab"
@@ -1861,6 +2397,15 @@ function SettingsPanel({
               )}
             </div>
           </div>
+        ) : null}
+
+        {tab === "sounds" && isOwner ? (
+          <SoundsSettings
+            slug={slug}
+            playlist={playlist}
+            sounds={sounds}
+            onChanged={onSoundsChanged}
+          />
         ) : null}
 
         {tab === "ban" ? (
@@ -2113,10 +2658,15 @@ export function ConferenceRoomContent({
   initialPinnedMessages,
   initialChatHistory,
   initialPolls,
+  initialPlaylist,
+  initialSounds,
   livekitToken,
 }: ConferenceRoomContentProps) {
   const room = useRoomContext();
   const participants = useParticipants();
+  // Не даём экрану гаснуть в звонке — иначе на планшетах вкладка усыпляется и
+  // WebRTC-соединение рвётся.
+  useScreenWakeLock();
   const {
     localParticipant,
     isMicrophoneEnabled,
@@ -2139,8 +2689,28 @@ export function ConferenceRoomContent({
   // нет participantMetaByUserId) видели аватарки зарегистрированных, а все
   // клиенты видели свежий аватар после смены в профиле без переподключения.
   const [avatarAttrMap, setAvatarAttrMap] = useState<Record<string, string>>({});
+  // identity → включён ли микрофон. LiveKit-событий mute/unmute useParticipants
+  // не отслеживает реактивно, поэтому ведём свою карту (как handRaisedMap).
+  const [micEnabledMap, setMicEnabledMap] = useState<Record<string, boolean>>({});
+  // identity → угол PiP-бублика с вебкой автора демки. Синхронизируется через
+  // LiveKit-аттрибут screenPipCorner. Видим только на развёрнутых демках.
+  const [pipCornerMap, setPipCornerMap] = useState<Record<string, PipCorner>>({});
+  // identity → скрыт ли PiP-бублик (автор спрятал кликом). Синхронизируется
+  // через LiveKit-аттрибут screenPipHidden.
+  const [pipHiddenMap, setPipHiddenMap] = useState<Record<string, boolean>>({});
+  // identity → масштаб PiP-бублика (множитель базовой 18cqi-ширины). Автор
+  // меняет колесом мыши. Кламп [PIP_SCALE_MIN, PIP_SCALE_MAX].
+  const [pipScaleMap, setPipScaleMap] = useState<Record<string, number>>({});
   const [openDeviceMenu, setOpenDeviceMenu] = useState<DeviceMenuKey | null>(null);
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  // Театральный режим: identity демки, выведенной на весь viewport (хрома
+  // скрыта). null = выкл. Не зависит от пагинации — показывает именно эту
+  // демку большим тайлом. Только десктоп.
+  const [theaterScreen, setTheaterScreen] = useState<string | null>(null);
+  // Выделенные демки (когда демок 2+): каждая — на своей странице большим
+  // тайлом в начале пагинации. Ключ — participant.identity screen-трека.
+  // Локальное состояние зрителя.
+  const [featuredScreens, setFeaturedScreens] = useState<string[]>([]);
   const [visiblePanels, setVisiblePanels] = useState<Record<RoomPanelKey, boolean>>({
     participants: false,
     chat: false,
@@ -2158,6 +2728,35 @@ export function ConferenceRoomContent({
     () => initialChatHistory ?? [],
   );
   const [polls, setPolls] = useState<Poll[]>(() => initialPolls ?? []);
+  const [playlistTracks, setPlaylistTracks] = useState<PlaylistTrack[]>(
+    () => initialPlaylist ?? [],
+  );
+  const [roomSoundUrls, setRoomSoundUrls] = useState<RoomSounds>(
+    () => initialSounds ?? { fun: null, hand: null, join: null },
+  );
+
+  // Refs для использования в ивент-хендлерах LiveKit без stale closure.
+  // `handSoundUrlRef` / `joinSoundUrlRef` дёргаются из handleAttributes /
+  // pending-watcher useEffect'ов.
+  const handSoundUrlRef = useRef<string>(roomSoundUrls.hand ?? DEFAULT_SOUND_HAND);
+  const joinSoundUrlRef = useRef<string>(roomSoundUrls.join ?? DEFAULT_SOUND_JOIN);
+  useEffect(() => {
+    handSoundUrlRef.current = roomSoundUrls.hand ?? DEFAULT_SOUND_HAND;
+    joinSoundUrlRef.current = roomSoundUrls.join ?? DEFAULT_SOUND_JOIN;
+  }, [roomSoundUrls.hand, roomSoundUrls.join]);
+
+  const isOwnerRef = useRef<boolean>(Boolean(isOwner));
+  useEffect(() => {
+    isOwnerRef.current = Boolean(isOwner);
+  }, [isOwner]);
+
+  const localIdentityRef = useRef<string | null>(null);
+  useEffect(() => {
+    localIdentityRef.current = localParticipant?.identity ?? null;
+  }, [localParticipant?.identity]);
+
+  // roomRoleRef обновляется ниже, после объявления setRoomRole (`roomRole`
+  // объявлен дальше по файлу). См. useEffect, привязанный к `roomRole`.
   const [pollModalOpen, setPollModalOpen] = useState(false);
   const [pollResultsId, setPollResultsId] = useState<string | null>(null);
   const [pollBusyId, setPollBusyId] = useState<string | null>(null);
@@ -2220,6 +2819,10 @@ export function ConferenceRoomContent({
     Array<{ id: string; user: { id: string; username: string }; reason?: string | null }>
   >([]);
   const [roomRole, setRoomRole] = useState<RoomRole | null>(null);
+  const roomRoleRef = useRef<RoomRole | null>(null);
+  useEffect(() => {
+    roomRoleRef.current = roomRole;
+  }, [roomRole]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingNow, setRecordingNow] = useState(Date.now());
@@ -2293,6 +2896,16 @@ export function ConferenceRoomContent({
       if (Array.isArray(r?.polls)) {
         setPolls(r.polls as Poll[]);
       }
+      if (Array.isArray(r?.playlist)) {
+        setPlaylistTracks(r.playlist as PlaylistTrack[]);
+      }
+      if (r?.sounds && typeof r.sounds === "object") {
+        setRoomSoundUrls({
+          fun: r.sounds.fun ?? null,
+          hand: r.sounds.hand ?? null,
+          join: r.sounds.join ?? null,
+        });
+      }
       // Список заблокированных доступен только владельцу/модератору; для остальных вернётся 403
       if (nextRole === "OWNER" || nextRole === "MODERATOR") {
         try {
@@ -2341,6 +2954,23 @@ export function ConferenceRoomContent({
     },
     [localParticipant],
   );
+
+  // URL «прикольного» звука: только кастомный, настроенный овнером. Без
+  // настройки funUrl=null, кнопка скрыта, рассылка отключена.
+  const funUrl = roomSoundUrls.fun ?? null;
+
+  // Прикольный звук: овнер жмёт кнопку → локально проигрываем и рассылаем
+  // через data-channel. На приёме у каждого участника срабатывает listener
+  // (см. useEffect ниже с topic="voco-sound-play").
+  const handlePlayFunSound = useCallback(() => {
+    if (!localParticipant || !funUrl) return;
+    soundManager.play(funUrl, { key: "fun", cooldownMs: 1500 });
+    const payload = new TextEncoder().encode(JSON.stringify({ type: "fun" }));
+    void localParticipant.publishData(payload, {
+      reliable: true,
+      topic: "voco-sound-play",
+    });
+  }, [localParticipant, funUrl]);
 
   const handleToggleModerator = useCallback(
     async (meta: RoomParticipantMeta) => {
@@ -2417,6 +3047,33 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.DataReceived, handleData);
     };
   }, [room, localParticipant, onExitIntent]);
+
+  // Прикольный звук: овнер жмёт кнопку → шлёт `voco-sound-play` всем участникам,
+  // каждый локально играет тот же файл. URL — только `room.sounds.fun`; если
+  // owner не настроил — ничего не воспроизводим.
+  useEffect(() => {
+    if (!room || !funUrl) return;
+    const handle = (
+      payload: Uint8Array,
+      _participant?: unknown,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== "voco-sound-play") return;
+      try {
+        const parsed = JSON.parse(new TextDecoder().decode(payload));
+        if (parsed?.type === "fun") {
+          soundManager.play(funUrl, { key: "fun-remote", cooldownMs: 1500 });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    room.on(RoomEvent.DataReceived, handle);
+    return () => {
+      room.off(RoomEvent.DataReceived, handle);
+    };
+  }, [room, funUrl]);
 
   // Live-синхронизация закреплённых сообщений: модератор после pin/unpin
   // публикует data-сообщение с полным списком, остальные просто заменяют состояние.
@@ -3018,6 +3675,22 @@ export function ConferenceRoomContent({
       participant.identity !== localIdentity &&
       parseParticipantStatus(participant).status === "pending",
   );
+
+  // Звук «запрос на подключение» — для модераторов/овнера. Триггерим только
+  // когда длина списка pending выросла (новый запрос), не при подтверждении.
+  const pendingCountRef = useRef(0);
+  const pendingCount = pendingParticipants.length;
+  useEffect(() => {
+    const isPrivileged =
+      isOwner || roomRole === "OWNER" || roomRole === "MODERATOR";
+    if (isPrivileged && pendingCount > pendingCountRef.current) {
+      soundManager.play(roomSoundUrls.join ?? DEFAULT_SOUND_JOIN, {
+        key: "pending",
+        cooldownMs: 1500,
+      });
+    }
+    pendingCountRef.current = pendingCount;
+  }, [pendingCount, isOwner, roomRole, roomSoundUrls.join]);
   const participantMetaByUserId = new Map(
     roomParticipants.map((participant) => [participant.user.id, participant] as const),
   );
@@ -3060,13 +3733,80 @@ export function ConferenceRoomContent({
   const recordingLabel = isRecording ? `Идёт запись ${formatDuration(recordingSeconds)}` : "Запись";
 
   const allTracks = tracks.length > 0 ? tracks : [null];
-  const hasScreenShare =
-    allTracks[0]?.publication?.source === Track.Source.ScreenShare;
-  const tilePageCount = hasScreenShare ? 1 : Math.max(1, Math.ceil(allTracks.length / ROOM_TILE_PAGE_SIZE));
-  const currentTilePage = hasScreenShare ? 0 : Math.min(tilePage, tilePageCount - 1);
-  const visibleTracks = hasScreenShare
-    ? [allTracks[0]]
-    : allTracks.slice(currentTilePage * ROOM_TILE_PAGE_SIZE, (currentTilePage + 1) * ROOM_TILE_PAGE_SIZE);
+  // Демки (screen share) и камеры — раздельно. Демки идут в пагинацию по
+  // правилам: 1 демка → большой тайл на стр.1; 2+ → мелкие карточки + кнопка
+  // «развернуть» уносит демку на свою страницу большим тайлом.
+  const screenTracks = allTracks.filter(
+    (t) => getTrackSource(t) === Track.Source.ScreenShare,
+  );
+  const cameraTracks = allTracks.filter(
+    (t) => getTrackSource(t) !== Track.Source.ScreenShare,
+  );
+  const screenTrackCount = screenTracks.length;
+  const screenTrackKey = (t: any): string => t?.participant?.identity ?? "";
+  // Демка, выведенная в театральный режим (если её трек ещё жив).
+  const theaterTrack = theaterScreen
+    ? screenTracks.find((t) => screenTrackKey(t) === theaterScreen) ?? null
+    : null;
+  const theaterMode = theaterTrack !== null;
+  // Чистим featuredScreens и theaterScreen от демок, которых больше нет.
+  useEffect(() => {
+    const liveKeys = screenTracks.map(screenTrackKey);
+    setFeaturedScreens((prev) => {
+      const next = prev.filter((k) => liveKeys.includes(k));
+      return next.length === prev.length ? prev : next;
+    });
+    setTheaterScreen((prev) => (prev && !liveKeys.includes(prev) ? null : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenTracks.map(screenTrackKey).join(",")]);
+  // Esc выходит из театрального режима (нативный fullscreen Esc обрабатывает сам).
+  useEffect(() => {
+    if (!theaterMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTheaterScreen(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [theaterMode]);
+  // Собираем страницы сцены. Каждая — список треков + флаг expand (один
+  // большой тайл на всю сцену vs обычная сетка ≤4).
+  const chunkTracks = (arr: any[], size: number): any[][] => {
+    const out: any[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
+  const stagePages: { tracks: any[]; expand: boolean }[] = [];
+  if (screenTrackCount === 1) {
+    // Одна демка — большим тайлом на первой странице.
+    stagePages.push({ tracks: [screenTracks[0]], expand: true });
+  } else if (screenTrackCount >= 2) {
+    // Выделенные демки — каждая своей страницей большим тайлом, в начале.
+    const featured = screenTracks.filter((t) =>
+      featuredScreens.includes(screenTrackKey(t)),
+    );
+    const rest = screenTracks.filter(
+      (t) => !featuredScreens.includes(screenTrackKey(t)),
+    );
+    featured.forEach((t) => stagePages.push({ tracks: [t], expand: true }));
+    chunkTracks(rest, ROOM_TILE_PAGE_SIZE).forEach((page) =>
+      stagePages.push({ tracks: page, expand: false }),
+    );
+  }
+  // Камеры — обычной сеткой, после демок (жёсткий перенос страниц).
+  chunkTracks(cameraTracks, ROOM_TILE_PAGE_SIZE).forEach((page) =>
+    stagePages.push({
+      tracks: page,
+      expand: page.length === 1 && hasExpandedVideoMedia(page[0]),
+    }),
+  );
+  if (stagePages.length === 0) stagePages.push({ tracks: [null], expand: false });
+  const tilePageCount = stagePages.length;
+  const currentTilePage = Math.min(Math.max(tilePage, 0), tilePageCount - 1);
+  const currentStagePage = stagePages[currentTilePage];
+  // В театральном режиме показываем именно выбранную демку большим тайлом —
+  // независимо от текущей страницы пагинации.
+  const visibleTracks = theaterTrack ? [theaterTrack] : currentStagePage.tracks;
+  const currentPageExpand = theaterTrack ? true : currentStagePage.expand;
   const isParticipantsPanelOpen = visiblePanels.participants;
   const isChatPanelOpen = visiblePanels.chat;
   const isSettingsPanelOpen = visiblePanels.settings;
@@ -3159,10 +3899,11 @@ export function ConferenceRoomContent({
   const tileFrames = getStageTileFrames(
     visibleTracks.length,
     DESKTOP_TILE_GRID_LEFT,
-    visibleTracks.length === 1 && hasExpandedVideoMedia(visibleTracks[0]),
+    currentPageExpand,
     expandedTileLeft,
     expandedTileRight,
     expandedAspectRatio,
+    theaterMode,
   );
   const tabletTileFrames = getTabletTileFrames(visibleTracks.length);
   const mobileVisibleTracks = visibleTracks.slice(0, 4);
@@ -3775,15 +4516,39 @@ export function ConferenceRoomContent({
       const raw = p?.attributes?.avatarUrl;
       return typeof raw === "string" ? raw : "";
     };
+    const readPipCorner = (p: any): PipCorner | null => {
+      const raw = p?.attributes?.screenPipCorner;
+      return isPipCorner(raw) ? raw : null;
+    };
+    const readPipHidden = (p: any): boolean => {
+      const raw = p?.attributes?.screenPipHidden;
+      return raw === "true" || raw === true;
+    };
+    const readPipScale = (p: any): number | null => {
+      const raw = p?.attributes?.screenPipScale;
+      if (typeof raw !== "string") return null;
+      const num = Number.parseFloat(raw);
+      return Number.isFinite(num) ? clampPipScale(num) : null;
+    };
 
     const snapshot = () => {
       const hand: Record<string, boolean> = {};
       const avatar: Record<string, string> = {};
+      const mic: Record<string, boolean> = {};
+      const pipCorner: Record<string, PipCorner> = {};
+      const pipHidden: Record<string, boolean> = {};
+      const pipScale: Record<string, number> = {};
       const visit = (p: any) => {
         if (!p?.identity) return;
         hand[p.identity] = readFlag(p);
         const a = readAvatar(p);
         if (a) avatar[p.identity] = a;
+        mic[p.identity] = Boolean(p?.isMicrophoneEnabled);
+        const corner = readPipCorner(p);
+        if (corner) pipCorner[p.identity] = corner;
+        if (readPipHidden(p)) pipHidden[p.identity] = true;
+        const scale = readPipScale(p);
+        if (scale != null) pipScale[p.identity] = scale;
       };
       visit(room.localParticipant);
       const remotes: Iterable<any> =
@@ -3791,22 +4556,41 @@ export function ConferenceRoomContent({
           ? room.remoteParticipants.values()
           : room.remoteParticipants) ?? [];
       for (const p of remotes) visit(p);
-      return { hand, avatar };
+      return { hand, avatar, mic, pipCorner, pipHidden, pipScale };
     };
     const applySnapshot = () => {
-      const { hand, avatar } = snapshot();
+      const { hand, avatar, mic, pipCorner, pipHidden, pipScale } = snapshot();
       setHandRaisedMap(hand);
       setAvatarAttrMap(avatar);
+      setMicEnabledMap(mic);
+      setPipCornerMap(pipCorner);
+      setPipHiddenMap(pipHidden);
+      setPipScaleMap(pipScale);
     };
     applySnapshot();
+    // Состояние микрофона: useParticipants не реактивен к mute — пере-снимаем
+    // карту на любое событие трека.
+    const refreshMic = () => setMicEnabledMap(snapshot().mic);
 
     const handleAttributes = (changed: Record<string, string>, participant: any) => {
       if (!participant?.identity) return;
       if (changed && "handRaised" in changed) {
+        const raised = changed.handRaised === "true";
         setHandRaisedMap((prev) => ({
           ...prev,
-          [participant.identity]: changed.handRaised === "true",
+          [participant.identity]: raised,
         }));
+        // Звук руки слышат: (а) тот, кто её поднял (фидбек об отправке) и
+        // (б) owner/moderator комнаты. Обычные участники чужие руки не слышат.
+        const isPrivileged =
+          isOwnerRef.current || roomRoleRef.current === "OWNER" || roomRoleRef.current === "MODERATOR";
+        const isLocalRaiser = participant.identity === localIdentityRef.current;
+        if (raised && (isPrivileged || isLocalRaiser)) {
+          soundManager.play(handSoundUrlRef.current, {
+            key: `hand:${participant.identity}`,
+            cooldownMs: 500,
+          });
+        }
       }
       if (changed && "avatarUrl" in changed) {
         const next = typeof changed.avatarUrl === "string" ? changed.avatarUrl : "";
@@ -3819,6 +4603,47 @@ export function ConferenceRoomContent({
           }
           if (prev[participant.identity] === next) return prev;
           return { ...prev, [participant.identity]: next };
+        });
+      }
+      if (changed && "screenPipCorner" in changed) {
+        const raw = changed.screenPipCorner;
+        setPipCornerMap((prev) => {
+          if (!isPipCorner(raw)) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          if (prev[participant.identity] === raw) return prev;
+          return { ...prev, [participant.identity]: raw };
+        });
+      }
+      if (changed && "screenPipHidden" in changed) {
+        const hidden = changed.screenPipHidden === "true";
+        setPipHiddenMap((prev) => {
+          if (!hidden) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          if (prev[participant.identity]) return prev;
+          return { ...prev, [participant.identity]: true };
+        });
+      }
+      if (changed && "screenPipScale" in changed) {
+        const raw = changed.screenPipScale;
+        const num = typeof raw === "string" ? Number.parseFloat(raw) : NaN;
+        setPipScaleMap((prev) => {
+          if (!Number.isFinite(num)) {
+            if (!(participant.identity in prev)) return prev;
+            const copy = { ...prev };
+            delete copy[participant.identity];
+            return copy;
+          }
+          const clamped = clampPipScale(num);
+          if (prev[participant.identity] === clamped) return prev;
+          return { ...prev, [participant.identity]: clamped };
         });
       }
     };
@@ -3834,6 +4659,25 @@ export function ConferenceRoomContent({
         if (prev[participant.identity] === a) return prev;
         return { ...prev, [participant.identity]: a };
       });
+      const corner = readPipCorner(participant);
+      setPipCornerMap((prev) => {
+        if (!corner) return prev;
+        if (prev[participant.identity] === corner) return prev;
+        return { ...prev, [participant.identity]: corner };
+      });
+      const hidden = readPipHidden(participant);
+      setPipHiddenMap((prev) => {
+        if (!hidden) return prev;
+        if (prev[participant.identity]) return prev;
+        return { ...prev, [participant.identity]: true };
+      });
+      const scale = readPipScale(participant);
+      setPipScaleMap((prev) => {
+        if (scale == null) return prev;
+        if (prev[participant.identity] === scale) return prev;
+        return { ...prev, [participant.identity]: scale };
+      });
+      refreshMic();
     };
     const handleDisconnected = (participant: any) => {
       if (!participant?.identity) return;
@@ -3849,6 +4693,30 @@ export function ConferenceRoomContent({
         delete next[participant.identity];
         return next;
       });
+      setMicEnabledMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipCornerMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipHiddenMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
+      setPipScaleMap((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        return next;
+      });
     };
 
     room.on(RoomEvent.ParticipantAttributesChanged, handleAttributes);
@@ -3858,6 +4726,12 @@ export function ConferenceRoomContent({
     // на момент подключения local — их атрибуты надо перечитать после Connected.
     room.on(RoomEvent.Connected, applySnapshot);
     room.on(RoomEvent.Reconnected, applySnapshot);
+    room.on(RoomEvent.TrackMuted, refreshMic);
+    room.on(RoomEvent.TrackUnmuted, refreshMic);
+    room.on(RoomEvent.TrackPublished, refreshMic);
+    room.on(RoomEvent.TrackUnpublished, refreshMic);
+    room.on(RoomEvent.LocalTrackPublished, refreshMic);
+    room.on(RoomEvent.LocalTrackUnpublished, refreshMic);
 
     return () => {
       room.off(RoomEvent.ParticipantAttributesChanged, handleAttributes);
@@ -3865,6 +4739,12 @@ export function ConferenceRoomContent({
       room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
       room.off(RoomEvent.Connected, applySnapshot);
       room.off(RoomEvent.Reconnected, applySnapshot);
+      room.off(RoomEvent.TrackMuted, refreshMic);
+      room.off(RoomEvent.TrackUnmuted, refreshMic);
+      room.off(RoomEvent.TrackPublished, refreshMic);
+      room.off(RoomEvent.TrackUnpublished, refreshMic);
+      room.off(RoomEvent.LocalTrackPublished, refreshMic);
+      room.off(RoomEvent.LocalTrackUnpublished, refreshMic);
     };
   }, [room]);
 
@@ -3911,6 +4791,74 @@ export function ConferenceRoomContent({
       },
     );
   }, [localParticipant, handRaisedMap]);
+
+  // Сетевой push атрибутов PiP дебаунсится: при быстром wheel-resize или
+  // частых drag'ах локальная карта обновляется мгновенно, но в эфир уходит
+  // только последнее состояние через 200мс тишины. Иначе SDK копит запросы,
+  // signal-channel не успевает ackнуть и прилетает SignalRequestError timeout.
+  const pipPendingRef = useRef<{
+    corner: PipCorner;
+    hidden: boolean;
+    scale: number;
+  } | null>(null);
+  const pipFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pipFlushTimerRef.current) {
+        clearTimeout(pipFlushTimerRef.current);
+        pipFlushTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Локальный автор демки меняет позицию, размер или видимость своего
+  // PiP-бублика. Optimistic-апдейт + дебаунсированная публикация атрибутов
+  // LiveKit (всем зрителям прилетит через ParticipantAttributesChanged).
+  const publishPipState = useCallback(
+    (next: { corner: PipCorner; hidden: boolean; scale: number }) => {
+      if (!localParticipant) return;
+      const identity = localParticipant.identity;
+      const safeScale = clampPipScale(next.scale);
+      if (identity) {
+        setPipCornerMap((prev) =>
+          prev[identity] === next.corner ? prev : { ...prev, [identity]: next.corner },
+        );
+        setPipHiddenMap((prev) => {
+          if (next.hidden) {
+            if (prev[identity]) return prev;
+            return { ...prev, [identity]: true };
+          }
+          if (!(identity in prev)) return prev;
+          const copy = { ...prev };
+          delete copy[identity];
+          return copy;
+        });
+        setPipScaleMap((prev) =>
+          prev[identity] === safeScale ? prev : { ...prev, [identity]: safeScale },
+        );
+      }
+
+      pipPendingRef.current = { corner: next.corner, hidden: next.hidden, scale: safeScale };
+      if (pipFlushTimerRef.current) clearTimeout(pipFlushTimerRef.current);
+      pipFlushTimerRef.current = setTimeout(() => {
+        pipFlushTimerRef.current = null;
+        const payload = pipPendingRef.current;
+        pipPendingRef.current = null;
+        if (!payload) return;
+        void Promise.resolve(
+          localParticipant.setAttributes({
+            screenPipCorner: payload.corner,
+            screenPipHidden: payload.hidden ? "true" : "false",
+            screenPipScale: payload.scale.toFixed(1),
+          }),
+        ).catch((err) => {
+          console.error("setAttributes(screenPip*) failed", err);
+        });
+      }, 200);
+    },
+    [localParticipant],
+  );
   const toggleRecording = () => {
     setIsRecording((current) => {
       const next = !current;
@@ -3993,7 +4941,7 @@ export function ConferenceRoomContent({
     return true;
   };
 
-  const renderTrackMedia = (trackRef: any) => {
+  const renderTrackMedia = (trackRef: any, options?: { pipExpanded?: boolean }) => {
     if (!trackRef) {
       return (
         <div className={styles.placeholderTile}>
@@ -4023,12 +4971,72 @@ export function ConferenceRoomContent({
       (isLocal ? currentUserAvatarUrl ?? null : null);
     const isGuest =
       typeof identity === "string" && identity.startsWith("guest_");
+    const isScreenShare = getTrackSource(trackRef) === Track.Source.ScreenShare;
+    // Театральный режим — только десктоп; на планшете/мобиле кнопки нет.
+    const allowTheater = !isTabletLayout && !isCompactLayout;
+    // Кнопка «развернуть демку» — только когда демок 2+ (при одной демке
+    // она и так большим тайлом на первой странице).
+    const screenKey = isScreenShare ? identity : "";
+    const allowFeature = isScreenShare && screenTrackCount >= 2;
+    // PiP-бублик показываем только на развёрнутой демке (отдельная страница
+    // пагинации или театр). В сетке 4-up — нет.
+    const pipExpanded = Boolean(options?.pipExpanded);
+    let pipOverlay: ReactNode = null;
+    if (isScreenShare && pipExpanded) {
+      const cameraTrackRef =
+        cameraTracks.find((t) => t?.participant?.identity === identity) ?? null;
+      const corner: PipCorner = pipCornerMap[identity] ?? "br";
+      const hidden = Boolean(pipHiddenMap[identity]);
+      const scale = pipScaleMap[identity] ?? PIP_SCALE_DEFAULT;
+      pipOverlay = (
+        <ScreenSharePipOverlay
+          cameraTrackRef={cameraTrackRef}
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          isGuest={isGuest}
+          corner={corner}
+          hidden={hidden}
+          scale={scale}
+          isController={isLocal}
+          onChange={isLocal ? publishPipState : () => {}}
+        />
+      );
+    }
     return (
       <TileMedia
         trackRef={trackRef}
         displayName={displayName}
         avatarUrl={avatarUrl}
         isGuest={isGuest}
+        isScreenShare={isScreenShare}
+        theaterActive={allowTheater ? theaterScreen === screenKey : undefined}
+        onToggleTheater={
+          allowTheater
+            ? () => {
+                // theater и нативный fullscreen взаимоисключающие — при входе
+                // в theater выходим из fullscreen.
+                if (document.fullscreenElement) {
+                  void document.exitFullscreen().catch(() => {});
+                }
+                // Театр показывает именно эту демку — кладём её identity.
+                setTheaterScreen((prev) =>
+                  prev === screenKey ? null : screenKey,
+                );
+              }
+            : undefined
+        }
+        featureActive={allowFeature ? featuredScreens.includes(screenKey) : undefined}
+        onToggleFeature={
+          allowFeature
+            ? () =>
+                setFeaturedScreens((prev) =>
+                  prev.includes(screenKey)
+                    ? prev.filter((k) => k !== screenKey)
+                    : [...prev, screenKey],
+                )
+            : undefined
+        }
+        pipOverlay={pipOverlay}
       />
     );
   };
@@ -4257,6 +5265,7 @@ export function ConferenceRoomContent({
       const meta = getParticipantMeta(participant);
       const displayName = getParticipantDisplayName(participant, localIdentity);
       const shouldShowRaisedHand = Boolean(handRaisedMap[participant.identity]);
+      const micEnabled = Boolean(micEnabledMap[participant.identity]);
       const isGuest =
         (typeof participant.identity === "string" && participant.identity.startsWith("guest_")) ||
         (typeof meta.user.id === "string" && meta.user.id.startsWith("guest_"));
@@ -4278,6 +5287,14 @@ export function ConferenceRoomContent({
             {displayName}
           </span>
 
+          <span
+            className={`${styles.participantMic} ${
+              micEnabled ? styles.participantMicOn : styles.participantMicOff
+            }`}
+            aria-label={micEnabled ? "Микрофон включён" : "Микрофон выключен"}
+          >
+            <MicStatusIcon />
+          </span>
           {shouldShowRaisedHand ? (
             <span className={`${styles.stageParticipantStatus} ${styles.stageParticipantStatusOn}`} aria-hidden="true">
               <RaisedHandIcon />
@@ -4833,6 +5850,27 @@ export function ConferenceRoomContent({
       </button>
     ) : null;
 
+  // Кнопка fun-звука в шапке (рядом с шестерёнкой). Видна только owner'у
+  // И только если room.sounds.fun != null — без owner-настройки кнопка скрыта.
+  // Клик — тот же handlePlayFunSound: локально проигрывает и публикует topic
+  // voco-sound-play всем участникам.
+  const hasHeaderFunSound = Boolean((isOwner || roomRole === "OWNER") && funUrl);
+  // Когда fun-кнопка видна, название и код комнаты сдвигаются вправо — иначе
+  // они стоят как раньше, вплотную к шестерёнке. Передаём этот модификатор
+  // в className рядом с layout-вариантом (desktopConferenceName и т.д.).
+  const headerFunOffsetClass = hasHeaderFunSound ? styles.withHeaderFunButton : "";
+  const renderHeaderFunSoundButton = (className?: string) =>
+    hasHeaderFunSound ? (
+      <button
+        type="button"
+        className={`${styles.headerFunSoundButton} ${className ?? ""}`}
+        onClick={handlePlayFunSound}
+        aria-label="Прикольный звук"
+      >
+        <FunSoundBroadcastIcon />
+      </button>
+    ) : null;
+
   const renderSettingsPanel = (layoutClass: string) =>
     isSettingsPanelOpen && slug ? (
       <SettingsPanel
@@ -4842,9 +5880,13 @@ export function ConferenceRoomContent({
         roomMeta={roomMeta}
         blockedUsers={blockedUsers}
         canEditSettings={Boolean(isOwner || roomRole === "OWNER")}
+        isOwner={Boolean(isOwner || roomRole === "OWNER")}
+        playlist={playlistTracks}
+        sounds={roomSoundUrls}
         onClose={() => toggleRoomPanel("settings")}
         onMetaSaved={refreshRoomState}
         onUnblockUser={handleUnblockUser}
+        onSoundsChanged={refreshRoomState}
       />
     ) : null;
 
@@ -4936,6 +5978,8 @@ export function ConferenceRoomContent({
             const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
+            const isExpandedSingleTile =
+              tabletTileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
             return (
               <article
@@ -4945,7 +5989,9 @@ export function ConferenceRoomContent({
                 style={frame.style}
                 key={frame.id}
               >
-                <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+                <div className={styles.tileMedia}>
+                  {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
+                </div>
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -4995,18 +6041,19 @@ export function ConferenceRoomContent({
           ) : null}
 
           {renderHeaderSettingsButton(undefined, false, styles.tabletHeaderSettingsButton)}
+          {renderHeaderFunSoundButton(styles.tabletHeaderFunSoundButton)}
           {renderSettingsPanel(styles.tabletSettingsPanel)}
           {renderClearChatConfirm()}
           {renderPollModal()}
           {renderPollResults()}
 
-          <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName}`}>
+          <h1 className={`${styles.stageConferenceName} ${styles.tabletConferenceName} ${headerFunOffsetClass}`}>
             {roomTitle}
           </h1>
           {slug ? (
-            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode}`)
+            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.tabletRoomCode} ${headerFunOffsetClass}`)
           ) : (
-            <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode}`}>
+            <div className={`${styles.stageRoomCode} ${styles.tabletRoomCode} ${headerFunOffsetClass}`}>
               {roomCodeLabel}
             </div>
           )}
@@ -5215,6 +6262,8 @@ export function ConferenceRoomContent({
             const connectionQuality = getTrackConnectionQuality(trackRef);
             const displayName = getTrackDisplayName(trackRef, localIdentity);
             const speaking = isTrackSpeaking(trackRef);
+            const isExpandedSingleTile =
+              mobileTileFrames.length === 1 && hasExpandedVideoMedia(trackRef);
 
             return (
               <article
@@ -5224,7 +6273,9 @@ export function ConferenceRoomContent({
                 style={frame.style}
                 key={frame.id}
               >
-                <div className={styles.tileMedia}>{renderTrackMedia(trackRef)}</div>
+                <div className={styles.tileMedia}>
+                  {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
+                </div>
 
                 <div className={styles.tileFooter}>
                   <span className={styles.tileFooterName}>{displayName || "Ожидание подключения"}</span>
@@ -5273,18 +6324,19 @@ export function ConferenceRoomContent({
             </aside>
           ) : null}
 
-          <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName}`}>
+          <h1 className={`${styles.stageConferenceName} ${styles.mobileConferenceName} ${headerFunOffsetClass}`}>
             {roomTitle}
           </h1>
           {slug ? (
-            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode}`)
+            renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.mobileRoomCode} ${headerFunOffsetClass}`)
           ) : (
-            <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode}`}>
+            <div className={`${styles.stageRoomCode} ${styles.mobileRoomCode} ${headerFunOffsetClass}`}>
               {roomCodeLabel}
             </div>
           )}
 
           {renderHeaderSettingsButton(undefined, false, styles.mobileHeaderSettingsButton)}
+          {renderHeaderFunSoundButton(styles.mobileHeaderFunSoundButton)}
           {renderSettingsPanel(styles.mobileSettingsPanel)}
           {renderClearChatConfirm()}
           {renderPollModal()}
@@ -5435,7 +6487,7 @@ export function ConferenceRoomContent({
   return (
     <div className={styles.stageViewport}>
       <div
-        className={styles.stage}
+        className={`${styles.stage} ${theaterMode ? styles.stageTheater : ""}`}
         style={{
           "--stage-reserve-left": `${expandedTileLeft}px`,
           "--stage-reserve-right": `${expandedTileRight}px`,
@@ -5500,7 +6552,7 @@ export function ConferenceRoomContent({
                 className={styles.tileMedia}
                 ref={isExpandedSingleTile ? expandedMediaRef : undefined}
               >
-                {renderTrackMedia(trackRef)}
+                {renderTrackMedia(trackRef, { pipExpanded: isExpandedSingleTile })}
               </div>
 
               <div className={styles.tileFooter}>
@@ -5512,18 +6564,19 @@ export function ConferenceRoomContent({
         })}
 
         {renderHeaderSettingsButton(undefined, false, styles.desktopHeaderSettingsButton)}
+        {renderHeaderFunSoundButton(styles.desktopHeaderFunSoundButton)}
         {renderSettingsPanel(styles.desktopSettingsPanel)}
         {renderClearChatConfirm()}
         {renderPollModal()}
         {renderPollResults()}
 
-        <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName}`}>
+        <h1 className={`${styles.stageConferenceName} ${styles.desktopConferenceName} ${headerFunOffsetClass}`}>
           {roomTitle}
         </h1>
         {slug ? (
-          renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode}`)
+          renderOwnerCopyButton(`${styles.stageRoomCode} ${styles.desktopRoomCode} ${headerFunOffsetClass}`)
         ) : (
-          <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode}`}>
+          <div className={`${styles.stageRoomCode} ${styles.desktopRoomCode} ${headerFunOffsetClass}`}>
             {roomCodeLabel}
           </div>
         )}
@@ -5665,6 +6718,8 @@ export function ConferenceRoomContent({
           <DeviceControlContent label="Демонстрация" active={isScreenShareEnabled} icon={<ScreenIcon />} />
         </TrackToggle>
 
+        {/* Кнопка fun-звука переехала в шапку (см. renderHeaderFunSoundButton). */}
+
         <div className={`${styles.utilityGroup} ${styles.desktopUtilityGroup}`}>
           <button
             className={`${styles.utilityButton} ${isParticipantsPanelOpen ? styles.utilityButtonActive : ""}`}
@@ -5724,6 +6779,12 @@ export function RoomPage({ user }: Props) {
     const [rejectionToast, setRejectionToast] = useState<string | null>(null);
     const [isOwner, setIsOwner] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
+    const [waitingPlaylist, setWaitingPlaylist] = useState<PlaylistTrack[]>([]);
+    const [waitingSounds, setWaitingSounds] = useState<RoomSounds>({
+      fun: null,
+      hand: null,
+      join: null,
+    });
     const [now, setNow] = useState(() => new Date());
 
     useEffect(() => {
@@ -5769,6 +6830,16 @@ export function RoomPage({ user }: Props) {
                     setIsOwner(details.room?.owner?.id === user?.id);
                     setMyRole(details.room?.myRole ?? null);
                     setOwnerName(details.room?.owner?.username ?? "");
+                    if (Array.isArray(details.room?.playlist)) {
+                        setWaitingPlaylist(details.room.playlist as PlaylistTrack[]);
+                    }
+                    if (details.room?.sounds) {
+                        setWaitingSounds({
+                            fun: details.room.sounds.fun ?? null,
+                            hand: details.room.sounds.hand ?? null,
+                            join: details.room.sounds.join ?? null,
+                        });
+                    }
                 } catch {
                     // ignore — не критично для входа
                 }
@@ -5943,6 +7014,8 @@ export function RoomPage({ user }: Props) {
                             onExitIntent={handleConferenceLeaveIntent}
                             onEndRoomIntent={handleEndRoomIntent}
                             currentUserAvatarUrl={user?.avatarUrl ?? null}
+                            initialPlaylist={waitingPlaylist}
+                            initialSounds={waitingSounds}
                         />
                     )}
                 </LiveKitRoom>
@@ -6027,6 +7100,8 @@ export function RoomPage({ user }: Props) {
                                 "Войти"
                             )}
                         </button>
+
+                        <WaitingRoomPlayer tracks={waitingPlaylist} />
                     </section>
 
                     {(roomName || ownerName) && (

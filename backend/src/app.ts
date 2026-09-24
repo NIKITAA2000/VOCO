@@ -6,6 +6,7 @@ import roomRoutes from "./routes/rooms.js";
 import inviteRoutes from "./routes/invites.js";
 import uploadRoutes, { UPLOAD_DIR } from "./routes/uploads.js";
 import pollRoutes from "./routes/polls.js";
+import soundRoutes from "./routes/sounds.js";
 
 const app = express();
 
@@ -30,6 +31,8 @@ app.use("/api/rooms", uploadRoutes);
 // Опросы — гибридная auth (наш JWT либо LiveKit JWT для гостей-голосующих).
 // Регистрируем до roomRoutes по той же причине, что и uploadRoutes.
 app.use("/api/rooms", pollRoutes);
+// Звуки и плейлист — owner-only через наш JWT; multipart-загрузка.
+app.use("/api/rooms", soundRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/invite", inviteRoutes);
 

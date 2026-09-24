@@ -12,6 +12,13 @@
 }
 
 .stageViewport {
+  /* Пропорциональный скейл бар-UI. 1.0 при высоте окна ≥ 900px (как было
+     исторически), плавно вниз до 0.64 на низких viewport-ах (ноуты ~600px) —
+     бары и кнопки сжимаются вместе, освобождая место тайлу демонстрации.
+     Применяется к бар-элементам через `zoom: var(--room-scale)`. */
+  --room-scale: clamp(0.64, calc(100vh / 900px), 1);
+  /* Высота фона верхней/нижней панели = 100px × scale. */
+  --room-bar-height: calc(100px * var(--room-scale));
   width: 100vw;
   height: 100vh;
   display: grid;
@@ -22,6 +29,11 @@
 }
 
 .tabletViewport {
+  /* Планшет/мобайл — reference-разметка с фиксированными 100px-барами.
+     Переменные нужны, потому что desktop- и tablet-правила шарят селекторы.
+     scale = 1 → zoom на общих правилах планшет не трогает. */
+  --room-scale: 1;
+  --room-bar-height: 100px;
   width: 100vw;
   height: 100vh;
   position: relative;
@@ -32,8 +44,8 @@
 }
 
 .stage {
-  --stage-safe-top: 100px;
-  --stage-safe-bottom: 100px;
+  --stage-safe-top: var(--room-bar-height);
+  --stage-safe-bottom: var(--room-bar-height);
   --stage-content-top-ratio: 0.09765625;
   --stage-content-height-ratio: 0.8046875;
   --stage-content-height: max(1px, calc(100vh - var(--stage-safe-top) - var(--stage-safe-bottom)));
@@ -74,6 +86,31 @@
   background: #fff;
   color: #000;
   font-family: "Jost", sans-serif;
+}
+
+/* Театральный режим: прячем всю конференц-хрому (бары, кнопки, боковые
+   панели). Тайл демонстрации и его кнопки (внутри .tileMediaWrapper) не
+   трогаем — иначе из режима будет не выйти.
+   Селектор .stage.stageTheater (обе класса на одном элементе) повышает
+   специфичность до (0,3,0) — перебивает поздние правила вроде
+   .stageRoomCode.roomCodeCopy (0,2,0), иначе display: none не сработает. */
+.stage.stageTheater .topBar,
+.stage.stageTheater .bottomBar,
+.stage.stageTheater .desktopToolbarIndicator,
+.stage.stageTheater .desktopParticipantsPanel,
+.stage.stageTheater .desktopChatPanel,
+.stage.stageTheater .desktopHeaderSettingsButton,
+.stage.stageTheater .desktopHeaderInviteButton,
+.stage.stageTheater .desktopConferenceName,
+.stage.stageTheater .desktopRoomCode,
+.stage.stageTheater .desktopRecordingIndicator,
+.stage.stageTheater .desktopHeaderExitButton,
+.stage.stageTheater .desktopHeaderExitMenuTrigger,
+.stage.stageTheater .desktopHeaderExitDropdown,
+.stage.stageTheater .desktopDeviceSlot,
+.stage.stageTheater .desktopScreenShareButton,
+.stage.stageTheater .desktopUtilityGroup {
+  display: none;
 }
 
 .tabletStage {
@@ -189,7 +226,7 @@
   left: 0;
   top: 0;
   width: 100vw;
-  height: 100px;
+  height: var(--room-bar-height);
   border-radius: 0 0 25px 25px;
   z-index: 1;
 }
@@ -199,7 +236,7 @@
   left: 0;
   bottom: 0;
   width: 100vw;
-  height: 100px;
+  height: var(--room-bar-height);
   border-radius: 25px 25px 0 0;
   z-index: 1;
 }
@@ -252,13 +289,40 @@
   background: #999999;
 }
 
+.viewIndicatorArrow {
+  appearance: none;
+  width: 10px;
+  height: 11px;
+  flex: 0 0 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #000000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewIndicatorArrow:focus,
+.viewIndicatorArrow:focus-visible {
+  outline: none;
+}
+
+.viewIndicatorArrow:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
 .desktopToolbarIndicator,
 .tabletToolbarHandle {
   position: fixed;
-  left: 50vw;
+  /* zoom множит left на scale — делим заранее, чтобы центр остался на 50vw. */
+  left: calc(50vw / var(--room-scale));
   top: auto;
   bottom: 80px;
   transform: translateX(-50%);
+  zoom: var(--room-scale);
   z-index: 3;
 }
 
@@ -295,8 +359,8 @@
 .desktopParticipantsPanel,
 .desktopChatPanel {
   position: fixed;
-  top: 100px;
-  bottom: 100px;
+  top: var(--room-bar-height);
+  bottom: var(--room-bar-height);
   height: auto;
   z-index: 2;
 }
@@ -458,6 +522,31 @@
 
 .stageParticipantStatusOff {
   color: #ff3333;
+}
+
+/* Индикатор микрофона в строке участника. On — зелёное сияние, off — красное. */
+.participantMic {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #000;
+}
+
+.participantMicOn {
+  background: radial-gradient(50% 50% at 50% 50%, #00ff00 0%, rgba(221, 255, 221, 0) 100%);
+}
+
+.participantMicOff {
+  background: radial-gradient(50% 50% at 50% 50%, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
+}
+
+.micStatusSvg {
+  display: block;
+  width: 28px;
+  height: 28px;
 }
 
 .participantRow {
@@ -1739,6 +1828,10 @@
 .tabletParticipantsPanel,
 .tabletChatPanel {
   box-shadow: none;
+  /* Перекрываем .tileCard::after (z-index 5, зелёная обводка говорящего в тёмной
+     теме). .tileCard не создаёт stacking-context, поэтому его ::after просвечивает
+     над панелью чата/участников с z-index 2. */
+  z-index: 10;
 }
 
 .tabletParticipantsPanel::after,
@@ -3486,7 +3579,16 @@ button.stageRoomCode:disabled {
   left: 88px;
   top: 20px;
   width: 460px;
+  zoom: var(--room-scale);
   z-index: 4;
+}
+
+/* Когда у owner'а в шапке есть кнопка fun-звука (.headerFunSoundButton на
+   left:78), название и код сдвигаются вправо, чтобы не лезть под неё. Без
+   fun-кнопки — стоят вплотную к шестерёнке (left:88). */
+.desktopConferenceName.withHeaderFunButton,
+.tabletConferenceName.withHeaderFunButton {
+  left: 138px;
 }
 
 .desktopRoomCode,
@@ -3497,8 +3599,14 @@ button.stageRoomCode:disabled {
   z-index: 4;
 }
 
+.desktopRoomCode.withHeaderFunButton,
+.tabletRoomCode.withHeaderFunButton {
+  left: 138px;
+}
+
 .desktopRoomCode {
   top: 65px;
+  zoom: var(--room-scale);
 }
 
 .tabletRoomCode {
@@ -3511,6 +3619,7 @@ button.stageRoomCode:disabled {
   top: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3521,11 +3630,13 @@ button.stageRoomCode:disabled {
   height: 50px;
   background: transparent;
   box-shadow: none;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
 .desktopRecordingIndicator {
-  left: calc(50% - 25px);
+  /* zoom множит left — компенсируем делением, минус полширины кнопки. */
+  left: calc(50vw / var(--room-scale) - 25px);
 }
 
 .tabletRecordingIndicator {
@@ -3580,6 +3691,7 @@ button.stageRoomCode:disabled {
   top: 25px;
   right: 25px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3597,6 +3709,7 @@ button.stageRoomCode:disabled {
   right: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 10;
 }
 
@@ -3605,6 +3718,7 @@ button.stageRoomCode:disabled {
   top: 80px;
   right: 25px;
   width: 200px;
+  zoom: var(--room-scale);
 }
 
 .deviceIcon svg {
@@ -3833,6 +3947,7 @@ button.stageRoomCode:disabled {
   top: auto;
   bottom: 25px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -3874,6 +3989,62 @@ button.stageRoomCode:disabled {
   width: 100%;
   height: 100%;
   container-type: inline-size;
+}
+
+/* В нативном fullscreen обёртка занимает весь экран; чёрный фон под letterbox. */
+.tileMediaWrapper:fullscreen {
+  background: #000;
+}
+
+.tileMediaWrapper:fullscreen .livekitTile {
+  width: 100%;
+  height: 100%;
+}
+
+/* Кнопки на тайле демонстрации: feature/theater (слева) и fullscreen (справа). */
+.tileFullscreenButton,
+.tileTheaterButton,
+.tileFeatureButton {
+  position: absolute;
+  top: 12px;
+  z-index: 6;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.tileFullscreenButton {
+  right: 12px;
+}
+
+.tileTheaterButton {
+  right: 60px;
+}
+
+.tileFeatureButton {
+  right: 108px;
+}
+
+.tileFullscreenButton:hover,
+.tileTheaterButton:hover,
+.tileFeatureButton:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.tileFullscreenIcon {
+  display: block;
+  width: 22px;
+  height: 22px;
 }
 
 /* Оверлей с аватаркой: показываем поверх плейсхолдера LiveKit, когда камера off. */
@@ -3931,6 +4102,137 @@ button.stageRoomCode:disabled {
    в тот же цвет, что и текстовый смайлик (см. .tileAvatarOverlay .tileAvatar). */
 .tileAvatarOverlay .tileAvatar .participantGuestAvatarIcon > circle {
   display: none;
+}
+
+/* PiP-бублик с вебкой автора демки в углу развёрнутой плитки. Базовый размер
+   ~14% от ширины плитки (cqi доступен через container-type: inline-size).
+   Множитель --pip-scale выставляется компонентом из LiveKit-атрибута и
+   масштабирует бубль через колесо мыши автора. */
+.screenPipOverlay {
+  position: absolute;
+  z-index: 7;
+  width: clamp(60px, calc(var(--pip-scale, 1) * 18cqi), 280px);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #1a1a1a;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.18s ease, width 0.15s ease;
+  /* Сам бублик — container для своих потомков (cqi внутри = % от ширины
+     бублика). Без этого font-size текстовых смайликов брал cqi от tile
+     wrapper и не уменьшался вместе с бубликом. */
+  container-type: inline-size;
+}
+
+.screenPipOverlayInteractive {
+  cursor: grab;
+}
+
+.screenPipOverlayInteractive:active {
+  cursor: grabbing;
+}
+
+.screenPipOverlayDragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.screenPipVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.screenPipAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eedcff;
+  pointer-events: none;
+}
+
+.screenPipAvatarFallback .screenPipAvatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  color: #8000ff;
+  /* cqi теперь от самого бублика (см. container-type на .screenPipOverlay) —
+     шрифт смайлика масштабируется вместе с размером бублика. 25% от ширины
+     даёт ~3 символам ("O_O") влезть с запасом. */
+  font-size: clamp(14px, 25cqi, 60px);
+}
+
+:global(:root[data-theme="dark"]) .screenPipAvatarFallback {
+  background: #280050;
+}
+
+:global(:root[data-theme="dark"]) .screenPipAvatarFallback .screenPipAvatar {
+  color: #b58cff;
+}
+
+/* «Призрак»-кнопка восстановления: остаётся в выбранном углу когда автор
+   скрыл бублик. Виден только автору. */
+.screenPipGhost {
+  position: absolute;
+  z-index: 7;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  opacity: 0.55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.screenPipGhost:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.screenPipCorner_tl {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  bottom: auto;
+}
+
+/* В TR-углу сидят кнопки fullscreen/theater/feature (top:12px, height:40px,
+   gap:8px между группами и бубликом). Опускаем бубль под них на 64px,
+   чтобы не перекрывал управление демкой. */
+.screenPipCorner_tr {
+  top: 64px;
+  right: 6px;
+  left: auto;
+  bottom: auto;
+}
+
+.screenPipCorner_bl {
+  bottom: 6px;
+  left: 6px;
+  top: auto;
+  right: auto;
+}
+
+.screenPipCorner_br {
+  bottom: 6px;
+  right: 6px;
+  top: auto;
+  left: auto;
 }
 
 .tileAvatarOverlay .tileAvatar .participantGuestAvatarFace {
@@ -4079,6 +4381,11 @@ button.stageRoomCode:disabled {
   z-index: 3;
 }
 
+/* С fun-кнопкой в шапке сдвигаем название и код на +60px (под кнопку). */
+.mobileConferenceName.withHeaderFunButton {
+  left: calc(50% - 65px);
+}
+
 .mobileRoomCode {
   position: fixed;
   left: calc(50% - 125px);
@@ -4088,6 +4395,10 @@ button.stageRoomCode:disabled {
   font-size: 11px;
   line-height: 16px;
   z-index: 3;
+}
+
+.mobileRoomCode.withHeaderFunButton {
+  left: calc(50% - 65px);
 }
 
 .mobileHeaderInviteButton {
@@ -4172,7 +4483,8 @@ button.stageRoomCode:disabled {
 .mobileParticipantsPanel {
   border-radius: 25px;
   box-shadow: none;
-  z-index: 2;
+  /* См. комментарий у .tabletChatPanel — перекрываем .tileCard::after (z-index 5). */
+  z-index: 10;
 }
 
 .mobileParticipantsPanel::after {
@@ -4187,7 +4499,8 @@ button.stageRoomCode:disabled {
 .mobileChatPanel {
   border-radius: 25px;
   box-shadow: none;
-  z-index: 2;
+  /* См. комментарий у .tabletChatPanel — перекрываем .tileCard::after (z-index 5). */
+  z-index: 10;
 }
 
 .mobileChatPanel::before {
@@ -5051,7 +5364,9 @@ button.stageRoomCode .roomCodeCopyHint {
   width: 475px;
   height: 205px;
   transform: translate(-50%, -50%);
-  z-index: 1;
+  /* z-index выше .waitingMeta (1), иначе dropdown плейлиста перекрывается
+   * текстом «Название комнаты». */
+  z-index: 2;
 }
 
 .waitingClock {
@@ -5617,6 +5932,10 @@ button.stageRoomCode .roomCodeCopyHint {
   background: #999999;
 }
 
+:global(:root[data-theme="dark"]) .viewIndicatorArrow {
+  color: #ffffff;
+}
+
 :global(:root[data-theme="dark"]) .mobileToolbarHandleThumbBlack {
   background: #ffffff;
 }
@@ -6011,6 +6330,10 @@ button.stageRoomCode .roomCodeCopyHint {
 }
 
 :global(:root[data-theme="dark"]) .stageParticipantStatusOn {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .participantMic {
   color: #ffffff;
 }
 
@@ -6817,6 +7140,7 @@ button.stageRoomCode .roomCodeCopyHint {
   top: 25px;
   width: 50px;
   height: 50px;
+  zoom: var(--room-scale);
   z-index: 4;
 }
 
@@ -6925,11 +7249,16 @@ button.stageRoomCode .roomCodeCopyHint {
   display: flex;
   width: calc(100% - 50px);
   height: 50px;
+  /* overflow:hidden + одинаковая flex-basis на детях → каждая вкладка занимает
+   * равную долю независимо от длины текста, не вылезает на крестик. */
+  overflow: hidden;
 }
 
 .settingsTab {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   height: 50px;
+  padding: 0 4px;
   border: 0;
   border-radius: 10px 10px 0 0;
   background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
@@ -6937,12 +7266,15 @@ button.stageRoomCode .roomCodeCopyHint {
   font-family: inherit;
   font-style: italic;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 23px;
+  font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
   transition: background 0.15s ease;
 }
 
@@ -6981,6 +7313,21 @@ button.stageRoomCode .roomCodeCopyHint {
   background: linear-gradient(180deg, #ff3333 0%, rgba(255, 221, 221, 0) 100%);
 }
 
+/* Sounds tab — те же синие градиенты, что и у link, чтобы вкладка
+   визуально жила на голубой подложке #DEEEFF. */
+.settingsPanel[data-tab="sounds"] .settingsTab {
+  background: linear-gradient(180deg, #dddddd 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="sounds"] .settingsTab:hover {
+  background: linear-gradient(180deg, #cccccc 0%, rgba(222, 238, 255, 0) 100%);
+}
+
+.settingsPanel[data-tab="sounds"] .settingsTabActive,
+.settingsPanel[data-tab="sounds"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(222, 238, 255, 0) 100%);
+}
+
 :global(:root[data-theme="dark"]) .settingsTab {
   color: #eee;
   background: linear-gradient(180deg, #2a2a2a 0%, rgba(26, 58, 26, 0) 100%);
@@ -6993,6 +7340,11 @@ button.stageRoomCode .roomCodeCopyHint {
 :global(:root[data-theme="dark"]) .settingsTabActive,
 :global(:root[data-theme="dark"]) .settingsTabActive:hover {
   background: linear-gradient(180deg, #00aa00 0%, rgba(26, 58, 26, 0) 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsTabActive,
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsTabActive:hover {
+  background: linear-gradient(180deg, #0077ff 0%, rgba(0, 37, 80, 0) 100%);
 }
 
 .settingsClose {
@@ -7089,6 +7441,13 @@ button.stageRoomCode .roomCodeCopyHint {
 .settingsPanel[data-tab="ban"] .settingsField select:focus-visible,
 .settingsPanel[data-tab="ban"] .settingsFakeSelect:focus-visible {
   box-shadow: inset 0 0 0 2px #ff3333;
+}
+
+/* По дизайну вкладки «Звуки» — никакой focus-рамки на pill-инпутах. */
+.settingsPanel[data-tab="sounds"] .settingsField input:focus-visible,
+.settingsPanel[data-tab="sounds"] .settingsField select:focus-visible,
+.settingsPanel[data-tab="sounds"] .settingsFakeSelect:focus-visible {
+  box-shadow: none;
 }
 
 .settingsField input:disabled {
@@ -7744,13 +8103,10 @@ button.stageRoomCode .roomCodeCopyHint {
   flex: 0 0 50px;
 }
 
-.settingsPanel[data-tab="settings"] .settingsTabs {
-  width: 270px;
-}
-
+/* Ширина .settingsTabs и .settingsTab не переопределяются — используется
+ * базовое правило (flex: 1 1 0), чтобы все 4 вкладки делили доступную
+ * ширину поровну, без обрезки. */
 .settingsPanel[data-tab="settings"] .settingsTab {
-  flex: 0 0 90px;
-  width: 90px;
   color: #000;
   background: linear-gradient(180deg, #dddddd 0%, rgba(221, 255, 221, 0) 100%);
 }
@@ -9086,4 +9442,849 @@ button.stageRoomCode .roomCodeCopyHint {
     linear-gradient(90deg, #ff3333 0%, #800000 50%, #ff3333 100%) padding-box,
     linear-gradient(90deg, #800000 0%, #ff3333 50%, #800000 100%) border-box;
   color: #fff;
+}
+
+/* =====================================================================
+ * Waiting-room player — pre-join экран, под кнопкой «Войти».
+ * Без card-фона: элементы дышат на белом waitingPanel. Цветовая палитра
+ * совпадает с мокапом меню — синий #0077FF на контролах, иконка трека —
+ * radial-градиент фиолетовый→синий→зелёный (см. paint6_radial в svg).
+ * См. [WaitingRoomPlayer.tsx](../components/WaitingRoomPlayer.tsx).
+ * ===================================================================== */
+/* Плеер позиционирован абсолютно внутри .waitingPanel: panel высотой 205px,
+ * submit-кнопка на top:155 + 50height = 205. По SVG: плеер top y=357,
+ * submit bottom y=325 → gap 32px. С panel top y=197 (input), submit:155 →
+ * submit bottom в panel = 205. Player top в panel = 205+32 = 237.
+ * Раскладка через grid: левый блок (thumb+meta), центр (контролы) и правый
+ * (→ ≡) — три колонки 1fr/auto/1fr, центр гарантированно в центре панели
+ * независимо от ширины meta. waitingMeta сдвигается вниз через :has() ниже. */
+.waitingPlayer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 237px;
+  display: grid;
+  /* minmax(0,...) — иначе ячейки grid не сжимают meta и длинное название
+   * раздвигает левую колонку, толкая play-кнопку. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.waitingPlayerLeft {
+  display: flex;
+  align-items: center;
+  /* Author/title прижимаются к иконке трека. */
+  gap: 8px;
+  min-width: 0;
+}
+
+.waitingPlayerRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* По SVG: room name top y=478, viewport-offset = 478-264 = +214 от центра. */
+.waitingStage:has(.waitingPlayer) .waitingMeta {
+  top: calc(50% + 214px);
+}
+
+/* Seek-bar — тонкая полоса под плеером. Нативный range styled под наш дизайн.
+ * Заливка прогресса через CSS var --seek-progress, которая ставится из JSX
+ * через style={{ '--seek-progress': N% }}. Поддержка cross-browser через
+ * псевдо-элементы ::-webkit-slider и ::-moz-range. */
+.waitingPlayerSeek {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -24px;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+}
+
+.waitingPlayerSeek:focus,
+.waitingPlayerSeek:focus-visible,
+.waitingPlayerSeek:active {
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+
+/* Track (полоска позади бегунка) — webkit */
+.waitingPlayerSeek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #0077ff 0%,
+    #0077ff var(--seek-progress, 0%),
+    rgba(0, 119, 255, 0.18) var(--seek-progress, 0%),
+    rgba(0, 119, 255, 0.18) 100%
+  );
+}
+
+/* Track — firefox */
+.waitingPlayerSeek::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 119, 255, 0.18);
+}
+.waitingPlayerSeek::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: #0077ff;
+}
+
+/* Thumb (бегунок) — маленькая синяя точка */
+.waitingPlayerSeek::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0077ff;
+  border: 2px solid #fff;
+  margin-top: -4px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.waitingPlayerSeek::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #0077ff;
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    #0077ff 0%,
+    #0077ff var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.18) var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.18) 100%
+  );
+}
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-moz-range-track {
+  background: rgba(255, 255, 255, 0.18);
+}
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-webkit-slider-thumb,
+:global(:root[data-theme="dark"]) .waitingPlayerSeek::-moz-range-thumb {
+  border-color: #1a1f33;
+}
+
+.waitingPlayerThumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  /* Из svg.txt: radialGradient center (25,25) radius 25, stops 0/50/100. */
+  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+/* Когда у трека есть картинка — убираем radial-gradient. Иначе из-за
+ * subpixel-rendering по краям img проступал зелёный кант (особенно заметен
+ * в тёмной теме). */
+.waitingPlayerThumb[data-has-image="true"] {
+  background: transparent;
+}
+
+.waitingPlayerThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.waitingPlayerThumbDefault {
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Meta растягивается до 1fr-границы левой колонки и обрезается ellipsis'ом.
+ * Левая колонка grid'а — minmax(0,1fr), значит длинное название не сдвинет
+ * play-кнопку (центральная auto-колонка зафиксирована). */
+.waitingPlayerMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.waitingPlayerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waitingPlayerAuthor {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 13px;
+}
+
+.waitingPlayerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.waitingPlayerControl {
+  width: 40px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #0077ff;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.waitingPlayerControl:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* hover-фон убран по запросу — кнопки реагируют только на active. */
+
+.waitingPlayerPlay {
+  width: 50px;
+  height: 50px;
+  border: none;
+  background: #0077ff;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.waitingPlayerPlay:active {
+  transform: scale(0.96);
+}
+
+.waitingPlayerNext,
+.waitingPlayerList {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #0077ff;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex: 0 0 auto;
+  transition: background 0.15s;
+}
+
+
+.waitingPlayerListPopup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(360px, 90vw);
+  /* 3 строки × ~50px + padding 12 = ~162px. Если треков больше — скролл. */
+  max-height: 162px;
+  overflow-y: auto;
+  /* Синий scrollbar в цвет контролов плеера. */
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.waitingPlayerListItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.waitingPlayerListItem:hover {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.waitingPlayerListItemActive {
+  background: rgba(26, 115, 232, 0.15);
+}
+
+.waitingPlayerListItemThumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: radial-gradient(circle closest-side at center, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.waitingPlayerListItemThumb[data-has-image="true"] {
+  background: transparent;
+}
+
+.waitingPlayerListItemThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.waitingPlayerListItemMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.waitingPlayerListItemTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waitingPlayerListItemAuthor {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Тёмная тема: плеер прозрачный как в светлой, контролы остаются синими
+ * (#0077FF читабелен на обоих фонах). Меняется только цвет текста и фон
+ * dropdown'а со списком треков. */
+:global(:root[data-theme="dark"]) .waitingPlayer {
+  background: transparent;
+  border: none;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerTitle {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerAuthor {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListPopup {
+  background: #1a1f33;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItem:hover {
+  background: rgba(0, 119, 255, 0.18);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemActive {
+  background: rgba(0, 119, 255, 0.28);
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemTitle {
+  color: #fff;
+}
+
+:global(:root[data-theme="dark"]) .waitingPlayerListItemAuthor {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* =====================================================================
+ * Settings → Sounds tab
+ * ===================================================================== */
+/* Фиксированная высота 550px (≈ как у вкладки «Ссылка» с её обычным набором
+ * контента). Длинный плейлист скроллится внутри .soundsBody — для этого
+ * body берёт flex:1 + min-height:0 (иначе flex-ребёнок не сжимается ниже
+ * собственного контента и панель распухает). */
+.settingsPanel[data-tab="sounds"] {
+  height: 550px;
+  max-height: calc(100vh - 32px);
+  /* По дизайну вкладка идёт на «ссылочном» голубом #DEEEFF → белый,
+     а не на дефолтном «settings»-зелёном. */
+  background: linear-gradient(180deg, #deeeff 0%, #ffffff 100%);
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] {
+  /* По figma — #002550 → #222222 (180deg). */
+  background: linear-gradient(180deg, #002550 0%, #222222 100%);
+}
+
+.soundsBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* top 0 — заголовок «Плейлист…» прижат к шапке вкладок без воздуха.
+     Слева 0 — pill'ы вытянуты максимально к левому краю панели. Справа 6px —
+     зазор под кастомный скроллбар (шириной 6px), иначе pill'ы прячутся за ним.
+     Снизу 0 — последний хинт «mp3/ogg/wav до 1 МБ» прижат к низу панели. */
+  padding: 0 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  /* Компактный gap между группами (input-блоки / pill-блоки). Внутри одной
+     группы (.soundsField) — свой меньший gap (2px). */
+  gap: 8px;
+  overflow-y: auto;
+}
+
+/* Список треков. Между треками 10px (тесно), как в дизайне. Снизу
+   margin-bottom — добавляет воздух перед формой добавления (плюс к gap'у 8). */
+.soundsTrackList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* Группа «лейбл + инпут» или «pill + хинт». Внутри группы 2px, между группами
+   .soundsBody gap (8px). */
+.soundsField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Блок «Аудио + Обложка» внутри add-track формы. Отделён от текстовых полей
+   выше дополнительным отступом сверху — визуально это отдельная секция. */
+.soundsAddFiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Цветные scrollbar'ы — каждая вкладка в свой цвет, плюс синий для списка
+ * треков плеера. Скроллится не .soundsBody, а внешний .settingsBody (см.
+ * правило выше с overflow:auto), поэтому таргетим именно его per-tab. */
+
+/* Список треков плеера ожидания — синий в тон контролов */
+.waitingPlayerListPopup {
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+}
+.waitingPlayerListPopup::-webkit-scrollbar { width: 6px; }
+.waitingPlayerListPopup::-webkit-scrollbar-track { background: transparent; }
+.waitingPlayerListPopup::-webkit-scrollbar-thumb {
+  background: #0077ff;
+  border-radius: 3px;
+}
+.waitingPlayerListPopup::-webkit-scrollbar-thumb:hover { background: #0066d9; }
+
+/* Settings tab — зелёный */
+.settingsPanel[data-tab="settings"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #00ff00 transparent;
+}
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="settings"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #00cc00; }
+
+/* Link tab — синий */
+.settingsPanel[data-tab="link"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+}
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #0077ff;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="link"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #0066d9; }
+
+/* Ban tab — красный */
+.settingsPanel[data-tab="ban"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #ff3333 transparent;
+}
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #ff3333;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="ban"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #cc2222; }
+
+/* Sounds tab — синий в тон голубой подложки */
+.settingsPanel[data-tab="sounds"] .settingsBody {
+  scrollbar-width: thin;
+  scrollbar-color: #0077ff transparent;
+}
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar { width: 6px; }
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-track { background: transparent; }
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb {
+  background: #0077ff;
+  border-radius: 3px;
+}
+.settingsPanel[data-tab="sounds"] .settingsBody::-webkit-scrollbar-thumb:hover { background: #0066d9; }
+
+/* Вкладка «Звуки»: новая раскладка по дизайну (figma 1107_93).
+ * Структура: заголовок плейлиста + счётчик + ряды треков (icon|name|▶|✕|☰),
+ * затем add-form (label/input × 2, два pill'а файлов с «+», submit-кнопка),
+ * затем 3 одиночных звука в pill'ах (label|▶|+) с подсказкой-форматом.
+ * Ширина колонки = 300px (parent .soundsBody с padding 20 10). */
+
+.soundsPlaylistTitle {
+  font-family: 'Jost', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
+  margin: 0;
+  text-align: left;
+  padding-left: 6px;
+}
+
+.soundsTrackCount {
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000000;
+  /* Поджимаем к заголовку: -4 съедает часть .soundsBody-gap (8px),
+     оставляя ~4px между «Плейлист…» и счётчиком. */
+  margin: -4px 0 0;
+}
+
+/* Ряд трека — тонкая синяя рамка по периметру (как в дизайне 1110_315),
+   3 равных 50×50 action-слота справа. Без подложки — фон проступает с панели. */
+.soundsTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 50px;
+  padding: 0;
+  background: transparent;
+}
+
+.soundsTrackRow[draggable="true"] {
+  cursor: default;
+}
+
+.soundsTrackThumb {
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background: radial-gradient(50% 50% at 50% 50%, #8000ff 0%, #0077ff 50%, #00ff00 100%);
+  overflow: hidden;
+}
+
+.soundsTrackThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.soundsTrackName {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 10px;
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  color: #000000;
+  /* До 2 строк, дальше эллипсис — длинные «Гимн ЛЧ УЕФА» переносятся аккуратно. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* 50×50 слот под action-иконку (▶ / ✕ / ☰). Сама иконка 22×22 в центре. */
+.soundsActionButton {
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.soundsActionButton:hover:not(:disabled) {
+  opacity: 0.65;
+}
+
+.soundsActionButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Текстовые инпуты «Название трека» / «Автор трека» теперь используют общий
+   паттерн .settingsField (см. выше) — тот же что в вкладках «Настройки/Ссылка/
+   Бан». Focus-рамка для sounds-таба погашена через .settingsPanel[data-tab="sounds"]
+   override (см. выше рядом с link/ban overrides). */
+
+/* Pill с label слева и одной-двумя круглыми кнопками справа.
+ * Используется и в add-track form (Аудио/Обложка), и в 3 одиночных звуках. */
+.soundsPill {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  border-radius: 100px;
+  background: #dddddd;
+  padding: 0 10px 0 20px;
+  gap: 2px;
+  box-sizing: border-box;
+}
+
+.soundsPillLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: 'Jost', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.soundsPillIconButton {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.soundsPillIconButton:hover:not(:disabled) {
+  opacity: 0.65;
+}
+
+.soundsPillIconButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Подсказка-формат под pill'ами («mp3/ogg/wav до 10 МБ»). По CSS-дампу из
+   figma — Jost 16/23 чёрным, с левым отступом 20px (как у placeholder'ов).
+   Зазор от pill'а сверху задаёт родитель .soundsField (gap:6). */
+.soundsPillHint {
+  font-family: 'Jost', sans-serif;
+  font-size: 16px;
+  line-height: 23px;
+  color: #000000;
+  padding-left: 20px;
+  margin: 0;
+}
+
+/* «Добавить трек» — синяя градиентная pill-кнопка в стиле primary CTA. */
+/* «Добавить трек» по figma 1107_103: 300×50, fill 90°-градиент
+   #0077FF → #DEEEFF (50%) → #0077FF; 5px stroke с инвертированным градиентом
+   #DEEEFF → #0077FF (49.5%) → #DEEEFF; rx 22.5. Реализуем через двойной
+   background (padding-box + border-box) + прозрачный border. */
+.soundsAddSubmit {
+  width: 100%;
+  height: 50px;
+  border-radius: 25px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #deeeff 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #deeeff 0%, #0077ff 49.52%, #deeeff 100%) border-box;
+  color: #000000;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+  padding: 0;
+  /* margin-bottom отделяет блок «Добавить трек» от секции одиночных звуков
+     (плюс к gap'у 8px в .soundsBody). */
+  margin-top: 0;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.soundsAddSubmit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.soundsAddSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.soundsAddError {
+  font-family: 'Jost', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  color: #d33;
+  padding-left: 20px;
+  margin: -2px 0 0;
+}
+
+/* Тёмная тема: pill'ы и инпуты на #444, текст белый. */
+:global(:root[data-theme="dark"]) .soundsPlaylistTitle,
+:global(:root[data-theme="dark"]) .soundsTrackName,
+:global(:root[data-theme="dark"]) .soundsPillLabel,
+:global(:root[data-theme="dark"]) .soundsActionButton,
+:global(:root[data-theme="dark"]) .soundsPillIconButton {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .soundsTrackCount {
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .soundsPillHint {
+  /* В figma все вспомогательные подписи белые в тёмной теме. */
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .soundsPill {
+  background: #444444;
+  color: #ffffff;
+}
+
+/* Текстовые инпуты «Название трека» / «Автор трека» используют общий
+   .settingsField, у которого дефолтный dark-фон #2a2a2a. На вкладке «Звуки»
+   по дизайну фон #444444 (как у pill'ов), placeholder #999999. */
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsField input {
+  background: #444444;
+  color: #ffffff;
+}
+
+:global(:root[data-theme="dark"]) .settingsPanel[data-tab="sounds"] .settingsField input::placeholder {
+  color: #999999;
+}
+
+/* Submit-кнопка «Добавить трек» в dark — по figma 1107_103 (dark variant):
+   fill #0077FF → #002550 (50%) → #0077FF; stroke #002550 → #0077FF → #002550. */
+:global(:root[data-theme="dark"]) .soundsAddSubmit {
+  color: #ffffff;
+  background:
+    linear-gradient(90deg, #0077ff 0%, #002550 50%, #0077ff 100%) padding-box,
+    linear-gradient(90deg, #002550 0%, #0077ff 49.52%, #002550 100%) border-box;
+}
+
+/* =====================================================================
+ * Fun-sound button (bottomBar).
+ * ===================================================================== */
+/* Owner-only «прикольный звук» — кнопка в шапке рядом с шестерёнкой.
+ * По figma 1110_???: 50×50 круг #DDDDDD, иконка «звук излучается в обе
+ * стороны» 30×30 в центре. Visible только owner'у и только при funUrl != null. */
+.headerFunSoundButton {
+  position: fixed;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #dddddd;
+  color: #000000;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.headerFunSoundButton:hover,
+.headerFunSoundButton:focus,
+.headerFunSoundButton:focus-visible {
+  outline: none;
+  filter: brightness(0.96);
+}
+
+.headerFunSoundButton > svg {
+  display: block;
+}
+
+.desktopHeaderFunSoundButton,
+.tabletHeaderFunSoundButton {
+  /* Settings — left:28 + width:50 = 78. Кнопка вплотную справа. */
+  left: 78px;
+  top: 25px;
+  zoom: var(--room-scale);
+}
+
+.mobileHeaderFunSoundButton {
+  /* Settings — left:calc(50% - 185px). Здесь сразу за ней + 50px. */
+  left: calc(50% - 135px);
+  top: 27px;
+}
+
+:global(:root[data-theme="dark"]) .headerFunSoundButton {
+  background: #444444;
+  color: #ffffff;
 }

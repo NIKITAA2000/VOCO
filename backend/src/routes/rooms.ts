@@ -19,6 +19,8 @@ import {
   PARTICIPANT_STATUS_ACTIVE,
 } from "../lib/livekit.js";
 import { loadRoomPolls } from "../lib/polls.js";
+import { loadRoomSounds, collectRoomSoundFiles } from "../lib/sounds.js";
+import { unlinkByUrl as unlinkAudioByUrl } from "./sounds.js";
 
 interface AttachmentDto {
   url: string;
@@ -95,6 +97,14 @@ router.post("/", async (req: Request, res: Response) => {
     await db.query(
       "INSERT INTO participants (user_id, room_id, role, approved) VALUES ($1, $2, 'OWNER', true)",
       [req.user!.userId, room.id]
+    );
+
+    // Открываем первую сессию комнаты. Стартуем с created_at, чтобы граница
+    // сессии в room_sessions совпадала с rooms.current_session_started_at.
+    await db.query(
+      `INSERT INTO room_sessions (room_id, started_at)
+       SELECT id, current_session_started_at FROM rooms WHERE id = $1`,
+      [room.id]
     );
 
     // Get owner info
@@ -262,6 +272,7 @@ router.get("/:slug", async (req: Request, res: Response) => {
 
     // Опросы — viewer's identity = userId зарегистрированного смотрящего.
     const polls = await loadRoomPolls(row.id, req.user!.userId);
+    const { playlist, sounds } = await loadRoomSounds(row.id);
 
     res.json({
       room: {
@@ -305,6 +316,8 @@ router.get("/:slug", async (req: Request, res: Response) => {
           attachments: resolveAttachments(m),
         })),
         polls,
+        playlist,
+        sounds,
       },
     });
   } catch (error) {
@@ -849,57 +862,128 @@ router.patch("/:slug/participants/:userId/role", async (req: Request, res: Respo
   }
 });
 
-// GET /api/rooms/:slug/report — отчёт о последней сессии (только владелец/модератор).
-// Сессия = период от создания (или восстановления) до ближайшего закрытия.
-// Доступен только когда комната закрыта; для активной отдаём 400.
-router.get("/:slug/report", async (req: Request, res: Response) => {
+// Общая проверка доступа: владелец комнаты или модератор. Возвращает строку
+// комнаты при успехе либо отправляет 403/404 и возвращает null.
+async function loadRoomForOwnerOrModerator(
+  req: Request,
+  res: Response
+): Promise<any | null> {
+  const roomResult = await db.query(
+    `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
+            r.max_users AS "maxUsers", r.owner_id AS "ownerId",
+            r.created_at AS "createdAt", r.closed_at AS "closedAt",
+            r.current_session_started_at AS "sessionStartedAt",
+            u.id AS "owner_id", u.username AS "owner_username"
+     FROM rooms r
+     JOIN users u ON r.owner_id = u.id
+     WHERE r.slug = $1`,
+    [req.params.slug]
+  );
+
+  if (roomResult.rows.length === 0) {
+    res.status(404).json({ error: "Комната не найдена" });
+    return null;
+  }
+
+  const room = roomResult.rows[0];
+
+  if (room.ownerId !== req.user!.userId) {
+    const roleResult = await db.query(
+      `SELECT role FROM participants
+       WHERE room_id = $1 AND user_id = $2
+       ORDER BY joined_at DESC
+       LIMIT 1`,
+      [room.id, req.user!.userId]
+    );
+    const role = roleResult.rows[0]?.role;
+    if (role !== "MODERATOR") {
+      res.status(403).json({ error: "Нет доступа к отчёту" });
+      return null;
+    }
+  }
+
+  return room;
+}
+
+// GET /api/rooms/:slug/sessions — список завершённых сессий комнаты
+// (только владелец/модератор). Используется выпадашкой «отчёт» на дашборде,
+// чтобы выбрать, за какую сессию качать PDF. Открытые (ended_at IS NULL)
+// сессии не отдаём — отчёт по ним всё равно недоступен.
+router.get("/:slug/sessions", async (req: Request, res: Response) => {
   try {
-    const roomResult = await db.query(
-      `SELECT r.id, r.name, r.slug, r.is_active AS "isActive",
-              r.max_users AS "maxUsers", r.owner_id AS "ownerId",
-              r.created_at AS "createdAt", r.closed_at AS "closedAt",
-              r.current_session_started_at AS "sessionStartedAt",
-              u.id AS "owner_id", u.username AS "owner_username"
-       FROM rooms r
-       JOIN users u ON r.owner_id = u.id
-       WHERE r.slug = $1`,
-      [req.params.slug]
+    const room = await loadRoomForOwnerOrModerator(req, res);
+    if (!room) return;
+
+    const result = await db.query(
+      `SELECT id, started_at AS "startedAt", ended_at AS "endedAt"
+       FROM room_sessions
+       WHERE room_id = $1 AND ended_at IS NOT NULL
+       ORDER BY started_at DESC`,
+      [room.id]
     );
 
-    if (roomResult.rows.length === 0) {
-      res.status(404).json({ error: "Комната не найдена" });
-      return;
-    }
+    res.json({
+      sessions: result.rows.map((row: any) => ({
+        id: row.id,
+        startedAt: new Date(row.startedAt).toISOString(),
+        endedAt: new Date(row.endedAt).toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error("List sessions error:", error);
+    res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
 
-    const room = roomResult.rows[0];
+// GET /api/rooms/:slug/report — отчёт о сессии (только владелец/модератор).
+// Без query — последняя сессия (только если комната закрыта).
+// С ?sessionId=<uuid> — отчёт по указанной завершённой сессии (можно вызывать
+// и для активной комнаты — старые завершённые сессии всё равно доступны).
+router.get("/:slug/report", async (req: Request, res: Response) => {
+  try {
+    const room = await loadRoomForOwnerOrModerator(req, res);
+    if (!room) return;
 
-    if (room.ownerId !== req.user!.userId) {
-      const roleResult = await db.query(
-        `SELECT role FROM participants
-         WHERE room_id = $1 AND user_id = $2
-         ORDER BY joined_at DESC
-         LIMIT 1`,
-        [room.id, req.user!.userId]
+    const sessionIdParam = typeof req.query.sessionId === "string"
+      ? req.query.sessionId
+      : undefined;
+
+    let sessionStart: Date;
+    let sessionEnd: Date;
+
+    if (sessionIdParam) {
+      const sessionResult = await db.query(
+        `SELECT started_at AS "startedAt", ended_at AS "endedAt"
+         FROM room_sessions
+         WHERE id = $1 AND room_id = $2`,
+        [sessionIdParam, room.id]
       );
-      const role = roleResult.rows[0]?.role;
-      if (role !== "MODERATOR") {
-        res.status(403).json({ error: "Нет доступа к отчёту" });
+      if (sessionResult.rows.length === 0) {
+        res.status(404).json({ error: "Сессия не найдена" });
         return;
       }
+      const row = sessionResult.rows[0];
+      if (!row.endedAt) {
+        res.status(400).json({
+          error: "Отчёт доступен только по завершённой сессии",
+        });
+        return;
+      }
+      sessionStart = new Date(row.startedAt);
+      sessionEnd = new Date(row.endedAt);
+    } else {
+      if (room.isActive) {
+        res.status(400).json({
+          error: "Отчёт доступен только после закрытия комнаты",
+        });
+        return;
+      }
+      // Окно последней сессии: [sessionStartedAt, closedAt].
+      // sessionStartedAt всегда заполнен миграцией (для старых строк = created_at),
+      // closedAt — закрытая комната гарантирует, что он не NULL.
+      sessionStart = new Date(room.sessionStartedAt ?? room.createdAt);
+      sessionEnd = new Date(room.closedAt);
     }
-
-    if (room.isActive) {
-      res.status(400).json({
-        error: "Отчёт доступен только после закрытия комнаты",
-      });
-      return;
-    }
-
-    // Окно последней сессии: [sessionStartedAt, closedAt].
-    // sessionStartedAt всегда заполнен миграцией (для старых строк = created_at),
-    // closedAt — закрытая комната гарантирует, что он не NULL.
-    const sessionStart: Date = new Date(room.sessionStartedAt ?? room.createdAt);
-    const sessionEnd: Date = new Date(room.closedAt);
 
     // В отчёт попадают только те участники, чьи сессии (joined_at..left_at)
     // пересеклись с окном последней сессии комнаты.
@@ -1129,13 +1213,20 @@ router.post("/:slug/restore", async (req: Request, res: Response) => {
     }
 
     // Восстановление открывает новую сессию: сдвигаем current_session_started_at
-    // на текущий момент — отчёт после следующего закрытия покажет только эту сессию.
+    // на текущий момент. Прошлые сессии остаются в room_sessions — отчёт можно
+    // выгрузить по любой из них.
     const result = await db.query(
       `UPDATE rooms SET is_active = true, closed_at = NULL, current_session_started_at = NOW()
        WHERE id = $1
        RETURNING id, name, slug, is_active AS "isActive", max_users AS "maxUsers",
                  owner_id AS "ownerId", created_at AS "createdAt", closed_at AS "closedAt",
                  allow_guests AS "allowGuests", require_approval AS "requireApproval"`,
+      [room.id]
+    );
+
+    await db.query(
+      `INSERT INTO room_sessions (room_id, started_at)
+       SELECT id, current_session_started_at FROM rooms WHERE id = $1`,
       [room.id]
     );
 
@@ -1608,6 +1699,15 @@ router.delete("/:slug", async (req: Request, res: Response) => {
         "UPDATE rooms SET is_active = false, closed_at = NOW() WHERE id = $1",
         [room.id]
       );
+      // Закрываем открытую сессию в room_sessions (если есть). Гарантируем, что
+      // ended_at совпадает с rooms.closed_at — чтобы границы были консистентны.
+      await client.query(
+        `UPDATE room_sessions s
+         SET ended_at = r.closed_at
+         FROM rooms r
+         WHERE s.room_id = r.id AND s.room_id = $1 AND s.ended_at IS NULL`,
+        [room.id]
+      );
       // Фиксируем выход всех, кто оставался в комнате — нужно для корректной
       // длительности сессий в отчёте и чтобы «зависшие» participants с left_at IS NULL
       // не торчали в следующих сессиях.
@@ -1629,18 +1729,26 @@ router.delete("/:slug", async (req: Request, res: Response) => {
       return;
     }
 
+    // Собираем урлы аудио ДО транзакции — после DELETE их уже не достанешь.
+    const audioFiles = await collectRoomSoundFiles(room.id);
+
     await client.query("BEGIN");
     try {
       // FK без ON DELETE CASCADE — чистим вручную
       await client.query("DELETE FROM participants WHERE room_id = $1", [room.id]);
       await client.query("DELETE FROM blocked_users WHERE room_id = $1", [room.id]);
       await client.query("DELETE FROM invite_links WHERE room_id = $1", [room.id]);
-      // chat_messages, pinned_messages, hidden_rooms — на CASCADE; удалятся сами
+      // chat_messages, pinned_messages, hidden_rooms, room_playlist_tracks — на CASCADE
       await client.query("DELETE FROM rooms WHERE id = $1", [room.id]);
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;
+    }
+
+    // Физически сносим аудио-файлы с диска (FK CASCADE удаляет только записи).
+    for (const url of audioFiles) {
+      await unlinkAudioByUrl(url);
     }
 
     res.json({ message: "Комната удалена" });
